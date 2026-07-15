@@ -1,0 +1,10 @@
+build/
+obj_dir/
+*.elf
+*.bin
+*.hex
+*.vcd
+*.fst
+riscof_work/
+.direnv/
+.mcp.json

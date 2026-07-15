@@ -1,0 +1,70 @@
+{
+  description = "riscv-soc — RISC-V processor / SoC development (toolflow from 'RISC-V System-on-Chip Design')";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+
+        # Bare-metal RISC-V cross toolchain (riscv64-none-elf-*).
+        # The book uses the riscv64-unknown-elf- prefix; only the name
+        # differs, riscof/Makefiles take the prefix as a variable.
+        crossPkgs = pkgs.pkgsCross.riscv64-embedded.buildPackages;
+        toolchain = [
+          crossPkgs.gcc       # riscv64-none-elf-gcc (+ ld/as via wrapper)
+          crossPkgs.binutils  # objdump/objcopy/readelf
+          crossPkgs.gdb       # riscv64-none-elf-gdb
+        ];
+
+        # ISA simulators / golden reference models.
+        isaSim = [
+          pkgs.spike       # riscv-isa-sim — the standard ISA simulator
+          pkgs.sail-riscv  # formal golden model, riscof reference
+          pkgs.qemu        # qemu-system-riscv64 — fast full-system emulation
+        ];
+
+        # RTL simulation / verification.
+        rtlSim = [
+          pkgs.verilator  # fast cycle-accurate C++ sim + linter
+          pkgs.gtkwave    # waveform viewer
+          pkgs.verible    # verible-verilog-{ls,format,lint}
+        ];
+
+        # riscof drives the RISC-V architecture compliance tests,
+        # comparing your core (DUT) against the Sail golden model.
+        # setuptools provides the distutils shim riscof still imports.
+        python = pkgs.python3.withPackages (ps: [ ps.riscof ps.setuptools ]);
+
+        misc = [
+          pkgs.dtc  # device tree compiler (spike/qemu platform descriptions)
+          pkgs.just
+          python
+        ];
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          name = "riscv-soc";
+          packages = toolchain ++ isaSim ++ rtlSim ++ misc;
+
+          # Cross-compile prefix, used by the justfile and riscof configs.
+          CROSS_COMPILE = "riscv64-none-elf-";
+
+          shellHook = ''
+            echo "riscv-soc dev shell"
+            echo "  gcc        $(riscv64-none-elf-gcc --version | head -n1)"
+            echo "  spike      $(spike --help 2>&1 | head -n1)"
+            echo "  sail       $(ls ${pkgs.sail-riscv}/bin | tr '\n' ' ')"
+            echo "  qemu       $(qemu-system-riscv64 --version | head -n1)"
+            echo "  verilator  $(verilator --version)"
+            echo "  riscof     $(riscof --version 2>/dev/null | head -n1)"
+            echo ""
+            echo "Recipes: just --list"
+          '';
+        };
+      });
+}
