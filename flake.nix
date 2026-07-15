@@ -33,6 +33,7 @@
           pkgs.verilator  # fast cycle-accurate C++ sim + linter
           pkgs.gtkwave    # waveform viewer
           pkgs.verible    # verible-verilog-{ls,format,lint}
+          pkgs.asm-lsp    # assembly language server (RISC-V aware, see .asm-lsp.toml)
         ];
 
         # riscof drives the RISC-V architecture compliance tests,

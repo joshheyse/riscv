@@ -1,0 +1,3 @@
+[default_config]
+assembler = "gas"
+instruction_set = "riscv"
