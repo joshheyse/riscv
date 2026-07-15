@@ -2,6 +2,7 @@
 # HTIF-aware simulator (spike, sail) to exit with success.
 .section .text.init
 .globl _start
+
 _start:
     li   t0, 1
     la   t1, tohost
