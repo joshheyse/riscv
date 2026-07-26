@@ -26,8 +26,8 @@ module main_decoder
 (
   input instr_u instr,
   output logic reg_write,
-  output imm_src_t imm_src,
   output logic mem_write,
+  output imm_src_t imm_src,
   output alu_src_t alu_src,
   output alu_result_src_t alu_result_src,
   output result_src_t result_src,
@@ -87,15 +87,15 @@ module main_decoder
         reg_write      = 1'b1;
         jump           = 1'b1;
         imm_src        = IMM_J;
-        alu_src        = SRC_PC_IMM;        // target = pc + imm
+        alu_src        = SRC_PC_IMM;  // target = pc + imm
         alu_result_src = ALU_RES_PC_PLUS4;  // but rd gets the return address
       end
 
       OP_JALR: begin
         reg_write      = 1'b1;
         jump           = 1'b1;
-        imm_src        = IMM_I;             // I-type, not J-type
-        alu_src        = SRC_RS1_IMM;       // target = rs1 + imm
+        imm_src        = IMM_I;  // I-type, not J-type
+        alu_src        = SRC_RS1_IMM;  // target = rs1 + imm
         alu_result_src = ALU_RES_PC_PLUS4;
       end
 
@@ -108,7 +108,7 @@ module main_decoder
       OP_AUIPC: begin
         reg_write      = 1'b1;
         imm_src        = IMM_U;
-        alu_src        = SRC_PC_IMM;   // pc + imm, computed by the ALU
+        alu_src        = SRC_PC_IMM;  // pc + imm, computed by the ALU
         alu_result_src = ALU_RES_ALU;
       end
 

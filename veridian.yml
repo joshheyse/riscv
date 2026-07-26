@@ -48,5 +48,10 @@ verible:
   format:
     enabled: true
     path: "verible-verilog-format"
+    args:
+      - --port_declarations_indentation=indent
+      - --formal_parameters_indentation=indent
+      - --named_port_indentation=indent
+      - --named_parameter_indentation=indent
 
 log_level: Info

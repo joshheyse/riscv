@@ -79,12 +79,13 @@ wave:
 	gtkwave $(SIM_DIR)/dump.vcd
 
 ## fmt: format all of the design's RTL and testbenches in place
-# verible defaults to "wrap" for port and parameter lists, which double-indents
-# them to 4 spaces. This design indents them by one level like everything else,
-# so both are set to "indent"; without these, `make fmt` reformats every module
-# header in the tree.
+# verible defaults to "wrap" for port/parameter lists and named instance
+# connections, which indents continuation lines by 4 spaces. This design
+# indents them by one level like everything else, so set each family to "indent".
 FMT_FLAGS := --port_declarations_indentation=indent \
-             --formal_parameters_indentation=indent
+             --formal_parameters_indentation=indent \
+             --named_port_indentation=indent \
+             --named_parameter_indentation=indent
 
 fmt:
 	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(ALL_TB_SRCS)
