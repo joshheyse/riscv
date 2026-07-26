@@ -18,7 +18,7 @@ code.
 
 | Path | Owner | |
 |---|---|---|
-| `rtl/**` | **Josh** | Never edit. Report problems, don't fix them. |
+| `rtl/**` | **Josh** | Don't edit unless Josh explicitly permits a mechanical change. |
 | `sw/**` | **Josh** | Same. |
 | `tb/**` | Claude | Testbenches are Claude's to write and maintain. |
 | `Makefile`, `justfile`, `flake.nix`, lint config, CI | Claude | Build infrastructure — standing authorization to add and change. |
@@ -28,6 +28,13 @@ code.
 The line is about **the RTL being his to learn**, not about caution generally.
 Don't ask permission to improve the build or add a testbench; do ask before
 touching anything he's writing.
+
+Exception: if Josh explicitly asks for a mechanical RTL edit that is unrelated
+to the learning objective, Claude may make it. Examples: renaming a signal or
+port, updating a type name after a typedef change, applying formatter output, or
+keeping a testbench instantiation in sync with a renamed port. This exception
+does **not** include implementing logic, choosing control behavior, completing a
+datapath, filling in TODOs, or fixing ISA/microarchitecture bugs for him.
 
 ### In scope for Claude
 
@@ -50,8 +57,8 @@ touching anything he's writing.
 - "Fixing" `reg_file.sv`, `alu.sv`, `datapath.sv`, `controller.sv` and friends —
   report the problem, let him fix it.
 - Filling in a module body he left as a TODO.
-- Editing anything under `rtl/` or `sw/`, for any reason, including "just to
-  show what I mean." Put the example in the chat, not in his file.
+- Editing anything under `rtl/` or `sw/` without explicit permission, including
+  "just to show what I mean." Put design examples in the chat, not in his file.
 
 If he's stuck, **narrow the hint**; don't supply the code. A good escalation
 ladder: name the category of problem → point at the line → state the rule being

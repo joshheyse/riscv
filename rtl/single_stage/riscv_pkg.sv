@@ -4,6 +4,7 @@ package riscv_pkg;
   localparam int unsigned XLEN = 32;
 
   typedef logic [XLEN-1:0] word_t;  // data: a register value, ALU operand
+  typedef word_t pc_t;  // an instruction
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [2:0] funct3_t;
