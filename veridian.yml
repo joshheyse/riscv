@@ -1,0 +1,52 @@
+# Veridian (SystemVerilog language server) project configuration.
+#
+# Without source_dirs, veridian parses each buffer in isolation and reports
+# "Import package not found: 'riscv_pkg'" — the package is in a different file
+# and nothing tells the server to index it. These directories are searched
+# recursively to build the cross-file symbol table.
+
+source_dirs:
+  - rtl
+  - tb
+
+include_dirs:
+  - rtl
+
+# Run diagnostics on files under the working directory as well.
+auto_search_workdir: true
+
+# Keep the server's inline Verilator diagnostics consistent with `make lint`,
+# so the editor and the build agree about what's a warning.
+#
+# Veridian runs this on the single buffer being edited, which is why the package
+# has to be named explicitly. A search path (-I / -y) is NOT enough: Verilator
+# finds the package that way but resolves it lazily, after the module's port
+# list has already been elaborated, giving "Reference to 'word_t' before
+# declaration". Listing the file compiles it first, which is what ports need.
+#
+# -Wno-MODDUP covers the case where the buffer IS riscv_pkg.sv, so the file
+# lands on the command line twice.
+verilator:
+  syntax:
+    enabled: true
+    path: "verilator"
+    args:
+      - --lint-only
+      - --sv
+      - --timing
+      - --assert
+      - -Wall
+      - -Wno-MODDUP
+      - -Irtl/single_stage
+      - -Itb/single_stage
+      - rtl/single_stage/riscv_pkg.sv
+
+verible:
+  syntax:
+    enabled: true
+    path: "verible-verilog-syntax"
+  format:
+    enabled: true
+    path: "verible-verilog-format"
+
+log_level: Info

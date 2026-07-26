@@ -30,18 +30,34 @@ Synopsys DC) for some chapters — Verilator substitutes for simulation.
 ## Layout
 
 ```
-rtl/    processor / SoC RTL (SystemVerilog)
-tb/     testbenches
-sw/     bare-metal test programs (sw/smoke = toolchain sanity check)
-tests/  riscof compliance configuration
-docs/   notes
+rtl/<design>/   processor / SoC RTL (SystemVerilog)
+tb/<design>/    testbenches
+sw/             bare-metal test programs (sw/smoke = toolchain sanity check)
+tests/          riscof compliance configuration
+docs/           notes
 ```
+
+`<design>` is a core variant — `single_stage` today, later `multicycle`,
+`pipelined`, … The `Makefile` is parameterised by `DESIGN` (default
+`single_stage`), so a new variant is just a new `rtl/<design>` + `tb/<design>`
+pair with no build changes.
 
 ## Quick check
 
 ```sh
 nix develop
 just smoke   # cross-compile sw/smoke, run it on spike and sail
+just lint    # Verilator lint of rtl/single_stage
+just sim     # build + run tb/single_stage
+just wave    # same, with a VCD, opened in GTKWave
+```
+
+The `just` recipes are thin wrappers over `make`; use `make` directly to pick
+a design or turn on tracing:
+
+```sh
+make sim DESIGN=single_stage
+make run TRACE=1
 ```
 
 ## References
