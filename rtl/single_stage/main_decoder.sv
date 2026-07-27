@@ -42,7 +42,7 @@ module main_decoder
     reg_write      = 1'b0;
     imm_src        = IMM_I;
     mem_write      = 1'b0;
-    alu_src        = SRC_RS1_RS2;
+    alu_src        = ALU_SRC_RS1_RS2;
     alu_result_src = ALU_RES_ALU;
     result_src     = RESULT_ALU;
     branch         = 1'b0;
@@ -58,21 +58,21 @@ module main_decoder
       OP_I_ALU: begin
         reg_write = 1'b1;
         imm_src   = IMM_I;
-        alu_src   = SRC_RS1_IMM;
+        alu_src   = ALU_SRC_RS1_IMM;
         alu_op    = 1'b1;
       end
 
       OP_LOAD: begin
         reg_write  = 1'b1;
         imm_src    = IMM_I;
-        alu_src    = SRC_RS1_IMM;  // address = rs1 + imm
+        alu_src    = ALU_SRC_RS1_IMM;  // address = rs1 + imm
         result_src = RESULT_MEM;   // rd gets the loaded value, not the address
       end
 
       OP_STORE: begin
         mem_write = 1'b1;
         imm_src   = IMM_S;
-        alu_src   = SRC_RS1_IMM;  // address = rs1 + imm; rs2 is the store data
+        alu_src   = ALU_SRC_RS1_IMM;  // address = rs1 + imm; rs2 is the store data
       end
 
       OP_BRANCH: begin
@@ -80,14 +80,14 @@ module main_decoder
         imm_src = IMM_B;
         // The ALU computes the target; a separate comparator decides whether
         // the branch is taken.
-        alu_src = SRC_PC_IMM;
+        alu_src = ALU_SRC_PC_IMM;
       end
 
       OP_JAL: begin
         reg_write      = 1'b1;
         jump           = 1'b1;
         imm_src        = IMM_J;
-        alu_src        = SRC_PC_IMM;  // target = pc + imm
+        alu_src        = ALU_SRC_PC_IMM;  // target = pc + imm
         alu_result_src = ALU_RES_PC_PLUS4;  // but rd gets the return address
       end
 
@@ -95,7 +95,7 @@ module main_decoder
         reg_write      = 1'b1;
         jump           = 1'b1;
         imm_src        = IMM_I;  // I-type, not J-type
-        alu_src        = SRC_RS1_IMM;  // target = rs1 + imm
+        alu_src        = ALU_SRC_RS1_IMM;  // target = rs1 + imm
         alu_result_src = ALU_RES_PC_PLUS4;
       end
 
@@ -108,7 +108,7 @@ module main_decoder
       OP_AUIPC: begin
         reg_write      = 1'b1;
         imm_src        = IMM_U;
-        alu_src        = SRC_PC_IMM;  // pc + imm, computed by the ALU
+        alu_src        = ALU_SRC_PC_IMM;  // pc + imm, computed by the ALU
         alu_result_src = ALU_RES_ALU;
       end
 

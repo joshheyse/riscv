@@ -11,7 +11,6 @@ module imem
 );
 
   instr_t rom[DepthWords-1:0];
-
   initial begin
     if (InitFile != "") begin
       $readmemh(InitFile, rom);

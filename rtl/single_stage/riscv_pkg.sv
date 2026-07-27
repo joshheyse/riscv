@@ -102,9 +102,9 @@ package riscv_pkg;
   // selects SrcB (rs2 or the immediate); the names below spell out the pair.
   // PC + rs2 (2'b10) is never needed by any RV32I instruction.
   typedef enum logic [1:0] {
-    SRC_RS1_RS2 = 2'b00,  // R-type, and the branch comparison
-    SRC_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
-    SRC_PC_IMM  = 2'b11   // branch/jal target, auipc
+    ALU_SRC_RS1_RS2 = 2'b00,  // R-type, and the branch comparison
+    ALU_SRC_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
+    ALU_SRC_PC_IMM  = 2'b11   // branch/jal target, auipc
   } alu_src_t;
 
   // First level of the writeback mux. Three sources reach rd without touching
