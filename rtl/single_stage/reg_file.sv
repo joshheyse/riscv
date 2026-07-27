@@ -1,5 +1,16 @@
 `timescale 1ns / 1ps
 
+// RV32I integer register file.
+//
+// Register fields come straight from fixed instruction bit positions:
+//
+//   instr[19:15]  rs1 -> rd_addr1
+//   instr[24:20]  rs2 -> rd_addr2
+//   instr[11:7]   rd  -> wr_addr
+//
+// Reads are combinational and x0 is hard-wired to zero on both read ports.
+// Writes occur on the rising clock edge when `wr_en` is asserted.
+//
 module reg_file
   import riscv_pkg::*;
 (

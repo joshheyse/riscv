@@ -3,13 +3,29 @@
 package riscv_pkg;
   localparam int unsigned XLEN = 32;
 
+  // RV32I architectural widths. Instruction width is fixed at 32 bits; data
+  // and PC values are XLEN-wide in this RV32I core.
   typedef logic [XLEN-1:0] word_t;  // data: a register value, ALU operand
-  typedef word_t pc_t;  // an instruction
+  typedef word_t pc_t;  // program counter / instruction address
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
 
+  // RV32I opcode map used by the main decoder.
+  //
+  //   opcode   category
+  //   -------  ----------------
+  //   0110011  OP      R-type ALU
+  //   0010011  OP-IMM  I-type ALU
+  //   0000011  LOAD
+  //   0100011  STORE
+  //   1100011  BRANCH
+  //   1101111  JAL
+  //   1100111  JALR
+  //   0110111  LUI
+  //   0010111  AUIPC
+  //   1110011  SYSTEM  currently inert
   typedef enum logic [6:0] {
     OP_R      = 7'b0110011,
     OP_I_ALU  = 7'b0010011,

@@ -1,5 +1,22 @@
 `timescale 1ns / 1ps
 
+// RV32I integer ALU.
+//
+// `alu_select` is intentionally the RV32I OP/OP-IMM funct3 encoding, so most
+// operations decode directly. `sub_arith` supplies the one extra funct7 bit
+// needed to distinguish add/sub and srl/sra.
+//
+//   alu_select  sub_arith=0       sub_arith=1
+//   ----------  ----------------  ----------------
+//   ADDSUB      src_a + src_b     src_a - src_b
+//   SLL         src_a << shamt    same
+//   SLT         signed less-than  same
+//   SLTU        unsigned lt       same
+//   XOR         bitwise xor       same
+//   SRL_SRA     logical right     arithmetic right
+//   OR          bitwise or        same
+//   AND         bitwise and       same
+//
 module alu
   import riscv_pkg::*;
 (

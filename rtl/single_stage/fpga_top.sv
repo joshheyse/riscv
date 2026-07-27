@@ -6,6 +6,14 @@
 //   - single-cycle core instance (rvsingle)
 //   - instruction + data memory (BRAM)
 //   - simple peripherals (LEDs, switches, UART)
+//
+// Keep board concerns here rather than inside the core:
+//
+//   board clock/reset/pins -> fpga_top -> portable core
+//   core MMIO/debug state  -> fpga_top -> LEDs/UART/etc.
+//
+// The portable core should not know which FPGA board, reset polarity, LED
+// width, or UART pins are being used.
 
 `timescale 1ns / 1ps
 

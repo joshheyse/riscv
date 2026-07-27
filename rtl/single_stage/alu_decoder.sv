@@ -1,5 +1,21 @@
 `timescale 1ns / 1ps
 
+// ALU decoder.
+//
+// The main decoder first decides whether an instruction needs a real ALU
+// operation (`alu_op=1`) or just plain addition for an address/target
+// (`alu_op=0`). When `alu_op=1`, RV32I OP/OP-IMM funct3 maps directly to
+// `alu_select_t`; funct7[5] supplies subtraction/arithmetic-shift selection.
+//
+//   instruction class       alu_select          sub_arith
+//   -----------------       ------------------  ----------------------------
+//   load/store/branch/jump  ALU_ADDSUB          0
+//   add/addi                ALU_ADDSUB          0
+//   sub                     ALU_ADDSUB          1
+//   srl/srli                ALU_SRL_SRA         0
+//   sra/srai                ALU_SRL_SRA         1
+//   other OP/OP-IMM         instr.r.funct3.alu  0
+//
 module alu_decoder
   import riscv_pkg::*;
 (

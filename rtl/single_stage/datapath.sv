@@ -1,5 +1,31 @@
 `timescale 1ns / 1ps
 
+// Single-cycle execution datapath.
+//
+// This module contains the register file, immediate extender, ALU operand
+// muxes, ALU, branch comparator, store-data path, and writeback muxes. The
+// controller supplies only selectors and enables; instruction field extraction
+// happens here where the register/immediate datapath uses those fields.
+//
+// ALU operand mux:
+//   alu_src           src_a      src_b
+//   ----------------  ---------  --------
+//   ALU_SRC_RS1_RS2   rd_data1   rd_data2
+//   ALU_SRC_RS1_IMM   rd_data1   imm_ext
+//   ALU_SRC_PC_IMM    pc         imm_ext
+//
+// Writeback mux:
+//   alu_result_src     pre-memory value
+//   -----------------  ----------------
+//   ALU_RES_ALU        alu_result
+//   ALU_RES_PC_PLUS4   pc + 4
+//   ALU_RES_IMM        imm_ext
+//
+//   result_src         regfile wr_data
+//   ----------         ----------------
+//   RESULT_ALU         pre-memory value
+//   RESULT_MEM         read_data from LSU
+//
 module datapath
   import riscv_pkg::*;
 (

@@ -1,5 +1,21 @@
 `timescale 1ns / 1ps
 
+// Word-only load/store unit.
+//
+// This is the first simple data memory for the single-cycle core. It supports
+// full-word loads and stores only (`lw`/`sw` behavior). Byte and halfword
+// accesses will need extra size/sign controls later.
+//
+// Reads are combinational so a load can produce writeback data in the same
+// single-cycle instruction. Writes occur on the rising clock edge.
+//
+//   addr byte range       RAM index
+//   -------------------   -----------------------
+//   0x0000_0000 + 4*N     addr[IndexBits+1:2] = N
+//
+// As with imem, low alignment bits and high unmapped bits are intentionally
+// ignored for this tiny word-addressed memory.
+//
 module lsu
   import riscv_pkg::*;
 #(

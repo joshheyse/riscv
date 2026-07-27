@@ -1,5 +1,15 @@
 `timescale 1ns / 1ps
 
+// Integrated control unit.
+//
+// This module is pure decode/glue:
+//   * main_decoder chooses broad datapath controls from opcode
+//   * alu_decoder refines the ALU operation from funct3/funct7
+//   * branch_logic turns branch flags + funct3 into PC select
+//
+// The datapath owns the comparator and supplies `branch_flags`; the controller
+// supplies `branch_sgnd` so the comparator can produce the correct `lt` flag.
+//
 module controller
   import riscv_pkg::*;
 (

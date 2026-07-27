@@ -1,5 +1,19 @@
 `timescale 1ns / 1ps
 
+// Single-cycle RV32I core integration.
+//
+// Current top-level CPU datapath:
+//
+//   IFU.pc -> imem.addr -> instr
+//      instr -> controller -> control bundle
+//      instr -> datapath   -> branch_flags / alu_result / write_data
+//      branch_flags -> controller -> pc_src
+//      alu_result + write_data + mem_write -> LSU -> read_data
+//      read_data -> datapath writeback
+//
+// The public `pc` and `instr` outputs are debug/visibility ports for
+// testbenches and early board bring-up.
+//
 module core
   import riscv_pkg::*;
 #(

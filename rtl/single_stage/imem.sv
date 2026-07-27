@@ -1,5 +1,18 @@
 `timescale 1ns / 1ps
 
+// Instruction memory.
+//
+// The core presents byte addresses (`pc_t`), while the ROM is word-indexed by
+// 32-bit instruction. Address bits [1:0] are ignored for this word-only memory;
+// high bits above the configured depth intentionally alias for now.
+//
+//   addr byte range       ROM index
+//   -------------------   -----------------------
+//   0x0000_0000 + 4*N     addr[IndexBits+1:2] = N
+//
+// `InitFile`, when non-empty, is a `$readmemh` file with one 32-bit instruction
+// word per line.
+//
 module imem
   import riscv_pkg::*;
 #(

@@ -1,5 +1,19 @@
 `timescale 1ns / 1ps
 
+// RV32I immediate extender.
+//
+// Input omits instr[6:0] because immediate generation never needs the opcode.
+// The B/J immediates append an implicit zero LSB because branch/jump targets are
+// at least halfword-aligned by the ISA encoding.
+//
+//   imm_src  source bits                         result shape
+//   -------  ----------------------------------  -----------------------------
+//   IMM_I    instr[31:20]                        sign-extend 12-bit immediate
+//   IMM_S    instr[31:25], instr[11:7]           sign-extend 12-bit immediate
+//   IMM_B    instr[31], [7], [30:25], [11:8], 0  sign-extend branch offset
+//   IMM_J    instr[31], [19:12], [20], [30:21],0 sign-extend jump offset
+//   IMM_U    instr[31:12], 12'b0                 upper immediate
+//
 module extend
   import riscv_pkg::*;
 (
