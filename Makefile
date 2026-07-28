@@ -34,23 +34,27 @@ RTL_SRCS := $(PKG_SRCS) \
 TB_SRC   := $(TB_DIR)/$(TB_TOP).sv
 SRCS     := $(RTL_SRCS) $(TB_SRC)
 
-BOARD_DIR       := rtl/boards/$(BOARD)
-BOARD_SIM_SRC_DIR := sim/boards/$(BOARD)
+BOARD_DIR       := boards/$(BOARD)
+BOARD_RTL_DIR   := $(BOARD_DIR)/rtl
+BOARD_SIM_SRC_DIR := $(BOARD_DIR)/sim
 BOARD_TOP       ?= top
 BOARD_SIM       ?= top_sim
 BOARD_SIM_TOP   := $(BOARD_SIM)
 BOARD_BUILD_DIR := build/boards/$(BOARD)
 BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(BOARD_SIM_TOP)/$(APP_NAME)
-BOARD_LOCAL_SRCS := $(sort $(wildcard $(BOARD_DIR)/*.sv) $(wildcard $(BOARD_DIR)/*.v))
+BOARD_PKG_SRCS    := $(sort $(wildcard $(BOARD_RTL_DIR)/*_pkg.sv))
+BOARD_LOCAL_SRCS := $(BOARD_PKG_SRCS) \
+                    $(filter-out $(BOARD_PKG_SRCS), \
+                      $(sort $(wildcard $(BOARD_RTL_DIR)/*.sv) $(wildcard $(BOARD_RTL_DIR)/*.v)))
 BOARD_SRCS       := $(RTL_SRCS) $(BOARD_LOCAL_SRCS)
 BOARD_SIM_SRC    := $(BOARD_SIM_SRC_DIR)/$(BOARD_SIM_TOP).sv
 BOARD_SIM_HARNESS_SRCS := $(BOARD_SRCS) $(BOARD_SIM_SRC)
-BOARD_LPF       := $(BOARD_DIR)/pins.lpf
+BOARD_LPF       := $(BOARD_RTL_DIR)/pins.lpf
 BOARD_JSON      := $(BOARD_BUILD_DIR)/$(BOARD_TOP).json
 BOARD_CONFIG    := $(BOARD_BUILD_DIR)/$(BOARD_TOP).config
 BOARD_BIT       := $(BOARD_BUILD_DIR)/$(BOARD_TOP).bit
 BOARD_PROGRAM   ?= led_skip
-BOARD_PROGRAM_SRC := $(BOARD_DIR)/programs/$(BOARD_PROGRAM).S
+BOARD_PROGRAM_SRC := $(BOARD_RTL_DIR)/programs/$(BOARD_PROGRAM).S
 
 CROSS_COMPILE ?= riscv64-none-elf-
 RISCV_GCC     ?= $(CROSS_COMPILE)gcc
@@ -63,7 +67,10 @@ SDK_DIR      := sdk/riscv32
 SDK_LINKER   := $(SDK_DIR)/link.ld
 SDK_CRT0_SRC := $(SDK_DIR)/crt0.S
 SDK_INCLUDE  := $(SDK_DIR)/include
-BOARD_INCLUDE := boards/$(BOARD)/include
+BOARD_INCLUDE := $(BOARD_DIR)/include
+BOARD_MEMMAP      := $(BOARD_DIR)/memmap.yml
+BOARD_MEMMAP_HDR  := $(BOARD_INCLUDE)/board_memmap.h
+BOARD_MEMMAP_PKG  := $(BOARD_RTL_DIR)/memmap_pkg.sv
 
 APP ?= $(BOARD_PROGRAM_SRC)
 APP_IS_DIR := $(shell test -d "$(APP)" && echo 1)
@@ -117,12 +124,13 @@ ECP5_FREQ    ?= 12
 # compiles just the one selected by TB, so sibling top-level modules don't
 # collide.
 ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v))
-ALL_SIM_SRCS := $(sort $(wildcard sim/boards/*/*.sv) $(wildcard sim/boards/*/*.v))
+ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*.v) \
+                         $(wildcard boards/*/sim/*.sv) $(wildcard boards/*/sim/*.v))
 
 VERILATOR ?= verilator
 VERILATOR_FLAGS := -sv --timing --assert -Wall -I$(RTL_DIR) -I$(TB_DIR)
 BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall \
-                              -I$(RTL_DIR) -I$(BOARD_DIR) -I$(BOARD_SIM_SRC_DIR)
+                              -I$(RTL_DIR) -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
 
 # Set TRACE=1 to build with waveform support and dump a VCD.
 ifeq ($(TRACE),1)
@@ -133,7 +141,7 @@ endif
 SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 
-.PHONY: all lint sim run wave fmt fmt-check filelist app-build app-dump board-sim board-run board-program board-synth board-pnr board-pack board-build board-flash clean help
+.PHONY: all lint sim run wave fmt fmt-check filelist memmap app-build app-dump board-sim board-run board-program board-synth board-pnr board-pack board-build board-flash clean help
 .DEFAULT_GOAL := help
 
 all: sim
@@ -172,40 +180,46 @@ FMT_FLAGS := --port_declarations_indentation=indent \
              --named_parameter_indentation=indent
 
 fmt:
-	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_SIM_SRCS)
+	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_SRCS)
 
 ## fmt-check: fail if anything is not formatted (no files modified)
 fmt-check:
-	@fail=0; for f in $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_SIM_SRCS); do \
+	@fail=0; for f in $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_SRCS); do \
 		verible-verilog-format $(FMT_FLAGS) "$$f" | diff -q - "$$f" >/dev/null 2>&1 \
 			|| { echo "needs formatting: $$f"; fail=1; }; \
 	done; exit $$fail
+
+$(BOARD_MEMMAP_HDR) $(BOARD_MEMMAP_PKG) &: $(BOARD_MEMMAP) tools/gen_memmap.py
+	tools/gen_memmap.py $< --c-header $(BOARD_MEMMAP_HDR) --sv-package $(BOARD_MEMMAP_PKG)
+
+## memmap: regenerate the selected board's generated memory-map files
+memmap: $(BOARD_MEMMAP_HDR) $(BOARD_MEMMAP_PKG)
 
 ## filelist: regenerate verible.filelist (language server cross-file symbols)
 # Without this file verible-verilog-ls only sees the buffer being edited, so
 # types from riscv_pkg read as "Can't find typedef". Packages are listed first.
 filelist:
-	@{ find rtl tb sim -name '*_pkg.sv' 2>/dev/null | sort; \
-	   find rtl tb sim \( -name '*.sv' -o -name '*.svh' -o -name '*.v' \) \
+	@{ find rtl boards tb -name '*_pkg.sv' 2>/dev/null | sort; \
+	   find rtl boards tb \( -name '*.sv' -o -name '*.svh' -o -name '*.v' \) \
 	        ! -name '*_pkg.sv' 2>/dev/null | sort; } > verible.filelist
 	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
 
-$(APP_BUILD_DIR)/%.S.o: %.S
+$(APP_BUILD_DIR)/%.S.o: %.S $(BOARD_MEMMAP_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GCC) $(APP_ASFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.c.o: %.c
+$(APP_BUILD_DIR)/%.c.o: %.c $(BOARD_MEMMAP_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GCC) $(APP_CFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.cc.o: %.cc
+$(APP_BUILD_DIR)/%.cc.o: %.cc $(BOARD_MEMMAP_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GXX) $(APP_CXXFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.cpp.o: %.cpp
+$(APP_BUILD_DIR)/%.cpp.o: %.cpp $(BOARD_MEMMAP_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GXX) $(APP_CXXFLAGS) -c $< -o $@
@@ -254,7 +268,7 @@ board-sim: board-run
 ## board-program: build the selected APP into a readmemh file
 board-program: app-build
 
-$(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM)
+$(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_MEMMAP_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
 	yosys -p 'read_verilog -sv $(BOARD_SRCS); chparam -set ImemInitFile "$(APP_MEM)" $(BOARD_TOP); synth_ecp5 -top $(BOARD_TOP) -json $@'

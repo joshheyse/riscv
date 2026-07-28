@@ -1,0 +1,11 @@
+board: lfe5um5g_85f_evn
+sv_package: memmap_pkg
+c_prefix: BOARD
+
+constants:
+  dmem_base: 0x00000000
+  dmem_size: 0x00000800
+  led_addr: 0x10000000
+  uart_tx_addr: 0x10001000
+  uart_status_addr: 0x10004000
+  sim_halt_addr: 0x1000f000

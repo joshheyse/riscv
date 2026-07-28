@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module led_mmio #(
-  parameter riscv_pkg::word_t BaseAddr = 32'h1000_0000,
+  parameter riscv_pkg::word_t BaseAddr = memmap_pkg::LedAddr,
   parameter int unsigned NumLeds = 8
 ) (
   input logic clk,

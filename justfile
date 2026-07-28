@@ -3,7 +3,7 @@ cross := env_var_or_default("CROSS_COMPILE", "riscv64-none-elf-")
 # Which rtl/<design> + tb/<design> pair the recipes act on.
 design := env_var_or_default("DESIGN", "single_stage")
 board := env_var_or_default("BOARD", "lfe5um5g_85f_evn")
-default_app := "rtl/boards/" + board + "/programs/led_skip.S"
+default_app := "boards/" + board + "/rtl/programs/led_skip.S"
 
 _default:
     @just --list
@@ -31,42 +31,36 @@ wave tb="core":
 # Run a board-level simulator: just board-sim top_sim examples/apps/uart_halt_c
 board-sim sim="top_sim" app=default_app target=board:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-sim BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
 
 # Build the selected board bitstream: just board-build boards/lfe5um5g_85f_evn path/to/app.c
 board-build target=board app=default_app:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-build BOARD="$board" APP="{{app}}"
 
 # Synthesize the selected board top to JSON: just board-synth boards/lfe5um5g_85f_evn path/to/app.c
 board-synth target=board app=default_app:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-synth BOARD="$board" APP="{{app}}"
 
 # Place and route the selected board design: just board-pnr boards/lfe5um5g_85f_evn path/to/app.c
 board-pnr target=board app=default_app:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-pnr BOARD="$board" APP="{{app}}"
 
 # Program the selected board bitstream into FPGA SRAM: just board-flash boards/lfe5um5g_85f_evn path/to/app.c
 board-flash target=board app=default_app:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-flash BOARD="$board" APP="{{app}}"
 
 # Program a board bitstream into FPGA SRAM: just flash boards/lfe5um5g_85f_evn
 flash target=board app=default_app:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make board-flash BOARD="$board" APP="{{app}}"
 
@@ -95,14 +89,18 @@ filelist:
 # Build an app into ELF/bin/readmemh outputs: just app-build path/to/app.c
 app-build app=default_app target=board:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make app-build BOARD="$board" APP="{{app}}"
+
+# Regenerate generated memory-map files for a board: just memmap boards/lfe5um5g_85f_evn
+memmap target=board:
+    @board="{{target}}"; \
+    board="${board#boards/}"; \
+    make memmap BOARD="$board"
 
 # Disassemble an app: just app-dump path/to/app.c
 app-dump app=default_app target=board:
     @board="{{target}}"; \
-    board="${board#rtl/boards/}"; \
     board="${board#boards/}"; \
     make app-dump BOARD="$board" APP="{{app}}"
 

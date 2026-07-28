@@ -6,7 +6,7 @@ module top_sim #(
   parameter int unsigned DmemDepthWords = 512,
   parameter string DmemInitFile = "",
   parameter int unsigned ClocksPerBit = 104,
-  parameter riscv_pkg::word_t SimHaltAddr = 32'h1000_f000,
+  parameter riscv_pkg::word_t SimHaltAddr = memmap_pkg::SimHaltAddr,
   parameter int unsigned TimeoutCycles = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;

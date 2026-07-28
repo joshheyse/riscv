@@ -3,11 +3,8 @@
 
 #include <stdint.h>
 
+#include "board_memmap.h"
 #include "riscv_soc/mmio.h"
-
-#define BOARD_LED_ADDR         0x10000000u
-#define BOARD_UART_TX_ADDR     0x10001000u
-#define BOARD_UART_STATUS_ADDR 0x10004000u
 
 static inline void led_write(uint32_t value) {
   mmio_write32(BOARD_LED_ADDR, value);

@@ -7,10 +7,12 @@
 
 source_dirs:
   - rtl
+  - boards
   - tb
 
 include_dirs:
   - rtl
+  - boards
 
 # Run diagnostics on files under the working directory as well.
 auto_search_workdir: true
@@ -38,7 +40,7 @@ verilator:
       - -Wall
       - -Wno-MODDUP
       - -Irtl/single_stage
-      - -Irtl/boards/lfe5um5g_85f_evn
+      - -Iboards/lfe5um5g_85f_evn/rtl
       - -Itb/single_stage
       - rtl/single_stage/riscv_pkg.sv
 

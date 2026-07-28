@@ -2,8 +2,8 @@
 
 module uart_mmio #(
   parameter integer unsigned  ClocksPerBit = 104,
-  parameter riscv_pkg::word_t TxDataAddr   = 32'h1000_1000,
-  parameter riscv_pkg::word_t StatusAddr   = 32'h1000_4000
+  parameter riscv_pkg::word_t TxDataAddr   = memmap_pkg::UartTxAddr,
+  parameter riscv_pkg::word_t StatusAddr   = memmap_pkg::UartStatusAddr
 ) (
   input logic clk,
   input logic rst,

@@ -1,8 +1,10 @@
+boards/lfe5um5g_85f_evn/rtl/memmap_pkg.sv
 rtl/single_stage/riscv_pkg.sv
-rtl/boards/lfe5um5g_85f_evn/board_bus.sv
-rtl/boards/lfe5um5g_85f_evn/led_mmio.sv
-rtl/boards/lfe5um5g_85f_evn/top.sv
-rtl/boards/lfe5um5g_85f_evn/uart_mmio.sv
+boards/lfe5um5g_85f_evn/rtl/board_bus.sv
+boards/lfe5um5g_85f_evn/rtl/led_mmio.sv
+boards/lfe5um5g_85f_evn/rtl/top.sv
+boards/lfe5um5g_85f_evn/rtl/uart_mmio.sv
+boards/lfe5um5g_85f_evn/sim/top_sim.sv
 rtl/single_stage/alu.sv
 rtl/single_stage/alu_decoder.sv
 rtl/single_stage/branch_logic.sv
@@ -17,7 +19,6 @@ rtl/single_stage/lsu.sv
 rtl/single_stage/main_decoder.sv
 rtl/single_stage/reg_file.sv
 rtl/single_stage/soc.sv
-sim/boards/lfe5um5g_85f_evn/top_sim.sv
 tb/boards/lfe5um5g_85f_evn/tb_top_led.sv
 tb/boards/lfe5um5g_85f_evn/tb_uart_mmio.sv
 tb/single_stage/tb_alu.sv

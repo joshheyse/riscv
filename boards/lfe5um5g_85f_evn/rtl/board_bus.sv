@@ -23,12 +23,14 @@ module board_bus #(
   riscv_pkg::word_t led_read_data;
   riscv_pkg::word_t uart_read_data;
   riscv_pkg::word_t lsu_read_data;
+  logic dmem_selected;
   logic led_selected;
   logic uart_selected;
   logic mmio_selected;
 
+  assign dmem_selected = ((mem_addr - memmap_pkg::DmemBase) < memmap_pkg::DmemSize);
   assign mmio_selected = led_selected | uart_selected;
-  assign mem_read_data = led_selected ? led_read_data : (uart_selected ? uart_read_data : lsu_read_data);
+  assign mem_read_data = dmem_selected ? lsu_read_data : (led_selected ? led_read_data : (uart_selected ? uart_read_data : '0));
 
   led_mmio lm (
     .clk(clk),
@@ -57,7 +59,7 @@ module board_bus #(
     .InitFile  (DmemInitFile)
   ) lsu_i (
     .clk(clk),
-    .mem_write(mem_write & !mmio_selected),
+    .mem_write(mem_write & dmem_selected & !mmio_selected),
     .addr(mem_addr),
     .write_data(mem_write_data),
     .read_data(lsu_read_data),
