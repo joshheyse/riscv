@@ -16,17 +16,15 @@
 // As with imem, low alignment bits and high unmapped bits are intentionally
 // ignored for this tiny word-addressed memory.
 //
-module lsu
-  import riscv_pkg::*;
-#(
+module lsu #(
   parameter int unsigned DepthWords = 512,
-  parameter string InitFile = ""
+  parameter InitFile = ""
 ) (
-  input  logic  clk,
-  input  logic  mem_write,
-  input  word_t addr,
-  input  word_t write_data,
-  output word_t read_data
+  input logic clk,
+  input logic mem_write,
+  input riscv_pkg::word_t addr,
+  input riscv_pkg::word_t write_data,
+  output riscv_pkg::word_t read_data
 );
 
   logic [31:0] memory[0:DepthWords-1];

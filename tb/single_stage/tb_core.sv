@@ -3,10 +3,10 @@
 //   make sim  TB=core
 //   make wave TB=core
 //
-// Runs a tiny hand-encoded RV32I program from instruction memory and checks the
-// integrated fetch/decode/execute/load/store path. Internal register-file and
-// data-memory state is checked hierarchically because the core's public
-// interface deliberately exposes only fetch/debug signals.
+// Runs a tiny hand-encoded RV32I program through the minimal SoC wrapper and
+// checks the integrated fetch/decode/execute/load/store path. Internal
+// register-file and data-memory state is checked hierarchically because the
+// public interface deliberately exposes only fetch/debug signals.
 
 `timescale 1ns / 1ps
 
@@ -26,7 +26,7 @@ module tb_core
   int unsigned errors = 0;
   int unsigned checks = 0;
 
-  core #(
+  soc #(
     .ImemDepthWords(16),
     .ImemInitFile  (ProgramFile)
   ) dut (
@@ -84,13 +84,13 @@ module tb_core
     step("jal x0,0 again");
 
     expect_word(pc, 32'h0000_0024, "jal holds pc at loop address");
-    expect_word(dut.d.regfile.regs[1], 32'h0000_0005, "x1 = 5");
-    expect_word(dut.d.regfile.regs[2], 32'h0000_0007, "x2 = 7");
-    expect_word(dut.d.regfile.regs[3], 32'h0000_000c, "x3 = 12");
-    expect_word(dut.d.regfile.regs[4], 32'h0000_000c, "x4 loaded 12");
-    expect_word(dut.d.regfile.regs[5], 32'h0000_0002, "x5 branch target value");
-    expect_word(dut.l.memory[0], 32'h0000_000c, "dmem[0] stored x3");
-    expect_word(dut.l.memory[1], 32'h0000_0002, "dmem[1] stored x5");
+    expect_word(dut.core_i.d.regfile.regs[1], 32'h0000_0005, "x1 = 5");
+    expect_word(dut.core_i.d.regfile.regs[2], 32'h0000_0007, "x2 = 7");
+    expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_000c, "x3 = 12");
+    expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_000c, "x4 loaded 12");
+    expect_word(dut.core_i.d.regfile.regs[5], 32'h0000_0002, "x5 branch target value");
+    expect_word(dut.lsu_i.memory[0], 32'h0000_000c, "dmem[0] stored x3");
+    expect_word(dut.lsu_i.memory[1], 32'h0000_0002, "dmem[1] stored x5");
 
     if (errors == 0) begin
       $display("tb_core: PASS (%0d checks)", checks);

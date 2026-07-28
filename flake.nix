@@ -36,12 +36,24 @@
           pkgs.asm-lsp    # assembly language server (RISC-V aware, see .asm-lsp.toml)
         ];
 
+        # FPGA synthesis, place-and-route, bitstream packing, and programming.
+        # ECP5 uses yosys + nextpnr-ecp5 + Project Trellis/ecppack.
+        # iCE40 uses yosys + nextpnr-ice40 + IceStorm/icepack.
+        fpga = [
+          pkgs.yosys
+          pkgs.nextpnr
+          pkgs.trellis
+          pkgs.icestorm
+          pkgs.openfpgaloader
+        ];
+
         # riscof drives the RISC-V architecture compliance tests,
         # comparing your core (DUT) against the Sail golden model.
         # setuptools provides the distutils shim riscof still imports.
         python = pkgs.python3.withPackages (ps: [ ps.riscof ps.setuptools ]);
 
         misc = [
+          pkgs.bash-completion
           pkgs.dtc  # device tree compiler (spike/qemu platform descriptions)
           pkgs.just
           python
@@ -50,7 +62,7 @@
       {
         devShells.default = pkgs.mkShell {
           name = "riscv-soc";
-          packages = toolchain ++ isaSim ++ rtlSim ++ misc;
+          packages = toolchain ++ isaSim ++ rtlSim ++ fpga ++ misc;
 
           # Cross-compile prefix, used by the justfile and riscof configs.
           CROSS_COMPILE = "riscv64-none-elf-";
@@ -62,9 +74,21 @@
             echo "  sail       $(ls ${pkgs.sail-riscv}/bin | tr '\n' ' ')"
             echo "  qemu       $(qemu-system-riscv64 --version | head -n1)"
             echo "  verilator  $(verilator --version)"
+            echo "  yosys      $(yosys -V)"
+            echo "  nextpnr    $(nextpnr-ecp5 --version 2>&1 | head -n1)"
+            echo "  loader     $(openFPGALoader --Version 2>&1 | head -n1)"
             echo "  riscof     $(riscof --version 2>/dev/null | head -n1)"
             echo ""
             echo "Recipes: just --list"
+
+            if [ -n "''${BASH_VERSION:-}" ]; then
+              source ${pkgs.bash-completion}/share/bash-completion/bash_completion
+              source <(just --completions bash)
+            elif [ -n "''${ZSH_VERSION:-}" ]; then
+              autoload -Uz compinit
+              compinit
+              source <(just --completions zsh)
+            fi
           '';
         };
       });

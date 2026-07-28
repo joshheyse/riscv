@@ -4,14 +4,15 @@
 # as new rtl/<DESIGN> + tb/<DESIGN> directories with no Makefile changes, and by
 # TB so each module can be simulated against its own standalone testbench.
 #
-#   make lint                  # lint the whole design (top = fpga_top)
+#   make lint                  # lint the whole design (top = core)
 #   make lint TOP=reg_file     # lint one module standalone
 #   make sim  TB=reg_file      # build + run tb/<design>/tb_reg_file.sv
 #   make wave TB=reg_file      # same, with a VCD, opened in GTKWave
 #   make DESIGN=multicycle ...
 
 DESIGN ?= single_stage
-TOP    ?= fpga_top
+TOP    ?= core
+BOARD  ?= lfe5um5g_85f_evn
 
 # Which testbench to build and run: tb/<DESIGN>/tb_<TB>.sv
 TB     ?= $(TOP)
@@ -33,6 +34,30 @@ RTL_SRCS := $(PKG_SRCS) \
 TB_SRC   := $(TB_DIR)/$(TB_TOP).sv
 SRCS     := $(RTL_SRCS) $(TB_SRC)
 
+BOARD_DIR       := rtl/boards/$(BOARD)
+BOARD_TOP       ?= top
+BOARD_BUILD_DIR := build/boards/$(BOARD)
+BOARD_LOCAL_SRCS := $(sort $(wildcard $(BOARD_DIR)/*.sv) $(wildcard $(BOARD_DIR)/*.v))
+BOARD_SRCS       := $(RTL_SRCS) $(BOARD_LOCAL_SRCS)
+BOARD_LPF       := $(BOARD_DIR)/pins.lpf
+BOARD_JSON      := $(BOARD_BUILD_DIR)/$(BOARD_TOP).json
+BOARD_CONFIG    := $(BOARD_BUILD_DIR)/$(BOARD_TOP).config
+BOARD_BIT       := $(BOARD_BUILD_DIR)/$(BOARD_TOP).bit
+BOARD_PROGRAM   ?= led_skip
+BOARD_PROGRAM_SRC := $(BOARD_DIR)/programs/$(BOARD_PROGRAM).S
+BOARD_PROGRAM_OBJ := $(BOARD_BUILD_DIR)/$(BOARD_PROGRAM).o
+BOARD_PROGRAM_BIN := $(BOARD_BUILD_DIR)/$(BOARD_PROGRAM).bin
+BOARD_PROGRAM_MEM := $(BOARD_BUILD_DIR)/$(BOARD_PROGRAM).mem
+
+CROSS_COMPILE ?= riscv64-none-elf-
+RISCV_GCC     ?= $(CROSS_COMPILE)gcc
+RISCV_OBJCOPY ?= $(CROSS_COMPILE)objcopy
+
+ECP5_DEVICE  ?= --um5g-85k
+ECP5_PACKAGE ?= CABGA381
+ECP5_SPEED   ?= 8
+ECP5_FREQ    ?= 12
+
 # Every testbench in the design — for formatting only. Simulation compiles just
 # the one selected by TB, so that sibling testbenches don't collide as extra
 # top-level modules.
@@ -49,7 +74,7 @@ endif
 
 SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 
-.PHONY: all lint sim run wave fmt clean help
+.PHONY: all lint sim run wave fmt fmt-check filelist board-program board-synth board-pnr board-pack board-build board-flash clean help
 .DEFAULT_GOAL := help
 
 all: sim
@@ -106,9 +131,51 @@ filelist:
 	        ! -name '*_pkg.sv' 2>/dev/null | sort; } > verible.filelist
 	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
 
+$(BOARD_PROGRAM_OBJ): $(BOARD_PROGRAM_SRC)
+	@test -f $< || { echo "no such board program: $<"; exit 1; }
+	@mkdir -p $(BOARD_BUILD_DIR)
+	$(RISCV_GCC) -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -c $< -o $@
+
+$(BOARD_PROGRAM_BIN): $(BOARD_PROGRAM_OBJ)
+	$(RISCV_OBJCOPY) -O binary -j .text $< $@
+
+$(BOARD_PROGRAM_MEM): $(BOARD_PROGRAM_BIN)
+	od -An -v -tx4 -w4 $< | tr -d ' ' > $@
+
+## board-program: assemble the selected board program into a readmemh file
+board-program: $(BOARD_PROGRAM_MEM)
+
+$(BOARD_JSON): $(BOARD_SRCS) $(BOARD_PROGRAM_MEM)
+	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
+	@mkdir -p $(BOARD_BUILD_DIR)
+	yosys -p 'read_verilog -sv $(BOARD_SRCS); chparam -set ImemInitFile "$(BOARD_PROGRAM_MEM)" $(BOARD_TOP); synth_ecp5 -top $(BOARD_TOP) -json $@'
+
+$(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF)
+	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \
+		--freq $(ECP5_FREQ) \
+		--json $< \
+		--lpf $(BOARD_LPF) \
+		--textcfg $@
+
+$(BOARD_BIT): $(BOARD_CONFIG)
+	ecppack --compress $< $@
+
+## board-synth: synthesize the selected board top with Yosys
+board-synth: $(BOARD_JSON)
+
+## board-pnr: place and route the selected ECP5 board design
+board-pnr: $(BOARD_CONFIG)
+
+## board-build: build a bitstream for the selected board
+board-build: $(BOARD_BIT)
+
+## board-flash: program the selected board bitstream into FPGA SRAM
+board-flash: $(BOARD_BIT)
+	openFPGALoader -m $<
+
 ## clean: remove this design's build directory
 clean:
-	rm -rf $(BUILD_ROOT)
+	rm -rf $(BUILD_ROOT) build/boards
 
 help:
 	@echo "targets (DESIGN=$(DESIGN), TB=$(TB)):"

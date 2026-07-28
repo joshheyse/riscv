@@ -2,6 +2,7 @@ cross := env_var_or_default("CROSS_COMPILE", "riscv64-none-elf-")
 
 # Which rtl/<design> + tb/<design> pair the recipes act on.
 design := env_var_or_default("DESIGN", "single_stage")
+board := env_var_or_default("BOARD", "lfe5um5g_85f_evn")
 
 _default:
     @just --list
@@ -15,16 +16,51 @@ smoke:
     sail_riscv_sim build/smoke.elf > build/sail.log && echo "sail:  PASS"
 
 # Lint the RTL. Pass a module name to lint it standalone: just lint reg_file
-lint top="fpga_top":
+lint top="core":
     make lint DESIGN={{design}} TOP={{top}}
 
 # Build and run a testbench: just sim reg_file
-sim tb="fpga_top":
+sim tb="core":
     make sim DESIGN={{design}} TB={{tb}}
 
 # Run a testbench with tracing and open the VCD: just wave reg_file
-wave tb="fpga_top":
+wave tb="core":
     make wave DESIGN={{design}} TB={{tb}}
+
+# Build the selected board bitstream: just board-build
+board-build target=board:
+    @board="{{target}}"; \
+    board="${board#rtl/boards/}"; \
+    board="${board#boards/}"; \
+    make board-build BOARD="$board"
+
+# Synthesize the selected board top to JSON: just board-synth
+board-synth target=board:
+    @board="{{target}}"; \
+    board="${board#rtl/boards/}"; \
+    board="${board#boards/}"; \
+    make board-synth BOARD="$board"
+
+# Place and route the selected board design: just board-pnr
+board-pnr target=board:
+    @board="{{target}}"; \
+    board="${board#rtl/boards/}"; \
+    board="${board#boards/}"; \
+    make board-pnr BOARD="$board"
+
+# Program the selected board bitstream into FPGA SRAM: just board-flash
+board-flash target=board:
+    @board="{{target}}"; \
+    board="${board#rtl/boards/}"; \
+    board="${board#boards/}"; \
+    make board-flash BOARD="$board"
+
+# Program a board bitstream into FPGA SRAM: just flash boards/lfe5um5g_85f_evn
+flash target=board:
+    @board="{{target}}"; \
+    board="${board#rtl/boards/}"; \
+    board="${board#boards/}"; \
+    make board-flash BOARD="$board"
 
 # Run every testbench in the design and report a pass/fail summary.
 test:
@@ -52,5 +88,10 @@ filelist:
 fmt:
     make fmt DESIGN={{design}}
 
+# Check formatting without modifying files.
+fmt-check:
+    make fmt-check DESIGN={{design}}
+
 clean:
-    rm -rf build obj_dir riscof_work
+    make clean DESIGN={{design}}
+    rm -rf obj_dir riscof_work

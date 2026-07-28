@@ -17,14 +17,12 @@
 //   110     bltu         lt         0       yes
 //   111     bgeu         lt         1       yes
 //
-module branch_logic
-  import riscv_pkg::*;
-(
+module branch_logic (
   input logic branch,
   input logic jump,
-  input branch_flags_t flags,
-  input br_funct3_t funct3,
-  output pc_src_t pc_src
+  input riscv_pkg::branch_flags_t flags,
+  input riscv_pkg::br_funct3_t funct3,
+  output riscv_pkg::pc_src_t pc_src
 );
 
   logic cmp_flag;
@@ -34,6 +32,6 @@ module branch_logic
   assign cmp_flag = funct3.use_lt ? flags.lt : flags.eq;
   assign encoding_valid = funct3.use_lt | ~funct3.unsgnd;
   assign cond_met = (cmp_flag ^ funct3.invert) & encoding_valid;
-  assign pc_src = ((cond_met & branch) | jump) ? PC_SRC_IEU_ADR : PC_SRC_INC;
+  assign pc_src = ((cond_met & branch) | jump) ? riscv_pkg::PC_SRC_IEU_ADR : riscv_pkg::PC_SRC_INC;
 
 endmodule

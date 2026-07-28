@@ -1,0 +1,28 @@
+# Lattice ECP5 Evaluation Board, LFE5UM5G-85F-8BG381.
+# The 12 MHz FTDI clock reaches the FPGA when JP2 is installed and JP1 is open.
+
+LOCATE COMP "clk_12mhz" SITE "A10";
+IOBUF PORT "clk_12mhz" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk_12mhz" 12 MHz;
+
+# SW4 / BUTTON_1 is active-low.
+LOCATE COMP "rst_n" SITE "P4";
+IOBUF PORT "rst_n" IO_TYPE=LVCMOS33;
+
+# User LEDs are active-low and connected to Bank 1.
+LOCATE COMP "led_n[0]" SITE "A13";
+LOCATE COMP "led_n[1]" SITE "A12";
+LOCATE COMP "led_n[2]" SITE "B19";
+LOCATE COMP "led_n[3]" SITE "A18";
+LOCATE COMP "led_n[4]" SITE "B18";
+LOCATE COMP "led_n[5]" SITE "C17";
+LOCATE COMP "led_n[6]" SITE "A17";
+LOCATE COMP "led_n[7]" SITE "B17";
+IOBUF PORT "led_n[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[4]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[5]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[6]" IO_TYPE=LVCMOS33;
+IOBUF PORT "led_n[7]" IO_TYPE=LVCMOS33;
