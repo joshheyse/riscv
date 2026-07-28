@@ -1,4 +1,5 @@
 rtl/single_stage/riscv_pkg.sv
+rtl/boards/lfe5um5g_85f_evn/board_bus.sv
 rtl/boards/lfe5um5g_85f_evn/led_mmio.sv
 rtl/boards/lfe5um5g_85f_evn/top.sv
 rtl/boards/lfe5um5g_85f_evn/uart_mmio.sv

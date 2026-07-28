@@ -40,13 +40,13 @@ module soc #(
     .rst(rst),
     .instr(instr),
     .pc(pc),
+    .halted(halted),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .mem_read_data(mem_read_data),
     .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .halted(halted)
+    .mem_unsigned(mem_unsigned)
   );
 
   lsu #(

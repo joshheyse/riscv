@@ -15,28 +15,23 @@ module top_sim #(
   logic rst;
   riscv_pkg::pc_t pc;
   riscv_pkg::instr_u instr;
-  logic mem_write;
-  riscv_pkg::word_t mem_addr;
-  riscv_pkg::word_t mem_write_data;
-  riscv_pkg::word_t mem_read_data;
-  riscv_pkg::word_t led_read_data;
-  riscv_pkg::word_t uart_read_data;
-  riscv_pkg::word_t lsu_read_data;
-  riscv_pkg::mem_size_t mem_size;
-  logic mem_unsigned;
   logic [7:0] led;
   logic [7:0] led_prev;
-  logic led_selected;
-  logic uart_selected;
   logic sim_halt_selected;
-  logic mmio_selected;
   logic halted;
   logic uart_tx;
+  logic core_mem_write;
+  riscv_pkg::word_t core_mem_addr;
+  riscv_pkg::word_t core_mem_write_data;
+  riscv_pkg::word_t core_mem_read_data;
+  riscv_pkg::mem_size_t core_mem_size;
+  logic core_mem_unsigned;
+  logic board_mem_write;
+  riscv_pkg::word_t board_mem_read_data;
 
-  assign sim_halt_selected = (mem_addr == SimHaltAddr);
-  assign mmio_selected = led_selected | uart_selected | sim_halt_selected;
-  assign mem_read_data =
-      led_selected ? led_read_data : (uart_selected ? uart_read_data : (sim_halt_selected ? '0 : lsu_read_data));
+  assign sim_halt_selected = (core_mem_addr == SimHaltAddr);
+  assign core_mem_read_data = sim_halt_selected ? '0 : board_mem_read_data;
+  assign board_mem_write = core_mem_write & !sim_halt_selected;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -68,50 +63,29 @@ module top_sim #(
     .rst(rst),
     .instr(instr),
     .pc(pc),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .mem_read_data(mem_read_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .halted(halted)
+    .halted(halted),
+    .mem_write(core_mem_write),
+    .mem_addr(core_mem_addr),
+    .mem_write_data(core_mem_write_data),
+    .mem_read_data(core_mem_read_data),
+    .mem_size(core_mem_size),
+    .mem_unsigned(core_mem_unsigned)
   );
 
-  led_mmio led_mmio_i (
+  board_bus #(
+    .DmemDepthWords(DmemDepthWords),
+    .DmemInitFile  (DmemInitFile)
+  ) board_bus_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .selected(led_selected),
-    .read_data(led_read_data),
-    .led(led)
-  );
-
-  uart_mmio #(
-    .ClocksPerBit(ClocksPerBit)
-  ) uart_mmio_i (
-    .clk(clk),
-    .rst(rst),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .selected(uart_selected),
-    .read_data(uart_read_data),
-    .tx(uart_tx)
-  );
-
-  lsu #(
-    .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
-  ) lsu_i (
-    .clk(clk),
-    .mem_write(mem_write & !mmio_selected),
-    .addr(mem_addr),
-    .write_data(mem_write_data),
-    .read_data(lsu_read_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned)
+    .led(led),
+    .uart_tx(uart_tx),
+    .mem_write(board_mem_write),
+    .mem_addr(core_mem_addr),
+    .mem_write_data(core_mem_write_data),
+    .mem_read_data(board_mem_read_data),
+    .mem_size(core_mem_size),
+    .mem_unsigned(core_mem_unsigned)
   );
 
   task automatic uart_getc(output byte ch);
@@ -155,9 +129,9 @@ module top_sim #(
   end
 
   always_ff @(posedge clk) begin
-    if (!rst && mem_write && sim_halt_selected) begin
+    if (!rst && core_mem_write && sim_halt_selected) begin
       $write("\n");
-      $display("top_sim: halt code 0x%08h", mem_write_data);
+      $display("top_sim: halt code 0x%08h", core_mem_write_data);
       $finish;
     end
   end

@@ -11,7 +11,7 @@
 #   make DESIGN=multicycle ...
 
 DESIGN ?= single_stage
-TOP    ?= core
+TOP    ?= soc
 BOARD  ?= lfe5um5g_85f_evn
 
 # Which testbench to build and run: tb/<DESIGN>/tb_<TB>.sv

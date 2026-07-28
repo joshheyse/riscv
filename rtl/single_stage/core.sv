@@ -18,17 +18,15 @@
 module core (
   input logic clk,
   input logic rst,
-
   input riscv_pkg::instr_u instr,
-  input riscv_pkg::word_t  mem_read_data,
-
   output riscv_pkg::pc_t pc,
+  output logic halted,
   output logic mem_write,
   output riscv_pkg::word_t mem_addr,
   output riscv_pkg::word_t mem_write_data,
+  input riscv_pkg::word_t mem_read_data,
   output riscv_pkg::mem_size_t mem_size,
-  output logic mem_unsigned,
-  output logic halted
+  output logic mem_unsigned
 );
 
   logic reg_write;
