@@ -16,13 +16,16 @@ module soc #(
   input logic rst,
 
   output riscv_pkg::pc_t    pc,
-  output riscv_pkg::instr_u instr
+  output riscv_pkg::instr_u instr,
+  output logic halted
 );
 
   logic mem_write;
   riscv_pkg::word_t mem_addr;
   riscv_pkg::word_t mem_write_data;
   riscv_pkg::word_t mem_read_data;
+  riscv_pkg::mem_size_t mem_size;
+  logic mem_unsigned;
 
   imem #(
     .DepthWords(ImemDepthWords),
@@ -40,7 +43,10 @@ module soc #(
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
-    .mem_read_data(mem_read_data)
+    .mem_read_data(mem_read_data),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
+    .halted(halted)
   );
 
   lsu #(
@@ -51,7 +57,9 @@ module soc #(
     .mem_write(mem_write),
     .addr(mem_addr),
     .write_data(mem_write_data),
-    .read_data(mem_read_data)
+    .read_data(mem_read_data),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned)
   );
 
 endmodule

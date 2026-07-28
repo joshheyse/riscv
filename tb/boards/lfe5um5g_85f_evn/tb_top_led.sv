@@ -6,14 +6,20 @@ module tb_top_led;
 
   logic       clk_12mhz;
   logic       rst_n;
+  logic       uart_tx;
   logic [7:0] led_n;
+  logic       unused_uart_tx;
   int         errors;
 
+  assign unused_uart_tx = uart_tx;
+
   top #(
-    .ImemInitFile(ProgramFile)
+    .ImemInitFile      (ProgramFile),
+    .PowerOnResetCycles(4)
   ) dut (
     .clk_12mhz(clk_12mhz),
     .rst_n    (rst_n),
+    .uart_tx  (uart_tx),
     .led_n    (led_n)
   );
 
@@ -24,12 +30,9 @@ module tb_top_led;
 
   initial begin
     errors = 0;
-    rst_n  = 1'b0;
+    rst_n  = 1'b1;
 
-    repeat (2) @(posedge clk_12mhz);
-    rst_n = 1'b1;
-
-    repeat (8) @(posedge clk_12mhz);
+    repeat (12) @(posedge clk_12mhz);
 
     if (led_n !== 8'b1111_1110) begin
       $error("expected LED0 on after first MMIO store, got led_n=%b", led_n);

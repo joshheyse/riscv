@@ -46,6 +46,10 @@ module tb_main_decoder
   logic            branch;
   logic            jump;
   logic            alu_op;
+  mem_size_t       mem_size;
+  logic            mem_unsigned;
+  logic            clear_pc_lsb;
+  logic            illegal_main;
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
@@ -61,7 +65,11 @@ module tb_main_decoder
       .result_src(result_src),
       .branch(branch),
       .jump(jump),
-      .alu_op(alu_op)
+      .alu_op(alu_op),
+      .mem_size(mem_size),
+      .mem_unsigned(mem_unsigned),
+      .clear_pc_lsb(clear_pc_lsb),
+      .illegal_main(illegal_main)
   );
 
   // ------------------------------------------------------------ expected --
@@ -148,11 +156,11 @@ module tb_main_decoder
   //                              a separate comparator decides taken/not-taken.
   function automatic alu_src_t exp_alu_src(input logic [6:0] op);
     case (op)
-      7'b0110011: return SRC_RS1_RS2;  // R-type
+      7'b0110011: return ALU_SRC_RS1_RS2;  // R-type
       7'b0010011, 7'b0000011, 7'b0100011, 7'b1100111:
-      return SRC_RS1_IMM;  // I-ALU, load, store, jalr
-      7'b1100011, 7'b1101111, 7'b0010111: return SRC_PC_IMM;  // branch, jal, auipc
-      default: return SRC_RS1_RS2;  // don't-care
+      return ALU_SRC_RS1_IMM;  // I-ALU, load, store, jalr
+      7'b1100011, 7'b1101111, 7'b0010111: return ALU_SRC_PC_IMM;  // branch, jal, auipc
+      default: return ALU_SRC_RS1_RS2;  // don't-care
     endcase
   endfunction
 
@@ -209,6 +217,36 @@ module tb_main_decoder
     endcase
   endfunction
 
+  function automatic mem_size_t exp_mem_size(input logic [6:0] op, input funct3_t funct3);
+    if (op != 7'b0000011 && op != 7'b0100011) return MEM_SIZE_WORD;
+    case (funct3)
+      3'b000, 3'b100: return MEM_SIZE_BYTE;
+      3'b001, 3'b101: return MEM_SIZE_HALF;
+      default:        return MEM_SIZE_WORD;
+    endcase
+  endfunction
+
+  function automatic logic exp_mem_unsigned(input logic [6:0] op, input funct3_t funct3);
+    return op == 7'b0000011 && (funct3 == 3'b100 || funct3 == 3'b101);
+  endfunction
+
+  function automatic logic mem_unsigned_matters(input logic [6:0] op);
+    return op == 7'b0000011;
+  endfunction
+
+  function automatic logic exp_clear_pc_lsb(input logic [6:0] op);
+    return op == 7'b1100111;
+  endfunction
+
+  function automatic logic exp_illegal_main(input logic [6:0] op);
+    case (op)
+      7'b0110011, 7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111,
+      7'b0110111, 7'b0010111, 7'b0001111:
+      return 1'b0;
+      default: return 1'b1;
+    endcase
+  endfunction
+
   function automatic logic alu_op_matters(input logic [6:0] op);
     case (op)
       7'b0110111: return 1'b0;  // lui
@@ -247,10 +285,19 @@ module tb_main_decoder
 
   function automatic string alu_src_name(input alu_src_t s);
     case (s)
-      SRC_RS1_RS2: return "SRC_RS1_RS2";
-      SRC_RS1_IMM: return "SRC_RS1_IMM";
-      SRC_PC_IMM:  return "SRC_PC_IMM";
-      default:     return $sformatf("<%02b>", s);
+      ALU_SRC_RS1_RS2: return "ALU_SRC_RS1_RS2";
+      ALU_SRC_RS1_IMM: return "ALU_SRC_RS1_IMM";
+      ALU_SRC_PC_IMM:  return "ALU_SRC_PC_IMM";
+      default:         return $sformatf("<%02b>", s);
+    endcase
+  endfunction
+
+  function automatic string mem_size_name(input mem_size_t s);
+    case (s)
+      MEM_SIZE_BYTE: return "MEM_SIZE_BYTE";
+      MEM_SIZE_HALF: return "MEM_SIZE_HALF";
+      MEM_SIZE_WORD: return "MEM_SIZE_WORD";
+      default:       return $sformatf("<%02b>", s);
     endcase
   endfunction
 
@@ -317,6 +364,10 @@ module tb_main_decoder
     chk_bit(branch, exp_branch(op), 1'b1, who, "branch");
     chk_bit(jump, exp_jump(op), 1'b1, who, "jump");
     chk_bit(alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");
+    chk_bit(clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
+    chk_bit(illegal_main, exp_illegal_main(op), 1'b1, who, "illegal_main");
+    chk_bit(mem_unsigned, exp_mem_unsigned(op, instr.r.funct3.raw), mem_unsigned_matters(op), who,
+            "mem_unsigned");
 
     chk_enum(imm_src, exp_imm_src(op), imm_src_matters(op), who, "imm_src", imm_name(imm_src),
              imm_name(exp_imm_src(op)));
@@ -327,6 +378,9 @@ module tb_main_decoder
              exp_alu_result_src(op)));
     chk_enum({2'b0, result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
              "result_src", result_name(result_src), result_name(exp_result_src(op)));
+    chk_enum({1'b0, mem_size}, {1'b0, exp_mem_size(op, instr.r.funct3.raw)}, 1'b1, who,
+             "mem_size", mem_size_name(mem_size), mem_size_name(exp_mem_size(
+             op, instr.r.funct3.raw)));
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -374,6 +428,7 @@ module tb_main_decoder
     check_all(7'b0110111, 25'b0, "T3 lui                           ");
     check_all(7'b0010111, 25'b0, "T3 auipc                         ");
     check_all(7'b1110011, 25'b0, "T3 system   ecall/ebreak         ");
+    check_all(7'b0001111, 25'b0, "T3 fence                         ");
 
     // ------------------------------------------------------------ summary --
     if (errors == 0) begin

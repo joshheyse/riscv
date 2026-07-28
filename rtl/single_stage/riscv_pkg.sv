@@ -6,6 +6,8 @@ package riscv_pkg;
   // RV32I architectural widths. Instruction width is fixed at 32 bits; data
   // and PC values are XLEN-wide in this RV32I core.
   typedef logic [XLEN-1:0] word_t;  // data: a register value, ALU operand
+  typedef logic [7:0] byte_t;
+  typedef logic [15:0] half_t;
   typedef word_t pc_t;  // program counter / instruction address
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
@@ -36,7 +38,8 @@ package riscv_pkg;
     OP_BRANCH = 7'b1100011,
     OP_LUI    = 7'b0110111,
     OP_AUIPC  = 7'b0010111,
-    OP_SYSTEM = 7'b1110011
+    OP_SYSTEM = 7'b1110011,
+    OP_FENCE  = 7'b0001111
   } opcode_t;
 
   // ------------------------------------------------------------- funct3 --
@@ -74,10 +77,19 @@ package riscv_pkg;
     ALU_AND     = 3'b111
   } alu_select_t;
 
+  typedef enum logic [2:0] {
+    MEM_BYTE  = 3'b000,  // LB / SB
+    MEM_HALF  = 3'b001,  // LH / SH
+    MEM_WORD  = 3'b010,  // LW / SW
+    MEM_BYTEU = 3'b100,  // LBU
+    MEM_HALFU = 3'b101   // LHU
+  } mem_funct3_t;
+
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
     alu_select_t alu;  // OP, OP-IMM
     br_funct3_t  br;   // BRANCH
+    mem_funct3_t mem;  // LOAD, STORE
   } funct3_u;
 
   // --------------------------------------------------- instruction formats --
@@ -146,5 +158,11 @@ package riscv_pkg;
     PC_SRC_INC     = 1'b0,
     PC_SRC_IEU_ADR = 1'b1
   } pc_src_t;
+
+  typedef enum logic [1:0] {
+    MEM_SIZE_BYTE,
+    MEM_SIZE_HALF,
+    MEM_SIZE_WORD
+  } mem_size_t;
 
 endpackage

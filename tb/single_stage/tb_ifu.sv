@@ -18,6 +18,7 @@ module tb_ifu
   logic        clk;
   logic        rst;
   pc_src_t     pc_src;
+  logic        pc_en;
   pc_t         ieu_addr;
   pc_t         pc;
 
@@ -28,6 +29,7 @@ module tb_ifu
     .clk(clk),
     .rst(rst),
     .pc_src(pc_src),
+    .pc_en(pc_en),
     .ieu_addr(ieu_addr),
     .pc(pc)
   );
@@ -63,6 +65,7 @@ module tb_ifu
 
     rst      = 1'b1;
     pc_src   = PC_SRC_INC;
+    pc_en    = 1'b1;
     ieu_addr = 32'h1234_5678;
 
     tick("reset drives pc to zero", 32'h0000_0000);
@@ -85,10 +88,24 @@ module tb_ifu
     tick("target path can load a second target", 32'h0000_0080);
 
     @(negedge clk);
+    pc_en    = 1'b0;
+    pc_src   = PC_SRC_INC;
+    ieu_addr = 32'h0000_0200;
+    tick("disabled pc_en holds pc on sequential path", 32'h0000_0080);
+
+    @(negedge clk);
+    pc_src = PC_SRC_IEU_ADR;
+    tick("disabled pc_en holds pc on target path", 32'h0000_0080);
+
+    @(negedge clk);
+    pc_en = 1'b1;
+    tick("re-enabled pc_en loads target path", 32'h0000_0200);
+
+    @(negedge clk);
     pc_src   = PC_SRC_INC;
     ieu_addr = 32'hffff_fffc;
-    tick("sequential path ignores ieu_addr", 32'h0000_0084);
-    tick("sequential path continues from loaded target", 32'h0000_0088);
+    tick("sequential path ignores ieu_addr", 32'h0000_0204);
+    tick("sequential path continues from loaded target", 32'h0000_0208);
 
     @(negedge clk);
     rst      = 1'b1;

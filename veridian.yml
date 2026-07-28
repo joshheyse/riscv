@@ -38,6 +38,7 @@ verilator:
       - -Wall
       - -Wno-MODDUP
       - -Irtl/single_stage
+      - -Irtl/boards/lfe5um5g_85f_evn
       - -Itb/single_stage
       - rtl/single_stage/riscv_pkg.sv
 

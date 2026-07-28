@@ -31,7 +31,11 @@ module main_decoder (
   output riscv_pkg::result_src_t result_src,
   output logic branch,
   output logic jump,
-  output logic alu_op
+  output logic alu_op,
+  output riscv_pkg::mem_size_t mem_size,
+  output logic mem_unsigned,
+  output logic clear_pc_lsb,
+  output logic illegal_main
 );
 
   always_comb begin
@@ -46,6 +50,10 @@ module main_decoder (
     branch         = 1'b0;
     jump           = 1'b0;
     alu_op         = 1'b0;
+    mem_size       = riscv_pkg::MEM_SIZE_WORD;
+    mem_unsigned   = 1'b0;
+    clear_pc_lsb   = 1'b0;
+    illegal_main   = 1'b0;
 
     case (instr.r.opcode)
       riscv_pkg::OP_R: begin
@@ -95,6 +103,7 @@ module main_decoder (
         imm_src        = riscv_pkg::IMM_I;  // I-type, not J-type
         alu_src        = riscv_pkg::ALU_SRC_RS1_IMM;  // target = rs1 + imm
         alu_result_src = riscv_pkg::ALU_RES_PC_PLUS4;
+        clear_pc_lsb   = 1'b1;
       end
 
       riscv_pkg::OP_LUI: begin
@@ -113,10 +122,44 @@ module main_decoder (
       // ecall/ebreak are not implemented; they fall through to the safe
       // defaults, same as an illegal opcode.
       riscv_pkg::OP_SYSTEM: begin
+        illegal_main = 1'b1;
       end
 
-      default: ;
+      riscv_pkg::OP_FENCE: begin
+        illegal_main = 1'b0;
+      end
+
+      default: begin
+        illegal_main = 1'b1;
+      end
     endcase
+
+    if ((instr.r.opcode == riscv_pkg::OP_LOAD) || (instr.r.opcode == riscv_pkg::OP_STORE)) begin
+      // Invalid store funct3 values are not trapped yet; illegal-instruction handling
+      // will tighten this later.
+      unique case (instr.r.funct3.mem)
+        riscv_pkg::MEM_BYTE: begin
+          mem_size = riscv_pkg::MEM_SIZE_BYTE;
+          mem_unsigned = 1'b0;
+        end
+        riscv_pkg::MEM_HALF: begin
+          mem_size = riscv_pkg::MEM_SIZE_HALF;
+          mem_unsigned = 1'b0;
+        end
+        riscv_pkg::MEM_WORD: begin
+          mem_size = riscv_pkg::MEM_SIZE_WORD;
+          mem_unsigned = 1'b0;
+        end
+        riscv_pkg::MEM_BYTEU: begin
+          mem_size     = riscv_pkg::MEM_SIZE_BYTE;
+          mem_unsigned = instr.r.opcode == riscv_pkg::OP_LOAD ? 1'b1 : 1'b0;
+        end
+        riscv_pkg::MEM_HALFU: begin
+          mem_size     = riscv_pkg::MEM_SIZE_HALF;
+          mem_unsigned = instr.r.opcode == riscv_pkg::OP_LOAD ? 1'b1 : 1'b0;
+        end
+      endcase
+    end
   end
 
 endmodule

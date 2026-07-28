@@ -22,13 +22,20 @@ module controller (
   output riscv_pkg::result_src_t result_src,
   output logic sub_arith,
   output riscv_pkg::pc_src_t pc_src,
-  output logic branch_sgnd
+  output logic branch_sgnd,
+  output riscv_pkg::mem_size_t mem_size,
+  output logic mem_unsigned,
+  output logic clear_pc_lsb,
+  output logic illegal_instr
 );
 
   logic branch;
   logic jump;
   logic alu_op;
-  assign branch_sgnd = ~instr.r.funct3.br.unsgnd;
+  logic illegal_main;
+  logic illegal_alu;
+  assign branch_sgnd   = ~instr.r.funct3.br.unsgnd;
+  assign illegal_instr = illegal_main | illegal_alu;
 
   main_decoder md (
     .instr(instr),
@@ -40,7 +47,11 @@ module controller (
     .result_src(result_src),
     .branch(branch),
     .jump(jump),
-    .alu_op(alu_op)
+    .alu_op(alu_op),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
+    .clear_pc_lsb(clear_pc_lsb),
+    .illegal_main(illegal_main)
   );
 
   branch_logic bl (
@@ -51,11 +62,12 @@ module controller (
     .pc_src(pc_src)
   );
 
-  alu_decoder alu (
+  alu_decoder ad (
     .alu_op(alu_op),
     .instr(instr),
     .alu_select(alu_select),
-    .sub_arith(sub_arith)
+    .sub_arith(sub_arith),
+    .illegal_alu(illegal_alu)
   );
 
 endmodule

@@ -16,6 +16,7 @@ module ifu (
   input logic clk,
   input logic rst,
   input riscv_pkg::pc_src_t pc_src,
+  input logic pc_en,
   input riscv_pkg::pc_t ieu_addr,
   output riscv_pkg::pc_t pc
 );
@@ -24,7 +25,7 @@ module ifu (
     if (rst) begin
       pc <= '0;
     end else begin
-      pc <= pc_src == riscv_pkg::PC_SRC_INC ? pc + riscv_pkg::pc_t'(4) : ieu_addr;
+      pc <= pc_en ? (pc_src == riscv_pkg::PC_SRC_INC ? pc + riscv_pkg::pc_t'(4) : ieu_addr) : pc;
     end
   end
 

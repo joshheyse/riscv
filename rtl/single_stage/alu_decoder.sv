@@ -20,31 +20,54 @@ module alu_decoder (
   input logic alu_op,
   input riscv_pkg::instr_u instr,
   output riscv_pkg::alu_select_t alu_select,
-  output logic sub_arith
+  output logic sub_arith,
+  output logic illegal_alu
 );
 
   assign alu_select = alu_op ? instr.r.funct3.alu : riscv_pkg::ALU_ADDSUB;
 
+  logic funct7_zero;
+  logic funct7_alt;
+
+  assign funct7_zero = instr.r.funct7 == 7'b0000000;
+  assign funct7_alt  = instr.r.funct7 == 7'b0100000;
+
   always_comb begin
-    sub_arith = 1'b0;
+    sub_arith   = 1'b0;
+    illegal_alu = 1'b0;
     if (alu_op) begin
-      case (instr.r.funct3.alu)
-        riscv_pkg::ALU_ADDSUB: begin
-          // opcode[5] distinguishes R-type from I-type. There is no SUBI, and
-          // for an I-type instruction bit 30 is immediate data -- addi with a
-          // negative immediate has it set.
-          sub_arith = instr.r.funct7[5] & instr.r.opcode[5];
+      unique case (instr.r.opcode)
+        riscv_pkg::OP_R: begin
+          unique case (instr.r.funct3.alu)
+            riscv_pkg::ALU_ADDSUB, riscv_pkg::ALU_SRL_SRA: begin
+              illegal_alu = !(funct7_zero || funct7_alt);
+              sub_arith   = instr.r.funct7[5];
+            end
+            default: begin
+              illegal_alu = !funct7_zero;
+            end
+          endcase
         end
-        riscv_pkg::ALU_SRL_SRA: begin
-          // No opcode gate: srai is a legal I-type, because a shift immediate
-          // is only 5 bits and the ISA fixes imm[11:5] to 0000000 or 0100000.
-          sub_arith = instr.r.funct7[5];
+
+        riscv_pkg::OP_I_ALU: begin
+          unique case (instr.r.funct3.alu)
+            riscv_pkg::ALU_SLL: begin
+              illegal_alu = !funct7_zero;
+            end
+            riscv_pkg::ALU_SRL_SRA: begin
+              illegal_alu = !(funct7_zero || funct7_alt);
+              sub_arith   = instr.r.funct7[5];
+            end
+            default: begin
+            end
+          endcase
         end
+
         default: begin
+          illegal_alu = 1'b1;
         end
       endcase
     end
   end
-
 
 endmodule

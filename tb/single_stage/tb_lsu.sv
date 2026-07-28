@@ -1,11 +1,11 @@
-// tb_lsu.sv — self-checking testbench for the word-only load/store unit.
+// tb_lsu.sv — self-checking testbench for the load/store unit.
 //
 //   make sim  TB=lsu
 //   make wave TB=lsu
 //
 // Covers word-address decoding from byte addresses, combinational reads,
-// clocked writes, ignored high/alignment address bits, and optional memory
-// initialization from a hex file.
+// byte/halfword/word load formatting, clocked byte/halfword/word stores,
+// ignored high address bits, and optional memory initialization from a hex file.
 
 `timescale 1ns / 1ps
 
@@ -23,6 +23,8 @@ module tb_lsu
   word_t       addr;
   word_t       write_data;
   word_t       read_data;
+  mem_size_t   mem_size;
+  logic        mem_unsigned;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -35,6 +37,8 @@ module tb_lsu
     .mem_write(mem_write),
     .addr(addr),
     .write_data(write_data),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
     .read_data(read_data)
   );
 
@@ -53,19 +57,24 @@ module tb_lsu
     end
   endtask
 
-  task automatic read_addr(input word_t a, input word_t exp, input string what);
+  task automatic read_addr(input word_t a, input mem_size_t size, input logic unsgnd,
+                           input word_t exp, input string what);
     @(negedge clk);
-    mem_write = 1'b0;
-    addr = a;
+    mem_write    = 1'b0;
+    addr         = a;
+    mem_size     = size;
+    mem_unsigned = unsgnd;
     #1;
     expect_word(read_data, exp, what);
   endtask
 
-  task automatic write_addr(input word_t a, input word_t data);
+  task automatic write_addr(input word_t a, input word_t data, input mem_size_t size);
     @(negedge clk);
-    addr = a;
-    write_data = data;
-    mem_write = 1'b1;
+    addr         = a;
+    write_data   = data;
+    mem_size     = size;
+    mem_unsigned = 1'b0;
+    mem_write    = 1'b1;
     @(posedge clk);
     #1;
     mem_write = 1'b0;
@@ -79,23 +88,41 @@ module tb_lsu
       $dumpvars(0, tb_lsu);
     end
 
-    mem_write  = 1'b0;
-    addr       = '0;
-    write_data = '0;
+    mem_write    = 1'b0;
+    addr         = '0;
+    write_data   = '0;
+    mem_size     = MEM_SIZE_WORD;
+    mem_unsigned = 1'b0;
 
-    read_addr(32'h0000_0000, 32'h1111_1111, "init word at byte address 0");
-    read_addr(32'h0000_0004, 32'h2222_2222, "init word at byte address 4");
-    read_addr(32'h0000_0008, 32'h3333_3333, "init word at byte address 8");
+    read_addr(32'h0000_0000, MEM_SIZE_WORD, 1'b0, 32'h1111_1111, "init word at byte address 0");
+    read_addr(32'h0000_0004, MEM_SIZE_WORD, 1'b0, 32'h2222_2222, "init word at byte address 4");
+    read_addr(32'h0000_0008, MEM_SIZE_WORD, 1'b0, 32'h3333_3333, "init word at byte address 8");
 
-    write_addr(32'h0000_000c, 32'ha5a5_5a5a);
-    read_addr(32'h0000_000c, 32'ha5a5_5a5a, "write then read word at address 12");
+    write_addr(32'h0000_000c, 32'ha5a5_5a5a, MEM_SIZE_WORD);
+    read_addr(32'h0000_000c, MEM_SIZE_WORD, 1'b0, 32'ha5a5_5a5a,
+              "write then read word at address 12");
 
-    // Low two address bits are intentionally ignored for this word-only LSU.
-    read_addr(32'h0000_000d, 32'ha5a5_5a5a, "unaligned low bits alias same word");
+    write_addr(32'h0000_0010, 32'h80ff_7f01, MEM_SIZE_WORD);
+    read_addr(32'h0000_0010, MEM_SIZE_BYTE, 1'b0, 32'h0000_0001, "lb byte lane 0");
+    read_addr(32'h0000_0011, MEM_SIZE_BYTE, 1'b0, 32'h0000_007f, "lb byte lane 1");
+    read_addr(32'h0000_0012, MEM_SIZE_BYTE, 1'b0, 32'hffff_ffff, "lb sign extends byte lane 2");
+    read_addr(32'h0000_0013, MEM_SIZE_BYTE, 1'b1, 32'h0000_0080, "lbu zero extends byte lane 3");
+    read_addr(32'h0000_0010, MEM_SIZE_HALF, 1'b0, 32'h0000_7f01, "lh lower halfword");
+    read_addr(32'h0000_0012, MEM_SIZE_HALF, 1'b0, 32'hffff_80ff, "lh sign extends upper halfword");
+    read_addr(32'h0000_0012, MEM_SIZE_HALF, 1'b1, 32'h0000_80ff, "lhu zero extends upper halfword");
+
+    write_addr(32'h0000_0014, 32'h1122_3344, MEM_SIZE_WORD);
+    write_addr(32'h0000_0015, 32'h0000_00aa, MEM_SIZE_BYTE);
+    read_addr(32'h0000_0014, MEM_SIZE_WORD, 1'b0, 32'h1122_aa44, "sb updates byte lane 1");
+    write_addr(32'h0000_0016, 32'h0000_beef, MEM_SIZE_HALF);
+    read_addr(32'h0000_0014, MEM_SIZE_WORD, 1'b0, 32'hbeef_aa44, "sh updates upper halfword");
+    write_addr(32'h0000_0014, 32'h0000_cafe, MEM_SIZE_HALF);
+    read_addr(32'h0000_0014, MEM_SIZE_WORD, 1'b0, 32'hbeef_cafe, "sh updates lower halfword");
 
     // With DepthWords=8, high address bits alias by design for this tiny RAM.
-    write_addr(32'h0000_0020, 32'hcafe_babe);
-    read_addr(32'h0000_0000, 32'hcafe_babe, "high address bits alias same word");
+    write_addr(32'h0000_0020, 32'hcafe_babe, MEM_SIZE_WORD);
+    read_addr(32'h0000_0000, MEM_SIZE_WORD, 1'b0, 32'hcafe_babe,
+              "high address bits alias same word");
 
     if (errors == 0) begin
       $display("tb_lsu: PASS (%0d checks)", checks);

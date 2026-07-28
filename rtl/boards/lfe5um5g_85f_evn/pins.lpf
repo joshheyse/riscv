@@ -9,6 +9,11 @@ FREQUENCY PORT "clk_12mhz" 12 MHz;
 LOCATE COMP "rst_n" SITE "P4";
 IOBUF PORT "rst_n" IO_TYPE=LVCMOS33;
 
+# UART through the FTDI channel-B option. R34/R35 are DNI on the board, so
+# populate the 0-ohm links before expecting this to reach the USB interface.
+LOCATE COMP "uart_tx" SITE "P1";
+IOBUF PORT "uart_tx" IO_TYPE=LVCMOS33;
+
 # User LEDs are active-low and connected to Bank 1.
 LOCATE COMP "led_n[0]" SITE "A13";
 LOCATE COMP "led_n[1]" SITE "A12";

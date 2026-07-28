@@ -3,8 +3,8 @@
 //   make sim  TB=core
 //   make wave TB=core
 //
-// Runs a tiny hand-encoded RV32I program through the minimal SoC wrapper and
-// checks the integrated fetch/decode/execute/load/store path. Internal
+// Runs a tiny RV32I program through the minimal SoC wrapper and checks the
+// integrated fetch/decode/execute/load/store path. Internal
 // register-file and data-memory state is checked hierarchically because the
 // public interface deliberately exposes only fetch/debug signals.
 
@@ -16,24 +16,26 @@ module tb_core
 
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 1_000;
-  localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_core_smoke.mem";
+  localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_core_load_store.mem";
 
   logic        clk;
   logic        rst;
   pc_t         pc;
   instr_u      instr;
+  logic        halted;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
 
   soc #(
-    .ImemDepthWords(16),
+    .ImemDepthWords(32),
     .ImemInitFile  (ProgramFile)
   ) dut (
     .clk(clk),
     .rst(rst),
     .pc(pc),
-    .instr(instr)
+    .instr(instr),
+    .halted(halted)
   );
 
   initial begin
@@ -48,6 +50,14 @@ module tb_core
     if (got !== exp) begin
       errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
+    end
+  endtask
+
+  task automatic expect_bit(input logic got, input logic exp, input string what);
+    checks++;
+    if (got !== exp) begin
+      errors++;
+      $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
@@ -72,25 +82,38 @@ module tb_core
     @(negedge clk);
     rst = 1'b0;
 
-    step("addi x1,x0,5");
-    step("addi x2,x0,7");
-    step("add x3,x1,x2");
-    step("sw x3,0(x0)");
-    step("lw x4,0(x0)");
-    step("beq x4,x3,+8");
-    step("addi x5,x0,2");
-    step("sw x5,4(x0)");
+    step("addi x1,x0,0");
+    step("addi x2,x0,-1");
+    step("sw x2,0(x1)");
+    step("addi x3,x0,127");
+    step("sb x3,1(x1)");
+    step("lb x4,1(x1)");
+    step("lb x5,2(x1)");
+    step("lbu x6,2(x1)");
+    step("lui x7,0x8");
+    step("addi x7,x7,1");
+    step("sh x7,2(x1)");
+    step("lh x8,2(x1)");
+    step("lhu x9,2(x1)");
+    step("lw x10,0(x1)");
+    step("sw x10,4(x1)");
     step("jal x0,0");
     step("jal x0,0 again");
 
-    expect_word(pc, 32'h0000_0024, "jal holds pc at loop address");
-    expect_word(dut.core_i.d.regfile.regs[1], 32'h0000_0005, "x1 = 5");
-    expect_word(dut.core_i.d.regfile.regs[2], 32'h0000_0007, "x2 = 7");
-    expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_000c, "x3 = 12");
-    expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_000c, "x4 loaded 12");
-    expect_word(dut.core_i.d.regfile.regs[5], 32'h0000_0002, "x5 branch target value");
-    expect_word(dut.lsu_i.memory[0], 32'h0000_000c, "dmem[0] stored x3");
-    expect_word(dut.lsu_i.memory[1], 32'h0000_0002, "dmem[1] stored x5");
+    expect_bit(halted, 1'b0, "legal core smoke program does not halt");
+    expect_word(pc, 32'h0000_003c, "jal holds pc at loop address");
+    expect_word(dut.core_i.d.regfile.regs[1], 32'h0000_0000, "x1 = dmem base");
+    expect_word(dut.core_i.d.regfile.regs[2], 32'hffff_ffff, "x2 = -1");
+    expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_007f, "x3 = byte store value");
+    expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_007f, "x4 = lb positive byte");
+    expect_word(dut.core_i.d.regfile.regs[5], 32'hffff_ffff, "x5 = lb sign-extended byte");
+    expect_word(dut.core_i.d.regfile.regs[6], 32'h0000_00ff, "x6 = lbu zero-extended byte");
+    expect_word(dut.core_i.d.regfile.regs[7], 32'h0000_8001, "x7 = halfword store value");
+    expect_word(dut.core_i.d.regfile.regs[8], 32'hffff_8001, "x8 = lh sign-extended halfword");
+    expect_word(dut.core_i.d.regfile.regs[9], 32'h0000_8001, "x9 = lhu zero-extended halfword");
+    expect_word(dut.core_i.d.regfile.regs[10], 32'h8001_7fff, "x10 = lw after byte/half stores");
+    expect_word(dut.lsu_i.memory[0], 32'h8001_7fff, "dmem[0] byte/half store result");
+    expect_word(dut.lsu_i.memory[1], 32'h8001_7fff, "dmem[1] copied by sw");
 
     if (errors == 0) begin
       $display("tb_core: PASS (%0d checks)", checks);
