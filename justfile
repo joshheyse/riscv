@@ -92,6 +92,12 @@ test:
 filelist:
     make filelist
 
+# Regenerate compile_commands.json for clangd.
+clangd target=board:
+    @board="{{target}}"; \
+    board="${board#boards/}"; \
+    make compile-commands BOARD="$board"
+
 # Build an app into ELF/bin/readmemh outputs: just app-build path/to/app.c
 app-build app=default_app target=board:
     @board="{{target}}"; \

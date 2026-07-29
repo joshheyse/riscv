@@ -33,4 +33,5 @@ int main(void) {
   }
 
   sim_halt(errors);
+  return 0;
 }

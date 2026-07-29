@@ -56,6 +56,8 @@
           pkgs.bash-completion
           pkgs.dtc  # device tree compiler (spike/qemu platform descriptions)
           pkgs.just
+          pkgs.llvmPackages_21.clang-unwrapped
+          pkgs.clang-tools
           python
         ];
       in
@@ -78,6 +80,7 @@
             echo "  nextpnr    $(nextpnr-ecp5 --version 2>&1 | head -n1)"
             echo "  loader     $(openFPGALoader --Version 2>&1 | head -n1)"
             echo "  riscof     $(riscof --version 2>/dev/null | head -n1)"
+            echo "  clangd     $(clangd --version | head -n1)"
             echo ""
             echo "Recipes: just --list"
 

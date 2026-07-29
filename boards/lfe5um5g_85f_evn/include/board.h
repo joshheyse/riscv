@@ -20,4 +20,38 @@ static inline void uart_putc(char ch) {
   mmio_write32(BOARD_UART_TX_ADDR, (uint32_t)(uint8_t)ch);
 }
 
+static inline uint64_t timer_read_cycles(void) {
+  uint64_t hi = (uint64_t)mmio_read32(BOARD_TIMER_HI_ADDR);
+  uint64_t lo = (uint64_t)mmio_read32(BOARD_TIMER_LO_ADDR);
+  uint64_t next_hi = (uint64_t)mmio_read32(BOARD_TIMER_HI_ADDR);
+  if (hi != next_hi) {
+    hi = next_hi;
+    lo = (uint64_t)mmio_read32(BOARD_TIMER_LO_ADDR);
+  }
+  return (hi << 32) | lo;
+}
+
+static inline void timer_sleep_cycles(uint64_t cycles) {
+  uint64_t start = timer_read_cycles();
+  while ((timer_read_cycles() - start) < cycles);
+}
+
+static inline void sleep_us(uint64_t us) {
+  while (us--) {
+    timer_sleep_cycles(12u);
+  }
+}
+
+static inline void sleep_ms(uint64_t ms) {
+  while (ms--) {
+    sleep_us(1000u);
+  }
+}
+
+static inline void sleep(uint64_t s) {
+  while (s--) {
+    sleep_ms(1000u);
+  }
+}
+
 #endif

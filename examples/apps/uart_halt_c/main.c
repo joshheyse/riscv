@@ -10,4 +10,5 @@ int main(void) {
   }
 
   sim_halt(0);
+  return 0;
 }

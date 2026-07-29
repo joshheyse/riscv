@@ -73,9 +73,11 @@ SDK_LINKER   := $(SDK_DIR)/link.ld
 SDK_CRT0_SRC := $(SDK_DIR)/crt0.S
 SDK_INCLUDE  := $(SDK_DIR)/include
 BOARD_INCLUDE := $(BOARD_DIR)/include
+APP_HEADER_DEPS := $(shell find $(SDK_INCLUDE) $(BOARD_INCLUDE) -type f -name '*.h' 2>/dev/null)
 BOARD_MEMMAP      := $(BOARD_DIR)/memmap.yml
 BOARD_MEMMAP_HDR  := $(BOARD_INCLUDE)/board_memmap.h
 BOARD_MEMMAP_PKG  := $(BOARD_RTL_DIR)/memmap_pkg.sv
+COMPILE_COMMANDS  := compile_commands.json
 
 APP ?= $(BOARD_PROGRAM_SRC)
 APP_IS_DIR := $(shell test -d "$(APP)" && echo 1)
@@ -147,7 +149,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint sim run wave fmt fmt-check filelist memmap app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help
+.PHONY: all lint sim run wave fmt fmt-check filelist compile-commands memmap app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help
 .DEFAULT_GOAL := help
 
 all: sim
@@ -210,22 +212,28 @@ filelist:
 	        ! -name '*_pkg.sv' 2>/dev/null | sort; } > verible.filelist
 	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
 
+$(COMPILE_COMMANDS): tools/gen_compile_commands.py $(BOARD_MEMMAP_HDR)
+	tools/gen_compile_commands.py --board $(BOARD) --output $@
+
+## compile-commands: regenerate compile_commands.json for clangd
+compile-commands: $(COMPILE_COMMANDS)
+
 $(APP_BUILD_DIR)/%.S.o: %.S $(BOARD_MEMMAP_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GCC) $(APP_ASFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.c.o: %.c $(BOARD_MEMMAP_HDR)
+$(APP_BUILD_DIR)/%.c.o: %.c $(APP_HEADER_DEPS)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GCC) $(APP_CFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.cc.o: %.cc $(BOARD_MEMMAP_HDR)
+$(APP_BUILD_DIR)/%.cc.o: %.cc $(APP_HEADER_DEPS)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GXX) $(APP_CXXFLAGS) -c $< -o $@
 
-$(APP_BUILD_DIR)/%.cpp.o: %.cpp $(BOARD_MEMMAP_HDR)
+$(APP_BUILD_DIR)/%.cpp.o: %.cpp $(APP_HEADER_DEPS)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GXX) $(APP_CXXFLAGS) -c $< -o $@
