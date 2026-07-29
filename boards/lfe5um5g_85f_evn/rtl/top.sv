@@ -12,7 +12,14 @@ module top #(
   input  logic       clk_12mhz,
   input  logic       rst_n,
   output logic [7:0] led_n,
-  output logic       uart_tx
+  input  logic [7:0] dip_switch_n,
+  input  logic       push_button_n,
+  output logic       uart_tx,
+
+  output logic spi_sck,
+  output logic spi_mosi,
+  input  logic spi_miso,
+  output logic spi_cs_n
 );
 
   localparam int unsigned ResetCounterBits = $clog2(PowerOnResetCycles + 1);
@@ -27,6 +34,8 @@ module top #(
   riscv_pkg::pc_t pc;
   riscv_pkg::instr_u instr;
   logic [7:0] led;
+  logic [7:0] dip_switch;
+  logic push_button;
   logic halted;
   logic mem_write;
   riscv_pkg::word_t mem_addr;
@@ -42,6 +51,8 @@ module top #(
   assign power_on_rst = (reset_counter != ResetCounterMax);
   assign rst = ~rst_n | power_on_rst;
   assign led_n = halted ? 8'h00 : ~led;
+  assign dip_switch = ~dip_switch_n;
+  assign push_button = ~push_button_n;
 
   always_ff @(posedge clk_12mhz) begin
     if (!rst_n) begin
@@ -63,7 +74,13 @@ module top #(
     .clk(clk_12mhz),
     .rst(rst),
     .led(led),
+    .dip_switch(dip_switch),
+    .push_button(push_button),
     .uart_tx(uart_tx),
+    .spi_sck(spi_sck),
+    .spi_mosi(spi_mosi),
+    .spi_miso(spi_miso),
+    .spi_cs_n(spi_cs_n),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),

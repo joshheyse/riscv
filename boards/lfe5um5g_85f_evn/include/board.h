@@ -13,6 +13,10 @@ static inline void led_write(uint32_t value) {
   mmio_write32(BOARD_LED_ADDR, value);
 }
 
+static inline int dip_switch_read(uint8_t value) {
+  return (int)(mmio_read32(BOARD_DIP_SWITCH_ADDR) & (1u << value));
+}
+
 static inline int uart_tx_ready(void) {
   return (int)(mmio_read32(BOARD_UART_STATUS_ADDR) & 1u);
 }

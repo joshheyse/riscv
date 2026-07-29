@@ -9,10 +9,54 @@ FREQUENCY PORT "clk_12mhz" 12 MHz;
 LOCATE COMP "rst_n" SITE "P4";
 IOBUF PORT "rst_n" IO_TYPE=LVCMOS33;
 
-# UART through the FTDI channel-B option. R34/R35 are DNI on the board, so
-# populate the 0-ohm links before expecting this to reach the USB interface.
-LOCATE COMP "uart_tx" SITE "P1";
+# SW5 DIP switches are active-low inputs with pullups on the board.
+LOCATE COMP "dip_switch_n[0]" SITE "J1";
+LOCATE COMP "dip_switch_n[1]" SITE "H1";
+LOCATE COMP "dip_switch_n[2]" SITE "K1";
+LOCATE COMP "dip_switch_n[3]" SITE "E15";
+LOCATE COMP "dip_switch_n[4]" SITE "D16";
+LOCATE COMP "dip_switch_n[5]" SITE "B16";
+LOCATE COMP "dip_switch_n[6]" SITE "C16";
+LOCATE COMP "dip_switch_n[7]" SITE "A16";
+IOBUF PORT "dip_switch_n[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[4]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[5]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[6]" IO_TYPE=LVCMOS33;
+IOBUF PORT "dip_switch_n[7]" IO_TYPE=LVCMOS33;
+
+# SW2 is active-low. SW3 is PROGRAMN and SW4 is currently rst_n.
+LOCATE COMP "push_button_n[0]" SITE "G2";
+IOBUF PORT "push_button_n[0]" IO_TYPE=LVCMOS33;
+
+# UART through the FTDI channel-B option. R34/R35 are DNI on the board.
+# FTDI TXD drives FPGA uart_rx; FPGA uart_tx drives FTDI RXD.
+LOCATE COMP "uart_rx" SITE "P2";
+LOCATE COMP "uart_tx" SITE "P3";
+IOBUF PORT "uart_rx" IO_TYPE=LVCMOS33;
 IOBUF PORT "uart_tx" IO_TYPE=LVCMOS33;
+
+# Onboard quad SPI flash / configuration SPI pins.
+LOCATE COMP "spi_sck" SITE "U3";
+LOCATE COMP "spi_mosi" SITE "W2";
+LOCATE COMP "spi_miso" SITE "V2";
+LOCATE COMP "spi_cs_n" SITE "R2";
+LOCATE COMP "spi_dq2" SITE "Y2";
+LOCATE COMP "spi_dq3" SITE "W1";
+IOBUF PORT "spi_sck" IO_TYPE=LVCMOS33;
+IOBUF PORT "spi_mosi" IO_TYPE=LVCMOS33;
+IOBUF PORT "spi_miso" IO_TYPE=LVCMOS33;
+IOBUF PORT "spi_cs_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "spi_dq2" IO_TYPE=LVCMOS33;
+IOBUF PORT "spi_dq3" IO_TYPE=LVCMOS33;
+
+# Arduino local I2C pins. R25/R26 are DNI for optional global I2C connection.
+LOCATE COMP "i2c_sda" SITE "G16";
+LOCATE COMP "i2c_scl" SITE "F17";
+IOBUF PORT "i2c_sda" IO_TYPE=LVCMOS33;
+IOBUF PORT "i2c_scl" IO_TYPE=LVCMOS33;
 
 # User LEDs are active-low and connected to Bank 1.
 LOCATE COMP "led_n[0]" SITE "A13";

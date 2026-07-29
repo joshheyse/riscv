@@ -5,12 +5,19 @@ module tb_board_bus
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 1_000;
+  localparam int unsigned PushButtonDebounceCycles = 120_000;
+  localparam int unsigned TimeoutCycles = PushButtonDebounceCycles + 1_000;
 
   logic clk;
   logic rst;
   logic [7:0] led;
+  logic [7:0] dip_switch;
+  logic push_button;
   logic uart_tx;
+  logic spi_sck;
+  logic spi_mosi;
+  logic spi_miso;
+  logic spi_cs_n;
   logic mem_write;
   word_t mem_addr;
   word_t mem_write_data;
@@ -27,7 +34,13 @@ module tb_board_bus
     .clk(clk),
     .rst(rst),
     .led(led),
+    .dip_switch(dip_switch),
+    .push_button(push_button),
     .uart_tx(uart_tx),
+    .spi_sck(spi_sck),
+    .spi_mosi(spi_mosi),
+    .spi_miso(spi_miso),
+    .spi_cs_n(spi_cs_n),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
@@ -94,11 +107,17 @@ module tb_board_bus
     mem_write_data = '0;
     mem_size       = MEM_SIZE_WORD;
     mem_unsigned   = 1'b0;
+    dip_switch     = 8'h00;
+    push_button    = 1'b0;
+    spi_miso       = 1'b0;
 
     repeat (2) @(posedge clk);
     #1;
     expect_byte(led, 8'h00, "reset clears LEDs");
     expect_bit(uart_tx, 1'b1, "reset leaves UART idle high");
+    expect_bit(spi_sck, 1'b0, "reset leaves SPI clock idle low");
+    expect_bit(spi_mosi, 1'b0, "reset leaves SPI MOSI idle low");
+    expect_bit(spi_cs_n, 1'b1, "reset leaves SPI chip select inactive");
 
     @(negedge clk);
     rst = 1'b0;
@@ -124,6 +143,16 @@ module tb_board_bus
     set_read_addr(memmap_pkg::DmemBase + 32'h0000_0004);
     expect_word(mem_read_data, 32'hdead_beef, "LED write does not change DMEM");
 
+    dip_switch = 8'hc3;
+    set_read_addr(memmap_pkg::DipSwitchAddr);
+    expect_word(mem_read_data, 32'h0000_00c3, "DIP switch read routes through board bus");
+
+    push_button = 1'b1;
+    repeat (PushButtonDebounceCycles + 3) @(posedge clk);
+    #1;
+    set_read_addr(memmap_pkg::PushButtonAddr);
+    expect_word(mem_read_data, 32'h0000_0001, "push button read routes through board bus");
+
     set_read_addr(memmap_pkg::UartStatusAddr);
     expect_word(mem_read_data, 32'h0000_0001, "UART status read routes ready bit");
     write_bus(memmap_pkg::UartTxAddr, 32'h0000_0055);
@@ -141,6 +170,15 @@ module tb_board_bus
 
     set_read_addr(memmap_pkg::TimerHiAddr);
     expect_word(mem_read_data, '0, "timer high read routes through board bus");
+
+    set_read_addr(memmap_pkg::SpiDataAddr);
+    expect_word(mem_read_data, '0, "SPI data read routes through board bus");
+
+    set_read_addr(memmap_pkg::SpiControlAddr);
+    expect_word(mem_read_data, '0, "SPI control read routes through board bus");
+
+    set_read_addr(memmap_pkg::SpiStatusAddr);
+    expect_word(mem_read_data, '0, "SPI status read routes through board bus");
 
     if (errors == 0) begin
       $display("tb_board_bus: PASS (%0d checks)", checks);

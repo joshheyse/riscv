@@ -1,0 +1,125 @@
+`timescale 1ns / 1ps
+
+typedef enum logic [2:0] {
+  SPI_IDLE     = 3'b000,
+  SPI_LOAD_BIT = 3'b001,
+  SPI_SETUP    = 3'b010,
+  SPI_SCK_HIGH = 3'b011,
+  SPI_SCK_LOW  = 3'b100,
+  SPI_DONE     = 3'b101
+} spi_state_t;
+
+module spi_mmio #(
+  parameter riscv_pkg::word_t DataAddr = memmap_pkg::SpiDataAddr,
+  parameter riscv_pkg::word_t ControlAddr = memmap_pkg::SpiControlAddr,
+  parameter riscv_pkg::word_t StatusAddr = memmap_pkg::SpiStatusAddr
+) (
+  input logic clk,
+  input logic rst,
+
+  input logic mem_write,
+  input riscv_pkg::word_t mem_addr,
+  input riscv_pkg::word_t mem_write_data,
+  output logic selected,
+  output riscv_pkg::word_t read_data,
+
+  output logic spi_sck,
+  output logic spi_mosi,
+  input  logic spi_miso,
+  output logic spi_cs_n
+);
+
+  spi_state_t state;
+  logic busy;
+  logic data_selected;
+  logic control_selected;
+  logic status_selected;
+  logic mosi_reg;
+  riscv_pkg::byte_t tx_data;
+  riscv_pkg::byte_t rx_data;
+  logic [2:0] bit_counter;
+
+  assign data_selected = mem_addr == DataAddr;
+  assign control_selected = mem_addr == ControlAddr;
+  assign status_selected = mem_addr == StatusAddr;
+  assign selected = data_selected || control_selected || status_selected;
+  assign spi_mosi = mosi_reg;
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      state <= SPI_IDLE;
+      mosi_reg <= 0;
+      tx_data <= 0;
+      rx_data <= 0;
+      bit_counter <= 0;
+    end else begin
+      if (mem_write && data_selected) begin
+        tx_data <= mem_write_data[7:0];
+      end
+      unique case (state)
+        SPI_IDLE: begin
+          if (mem_write && control_selected && mem_write_data[0]) begin
+            bit_counter <= 3'b111;
+            rx_data <= 0;
+            state <= SPI_LOAD_BIT;
+          end
+        end
+        SPI_LOAD_BIT: begin
+          mosi_reg <= tx_data[bit_counter];
+          state <= SPI_SETUP;
+        end
+        SPI_SETUP: begin
+          state <= SPI_SCK_HIGH;
+        end
+        SPI_SCK_HIGH: begin
+          rx_data[bit_counter] <= spi_miso;
+          state <= SPI_SCK_LOW;
+        end
+        SPI_SCK_LOW: begin
+          if (bit_counter == 3'b000) begin
+            state <= SPI_DONE;
+          end else begin
+            bit_counter <= bit_counter - 1'b1;
+            state <= SPI_LOAD_BIT;
+          end
+        end
+        SPI_DONE: begin
+          mosi_reg <= 1'b0;
+          state <= SPI_IDLE;
+        end
+      endcase
+    end
+  end
+
+  always_comb begin
+    spi_sck = 1'b0;
+    spi_cs_n = 1'b1;
+    busy = 1'b0;
+
+    case (state)
+      SPI_SCK_HIGH: begin
+        spi_sck = 1'b1;
+        spi_cs_n = 1'b0;
+        busy = 1'b1;
+      end
+      SPI_LOAD_BIT, SPI_SETUP, SPI_SCK_LOW: begin
+        busy = 1'b1;
+        spi_cs_n = 1'b0;
+      end
+      default: begin
+      end
+    endcase
+
+    if (data_selected) begin
+      read_data = {24'b0, rx_data};
+    end else if (status_selected) begin
+      read_data = {31'b0, busy};
+    end else begin
+      read_data = 32'b0;
+    end
+  end
+
+  logic unused_write_data;
+  assign unused_write_data = |mem_write_data[31:8];
+
+endmodule

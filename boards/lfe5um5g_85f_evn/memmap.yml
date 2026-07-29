@@ -5,12 +5,26 @@ c_prefix: BOARD
 constants:
   dmem_base: 0x00000000
   dmem_size: 0x00000800
+  num_leds: 8
+  num_dip_switches: 8
+  num_push_buttons: 1
   led_addr: 0x10000000
   uart_tx_addr: 0x10001000
-  uart_status_addr: 0x10004000
+  uart_rx_addr: 0x10001004
+  uart_control_addr: 0x10001008
+  uart_status_addr: 0x1000100c
+  timer_lo_addr: 0x10002000
+  timer_hi_addr: 0x10002004
+  dip_switch_addr: 0x10003000
+  push_button_addr: 0x10003004
+  spi_data_addr: 0x10004000
+  spi_control_addr: 0x10004004
+  spi_status_addr: 0x10004008
+  i2c_data_addr: 0x10005000
+  i2c_address_addr: 0x10005004
+  i2c_control_addr: 0x10005008
+  i2c_status_addr: 0x1000500c
   uart_baud: 115200
   uart_clocks_per_bit: 104
   sim_halt_addr: 0x1000f000
-  timer_lo_addr: 0x10002000
-  timer_hi_addr: 0x10002004
   timer_hz: 12000000

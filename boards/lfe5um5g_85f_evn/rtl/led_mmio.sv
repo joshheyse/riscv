@@ -2,7 +2,7 @@
 
 module led_mmio #(
   parameter riscv_pkg::word_t LedAddr = memmap_pkg::LedAddr,
-  parameter int unsigned NumLeds = 8
+  parameter int unsigned NumLeds = memmap_pkg::NumLeds
 ) (
   input logic clk,
   input logic rst,
