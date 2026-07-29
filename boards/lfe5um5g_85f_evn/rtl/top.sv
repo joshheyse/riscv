@@ -7,8 +7,6 @@
 module top #(
   parameter int unsigned ImemDepthWords = 512,
   parameter ImemInitFile = "",
-  parameter int unsigned DmemDepthWords = 512,
-  parameter DmemInitFile = "",
   parameter int unsigned PowerOnResetCycles = 16
 ) (
   input  logic       clk_12mhz,

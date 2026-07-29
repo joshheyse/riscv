@@ -6,6 +6,7 @@ package riscv_pkg;
   // RV32I architectural widths. Instruction width is fixed at 32 bits; data
   // and PC values are XLEN-wide in this RV32I core.
   typedef logic [XLEN-1:0] word_t;  // data: a register value, ALU operand
+  typedef logic [(XLEN*2)-1:0] dword_t;  // data: a register value, ALU operand
   typedef logic [7:0] byte_t;
   typedef logic [15:0] half_t;
   typedef word_t pc_t;  // program counter / instruction address

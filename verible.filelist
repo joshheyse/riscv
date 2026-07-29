@@ -2,6 +2,7 @@ boards/lfe5um5g_85f_evn/rtl/memmap_pkg.sv
 rtl/single_stage/riscv_pkg.sv
 boards/lfe5um5g_85f_evn/rtl/board_bus.sv
 boards/lfe5um5g_85f_evn/rtl/led_mmio.sv
+boards/lfe5um5g_85f_evn/rtl/timer_mmio.sv
 boards/lfe5um5g_85f_evn/rtl/top.sv
 boards/lfe5um5g_85f_evn/rtl/uart_mmio.sv
 boards/lfe5um5g_85f_evn/sim/top_sim.sv

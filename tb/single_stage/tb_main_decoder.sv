@@ -56,20 +56,20 @@ module tb_main_decoder
   int unsigned     printed = 0;
 
   main_decoder dut (
-      .instr(instr),
-      .reg_write(reg_write),
-      .imm_src(imm_src),
-      .mem_write(mem_write),
-      .alu_src(alu_src),
-      .alu_result_src(alu_result_src),
-      .result_src(result_src),
-      .branch(branch),
-      .jump(jump),
-      .alu_op(alu_op),
-      .mem_size(mem_size),
-      .mem_unsigned(mem_unsigned),
-      .clear_pc_lsb(clear_pc_lsb),
-      .illegal_main(illegal_main)
+    .instr(instr),
+    .reg_write(reg_write),
+    .imm_src(imm_src),
+    .mem_write(mem_write),
+    .alu_src(alu_src),
+    .alu_result_src(alu_result_src),
+    .result_src(result_src),
+    .branch(branch),
+    .jump(jump),
+    .alu_op(alu_op),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
+    .clear_pc_lsb(clear_pc_lsb),
+    .illegal_main(illegal_main)
   );
 
   // ------------------------------------------------------------ expected --
@@ -378,9 +378,8 @@ module tb_main_decoder
              exp_alu_result_src(op)));
     chk_enum({2'b0, result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
              "result_src", result_name(result_src), result_name(exp_result_src(op)));
-    chk_enum({1'b0, mem_size}, {1'b0, exp_mem_size(op, instr.r.funct3.raw)}, 1'b1, who,
-             "mem_size", mem_size_name(mem_size), mem_size_name(exp_mem_size(
-             op, instr.r.funct3.raw)));
+    chk_enum({1'b0, mem_size}, {1'b0, exp_mem_size(op, instr.r.funct3.raw)}, 1'b1, who, "mem_size",
+             mem_size_name(mem_size), mem_size_name(exp_mem_size(op, instr.r.funct3.raw)));
   endtask
 
   // ---------------------------------------------------------------- tests --

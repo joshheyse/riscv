@@ -52,11 +52,11 @@ module tb_alu
   int unsigned printed = 0;
 
   alu dut (
-      .src_a(src_a),
-      .src_b(src_b),
-      .alu_select(alu_select),
-      .sub_arith(sub_arith),
-      .alu_result(alu_result)
+    .src_a(src_a),
+    .src_b(src_b),
+    .alu_select(alu_select),
+    .sub_arith(sub_arith),
+    .alu_result(alu_result)
   );
 
   // ------------------------------------------------------------- helpers --

@@ -86,8 +86,10 @@ def write_sv_package(memmap, output):
         f"package {package};",
     ]
 
+    lines.append("  /* verilator lint_off UNUSEDPARAM */")
     for key, value in constants.items():
-        lines.append(f"  localparam logic [31:0] {sv_name(key):<16} = {sv_value(value)};")
+        lines.append(f"  localparam logic [31:0] {sv_name(key)} = {sv_value(value)};")
+    lines.append("  /* verilator lint_on UNUSEDPARAM */")
 
     lines += ["endpackage", ""]
     output.write_text("\n".join(lines))

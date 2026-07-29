@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module led_mmio #(
-  parameter riscv_pkg::word_t BaseAddr = memmap_pkg::LedAddr,
+  parameter riscv_pkg::word_t LedAddr = memmap_pkg::LedAddr,
   parameter int unsigned NumLeds = 8
 ) (
   input logic clk,
@@ -20,7 +20,7 @@ module led_mmio #(
     assert (NumLeds < WordBits);
   end
 
-  assign selected  = (mem_addr == BaseAddr);
+  assign selected  = (mem_addr == LedAddr);
 
   assign read_data = {{(WordBits - NumLeds) {1'b0}}, led};
 

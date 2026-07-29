@@ -34,6 +34,12 @@ board-sim sim="top_sim" app=default_app target=board:
     board="${board#boards/}"; \
     make board-sim BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
 
+# Run a board peripheral testbench: just board-tb timer_mmio
+board-tb tb="timer_mmio" target=board:
+    @board="{{target}}"; \
+    board="${board#boards/}"; \
+    make board-tb BOARD="$board" BOARD_TB="{{tb}}"
+
 # Build the selected board bitstream: just board-build boards/lfe5um5g_85f_evn path/to/app.c
 board-build target=board app=default_app:
     @board="{{target}}"; \

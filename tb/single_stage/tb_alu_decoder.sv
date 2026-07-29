@@ -62,11 +62,11 @@ module tb_alu_decoder
   int unsigned printed = 0;
 
   alu_decoder dut (
-      .alu_op(alu_op),
-      .instr(instr),
-      .alu_select(alu_select),
-      .sub_arith(sub_arith),
-      .illegal_alu(illegal_alu)
+    .alu_op(alu_op),
+    .instr(instr),
+    .alu_select(alu_select),
+    .sub_arith(sub_arith),
+    .illegal_alu(illegal_alu)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -182,8 +182,8 @@ module tb_alu_decoder
                 opc[5] = 1'(op5);
                 word = encode(f7, 5'($urandom), 5'($urandom), f3, 5'($urandom), opc);
                 check(1'(op), word, ref_select(1'(op), f3), ref_sub(1'(op), opc, f3, 1'(f7b5)),
-                      ref_illegal(1'(op), opc, f3, f7),
-                      $sformatf("sweep op=%0d f3=%03b f7b5=%0d op5=%0d", op, f3, f7b5, op5));
+                      ref_illegal(1'(op), opc, f3, f7), $sformatf(
+                      "sweep op=%0d f3=%03b f7b5=%0d op5=%0d", op, f3, f7b5, op5));
               end
             end
           end
@@ -202,8 +202,8 @@ module tb_alu_decoder
     // immediate data, not a funct7 field. Decoding it as sub_arith turns
     // `addi x1, x2, -1` into `x2 - 0xfff`, which is the bug this row exists to
     // catch. There is no SUBI in RV32I.
-    check(1'b1, encode(7'b1111111, 5'b11111, 5'd2, F3AddSub, 5'd1, OP_I_ALU), ALU_ADDSUB, 1'b0, 1'b0,
-          "addi with imm=-1 (bit 30 set) is still add");
+    check(1'b1, encode(7'b1111111, 5'b11111, 5'd2, F3AddSub, 5'd1, OP_I_ALU), ALU_ADDSUB, 1'b0,
+          1'b0, "addi with imm=-1 (bit 30 set) is still add");
     check(1'b1, encode(F7Alt, 5'd0, 5'd2, F3AddSub, 5'd1, OP_I_ALU), ALU_ADDSUB, 1'b0, 1'b0,
           "addi with imm=0x400 (bit 30 set) is still add");
     check(1'b1, encode(F7Zero, 5'd5, 5'd2, F3AddSub, 5'd1, OP_I_ALU), ALU_ADDSUB, 1'b0, 1'b0,
@@ -214,7 +214,8 @@ module tb_alu_decoder
     // which is why srai exists as an I-type at all. No opcode gate here.
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3SrlSra, 5'd1, OP_R), ALU_SRL_SRA, 1'b0, 1'b0, "srl");
     check(1'b1, encode(F7Alt, 5'd3, 5'd2, F3SrlSra, 5'd1, OP_R), ALU_SRL_SRA, 1'b1, 1'b0, "sra");
-    check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3SrlSra, 5'd1, OP_I_ALU), ALU_SRL_SRA, 1'b0, 1'b0, "srli");
+    check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3SrlSra, 5'd1, OP_I_ALU), ALU_SRL_SRA, 1'b0, 1'b0,
+          "srli");
     check(1'b1, encode(F7Alt, 5'd3, 5'd2, F3SrlSra, 5'd1, OP_I_ALU), ALU_SRL_SRA, 1'b1, 1'b0,
           "srai (I-type, bit 30 IS functional)");
     // slli's funct7 is fixed at zero, but prove the decoder doesn't leak
@@ -250,8 +251,7 @@ module tb_alu_decoder
 
     // ---- the full OP / OP-IMM select decode --------------------------------
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Slt, 5'd1, OP_R), ALU_SLT, 1'b0, 1'b0, "slt");
-    check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Sltu, 5'd1, OP_R), ALU_SLTU, 1'b0, 1'b0,
-          "sltu");
+    check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Sltu, 5'd1, OP_R), ALU_SLTU, 1'b0, 1'b0, "sltu");
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Xor, 5'd1, OP_R), ALU_XOR, 1'b0, 1'b0, "xor");
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Or, 5'd1, OP_R), ALU_OR, 1'b0, 1'b0, "or");
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3And, 5'd1, OP_R), ALU_AND, 1'b0, 1'b0, "and");
@@ -263,20 +263,16 @@ module tb_alu_decoder
     // `lw` (funct3=010) and the load address is garbage.
     check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b010, 5'd1, OP_LOAD), ALU_ADDSUB, 1'b0, 1'b0,
           "lw: funct3=010 must not decode as SLT");
-    check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b000, 5'd1, OP_LOAD), ALU_ADDSUB, 1'b0, 1'b0,
-          "lb");
+    check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b000, 5'd1, OP_LOAD), ALU_ADDSUB, 1'b0, 1'b0, "lb");
     check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b101, 5'd1, OP_LOAD), ALU_ADDSUB, 1'b0, 1'b0,
           "lhu: funct3=101 must not decode as SRL");
-    check(1'b0, encode(F7Zero, 5'd3, 5'd2, 3'b010, 5'd1, OP_STORE), ALU_ADDSUB, 1'b0, 1'b0,
-          "sw");
+    check(1'b0, encode(F7Zero, 5'd3, 5'd2, 3'b010, 5'd1, OP_STORE), ALU_ADDSUB, 1'b0, 1'b0, "sw");
     check(1'b0, encode(F7Zero, 5'd3, 5'd2, 3'b100, 5'd1, OP_BRANCH), ALU_ADDSUB, 1'b0, 1'b0,
           "blt: target is pc+imm, an add");
     check(1'b0, encode(F7Zero, 5'd3, 5'd2, 3'b111, 5'd1, OP_BRANCH), ALU_ADDSUB, 1'b0, 1'b0,
           "bgeu");
-    check(1'b0, encode(F7Zero, 5'd0, 5'd0, 3'b000, 5'd1, OP_JAL), ALU_ADDSUB, 1'b0, 1'b0,
-          "jal");
-    check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b000, 5'd1, OP_JALR), ALU_ADDSUB, 1'b0, 1'b0,
-          "jalr");
+    check(1'b0, encode(F7Zero, 5'd0, 5'd0, 3'b000, 5'd1, OP_JAL), ALU_ADDSUB, 1'b0, 1'b0, "jal");
+    check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b000, 5'd1, OP_JALR), ALU_ADDSUB, 1'b0, 1'b0, "jalr");
     check(1'b0, encode(F7Zero, 5'd0, 5'd0, 3'b000, 5'd1, OP_AUIPC), ALU_ADDSUB, 1'b0, 1'b0,
           "auipc");
     // alu_op=0 must also suppress sub_arith even when bit 30 happens to be set

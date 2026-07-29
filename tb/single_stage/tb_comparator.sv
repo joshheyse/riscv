@@ -50,11 +50,11 @@ module tb_comparator
   int unsigned printed = 0;
 
   comparator dut (
-      .src_a(src_a),
-      .src_b(src_b),
-      .sngd (sngd),
-      .eq   (eq),
-      .lt   (lt)
+    .src_a(src_a),
+    .src_b(src_b),
+    .sngd (sngd),
+    .eq   (eq),
+    .lt   (lt)
   );
 
   // ------------------------------------------------------------- helpers --

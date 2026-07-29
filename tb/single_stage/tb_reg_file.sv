@@ -27,14 +27,14 @@ module tb_reg_file;
   int unsigned        checks = 0;
 
   reg_file dut (
-      .clk(clk),
-      .rd_addr1(rd_addr1),
-      .rd_addr2(rd_addr2),
-      .wr_addr(wr_addr),
-      .wr_data(wr_data),
-      .wr_en(wr_en),
-      .rd_data1(rd_data1),
-      .rd_data2(rd_data2)
+    .clk(clk),
+    .rd_addr1(rd_addr1),
+    .rd_addr2(rd_addr2),
+    .wr_addr(wr_addr),
+    .wr_data(wr_data),
+    .wr_en(wr_en),
+    .rd_data1(rd_data1),
+    .rd_data2(rd_data2)
   );
 
   initial begin

@@ -43,6 +43,7 @@ verilator:
       - -Iboards/lfe5um5g_85f_evn/rtl
       - -Itb/single_stage
       - rtl/single_stage/riscv_pkg.sv
+      - boards/lfe5um5g_85f_evn/rtl/memmap_pkg.sv
 
 verible:
   syntax:

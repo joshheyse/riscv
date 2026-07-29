@@ -34,9 +34,9 @@ module tb_extend
 
   // extend only takes instr[31:7]; the opcode is decoded elsewhere.
   extend dut (
-      .imm_src(imm_src),
-      .instr  (instr[31:7]),
-      .imm_ext(imm_ext)
+    .imm_src(imm_src),
+    .instr  (instr[31:7]),
+    .imm_ext(imm_ext)
   );
 
   // ------------------------------------------------------------- helpers --

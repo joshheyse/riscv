@@ -42,6 +42,11 @@ BOARD_SIM       ?= top_sim
 BOARD_SIM_TOP   := $(BOARD_SIM)
 BOARD_BUILD_DIR := build/boards/$(BOARD)
 BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(BOARD_SIM_TOP)/$(APP_NAME)
+BOARD_TB_DIR       := tb/boards/$(BOARD)
+BOARD_TB           ?= timer_mmio
+BOARD_TB_TOP       := tb_$(BOARD_TB)
+BOARD_TB_SRC       := $(BOARD_TB_DIR)/$(BOARD_TB_TOP).sv
+BOARD_TB_BUILD_DIR := $(BOARD_BUILD_DIR)/tb/$(BOARD_TB_TOP)
 BOARD_PKG_SRCS    := $(sort $(wildcard $(BOARD_RTL_DIR)/*_pkg.sv))
 BOARD_LOCAL_SRCS := $(BOARD_PKG_SRCS) \
                     $(filter-out $(BOARD_PKG_SRCS), \
@@ -140,8 +145,9 @@ endif
 
 SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
+BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint sim run wave fmt fmt-check filelist memmap app-build app-dump board-sim board-run board-program board-synth board-pnr board-pack board-build board-flash clean help
+.PHONY: all lint sim run wave fmt fmt-check filelist memmap app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help
 .DEFAULT_GOAL := help
 
 all: sim
@@ -264,6 +270,21 @@ board-run: $(BOARD_HARNESS_BIN)
 
 ## board-sim: build and run a board-level testbench
 board-sim: board-run
+
+$(BOARD_TB_BIN): $(BOARD_SRCS) $(BOARD_TB_SRC)
+	@test -f $(BOARD_TB_SRC) || { echo "no such board testbench: $(BOARD_TB_SRC)"; exit 1; }
+	@mkdir -p $(BOARD_TB_BUILD_DIR)
+	$(VERILATOR) --binary $(BOARD_SIM_VERILATOR_FLAGS) \
+		--top-module $(BOARD_TB_TOP) \
+		--Mdir $(BOARD_TB_BUILD_DIR) \
+		-o V$(BOARD_TB_TOP) \
+		$(BOARD_SRCS) $(BOARD_TB_SRC)
+
+board-tb-run: $(BOARD_TB_BIN)
+	cd $(BOARD_TB_BUILD_DIR) && ./V$(BOARD_TB_TOP) $(RUN_ARGS)
+
+## board-tb: build and run a board peripheral testbench
+board-tb: board-tb-run
 
 ## board-program: build the selected APP into a readmemh file
 board-program: app-build

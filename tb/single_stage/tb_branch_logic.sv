@@ -57,11 +57,11 @@ module tb_branch_logic
   int unsigned   printed = 0;
 
   branch_logic dut (
-      .branch(branch),
-      .jump  (jump),
-      .flags (flags),
-      .funct3(funct3),
-      .pc_src(pc_src)
+    .branch(branch),
+    .jump  (jump),
+    .flags (flags),
+    .funct3(funct3),
+    .pc_src(pc_src)
   );
 
   // ------------------------------------------------------------- helpers --

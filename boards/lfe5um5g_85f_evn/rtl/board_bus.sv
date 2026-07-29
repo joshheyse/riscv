@@ -8,29 +8,44 @@ module board_bus #(
   parameter int unsigned DmemDepthWords = 512,
   parameter DmemInitFile = ""
 ) (
-  input  logic       clk,
-  input  logic       rst,
-  output logic [7:0] led,
-  output logic       uart_tx,
-  input  logic       mem_write,
-  input  riscv_pkg::word_t mem_addr,
-  input  riscv_pkg::word_t mem_write_data,
-  output riscv_pkg::word_t mem_read_data,
-  input  riscv_pkg::mem_size_t mem_size,
-  input  logic       mem_unsigned
+  input  logic                       clk,
+  input  logic                       rst,
+  output logic                 [7:0] led,
+  output logic                       uart_tx,
+  input  logic                       mem_write,
+  input  riscv_pkg::word_t           mem_addr,
+  input  riscv_pkg::word_t           mem_write_data,
+  output riscv_pkg::word_t           mem_read_data,
+  input  riscv_pkg::mem_size_t       mem_size,
+  input  logic                       mem_unsigned
 );
 
   riscv_pkg::word_t led_read_data;
   riscv_pkg::word_t uart_read_data;
   riscv_pkg::word_t lsu_read_data;
+  riscv_pkg::word_t timer_read_data;
   logic dmem_selected;
   logic led_selected;
   logic uart_selected;
+  logic timer_selected;
   logic mmio_selected;
 
   assign dmem_selected = ((mem_addr - memmap_pkg::DmemBase) < memmap_pkg::DmemSize);
-  assign mmio_selected = led_selected | uart_selected;
-  assign mem_read_data = dmem_selected ? lsu_read_data : (led_selected ? led_read_data : (uart_selected ? uart_read_data : '0));
+  assign mmio_selected = led_selected | uart_selected | timer_selected;
+
+  always_comb begin
+    mem_read_data = '0;
+
+    if (led_selected) begin
+      mem_read_data = led_read_data;
+    end else if (uart_selected) begin
+      mem_read_data = uart_read_data;
+    end else if (timer_selected) begin
+      mem_read_data = timer_read_data;
+    end else if (dmem_selected) begin
+      mem_read_data = lsu_read_data;
+    end
+  end
 
   led_mmio lm (
     .clk(clk),
@@ -52,6 +67,14 @@ module board_bus #(
     .selected(uart_selected),
     .read_data(uart_read_data),
     .tx(uart_tx)
+  );
+
+  timer_mmio tm (
+    .clk(clk),
+    .rst(rst),
+    .mem_addr(mem_addr),
+    .selected(timer_selected),
+    .read_data(timer_read_data)
   );
 
   lsu #(

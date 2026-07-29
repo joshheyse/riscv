@@ -295,9 +295,9 @@ module tb_controller
             "       exp reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write(op), exp_mem_write(op), exp_imm_src(op).name(), exp_alu_src(op).name(),
             exp_alu_result_src(op).name(), exp_alu_select(op, funct3).name(), exp_result_src(op
-            ).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3
-            ).name(), exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(),
-            exp_mem_unsigned(op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3, funct7));
+            ).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(),
+            exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(
+            op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3, funct7));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

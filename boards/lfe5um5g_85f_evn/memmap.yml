@@ -9,3 +9,5 @@ constants:
   uart_tx_addr: 0x10001000
   uart_status_addr: 0x10004000
   sim_halt_addr: 0x1000f000
+  timer_lo_addr: 0x10002000
+  timer_hi_addr: 0x10002004
