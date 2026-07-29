@@ -58,7 +58,9 @@ module board_bus #(
     .led(led)
   );
 
-  uart_mmio um (
+  uart_mmio #(
+    .ClocksPerBit(memmap_pkg::UartClocksPerBit)
+  ) um (
     .clk(clk),
     .rst(rst),
     .mem_write(mem_write),

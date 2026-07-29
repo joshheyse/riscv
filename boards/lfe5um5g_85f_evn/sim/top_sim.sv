@@ -5,7 +5,7 @@ module top_sim #(
   parameter int unsigned ImemDepthWords = 512,
   parameter int unsigned DmemDepthWords = 512,
   parameter string DmemInitFile = "",
-  parameter int unsigned ClocksPerBit = 104,
+  parameter int unsigned ClocksPerBit = memmap_pkg::UartClocksPerBit,
   parameter riscv_pkg::word_t SimHaltAddr = memmap_pkg::SimHaltAddr,
   parameter int unsigned TimeoutCycles = 1_000_000
 );

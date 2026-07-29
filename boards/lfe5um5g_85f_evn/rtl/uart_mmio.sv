@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module uart_mmio #(
-  parameter integer unsigned  ClocksPerBit = 104,
+  parameter int unsigned      ClocksPerBit = memmap_pkg::UartClocksPerBit,
   parameter riscv_pkg::word_t TxDataAddr   = memmap_pkg::UartTxAddr,
   parameter riscv_pkg::word_t StatusAddr   = memmap_pkg::UartStatusAddr
 ) (

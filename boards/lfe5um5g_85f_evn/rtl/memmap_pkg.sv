@@ -8,6 +8,8 @@ package memmap_pkg;
   localparam logic [31:0] LedAddr = 32'h10000000;
   localparam logic [31:0] UartTxAddr = 32'h10001000;
   localparam logic [31:0] UartStatusAddr = 32'h10004000;
+  localparam logic [31:0] UartBaud = 32'h0001c200;
+  localparam logic [31:0] UartClocksPerBit = 32'h00000068;
   localparam logic [31:0] SimHaltAddr = 32'h1000f000;
   localparam logic [31:0] TimerLoAddr = 32'h10002000;
   localparam logic [31:0] TimerHiAddr = 32'h10002004;
