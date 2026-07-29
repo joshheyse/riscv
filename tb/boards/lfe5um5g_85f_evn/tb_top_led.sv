@@ -2,7 +2,7 @@
 
 module tb_top_led;
   localparam string ProgramFile =
-      "/home/josh/code/riscv-soc/build/boards/lfe5um5g_85f_evn/led_skip.mem";
+      "/home/josh/code/riscv-soc/build/boards/lfe5um5g_85f_evn/apps/led_skip/led_skip.mem";
 
   logic       clk_12mhz;
   logic       rst_n;
