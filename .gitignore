@@ -9,3 +9,4 @@ obj_dir/
 riscof_work/
 .direnv/
 .mcp.json
+.cache/
