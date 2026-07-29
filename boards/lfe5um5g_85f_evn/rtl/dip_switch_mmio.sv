@@ -10,7 +10,7 @@ module dip_switch_mmio #(
   input logic [NumDipSwitches-1:0] dip_switch
 );
 
-  localparam int unsigned WordBits = 32;
+  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
   initial begin
     assert (NumDipSwitches < WordBits);
   end

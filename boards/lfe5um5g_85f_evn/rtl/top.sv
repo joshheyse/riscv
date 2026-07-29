@@ -7,19 +7,20 @@
 module top #(
   parameter int unsigned ImemDepthWords = 512,
   parameter ImemInitFile = "",
-  parameter int unsigned PowerOnResetCycles = 16
+  parameter int unsigned PowerOnResetCycles = 16,
+  parameter int unsigned NumGpio = memmap_pkg::NumGpio
 ) (
-  input  logic       clk_12mhz,
-  input  logic       rst_n,
-  output logic [7:0] led_n,
-  input  logic [7:0] dip_switch_n,
-  input  logic       push_button_n,
-  output logic       uart_tx,
-
-  output logic spi_sck,
-  output logic spi_mosi,
-  input  logic spi_miso,
-  output logic spi_cs_n
+  input  logic               clk_12mhz,
+  input  logic               rst_n,
+  output logic [        7:0] led_n,
+  input  logic [        7:0] dip_switch_n,
+  input  logic               push_button_n,
+  output logic               uart_tx,
+  inout  logic [NumGpio-1:0] gpio,
+  output logic               spi_sck,
+  output logic               spi_mosi,
+  input  logic               spi_miso,
+  output logic               spi_cs_n
 );
 
   localparam int unsigned ResetCounterBits = $clog2(PowerOnResetCycles + 1);
@@ -35,6 +36,9 @@ module top #(
   riscv_pkg::instr_u instr;
   logic [7:0] led;
   logic [7:0] dip_switch;
+  logic [NumGpio-1:0] gpio_in;
+  logic [NumGpio-1:0] gpio_out;
+  logic [NumGpio-1:0] gpio_oe;
   logic push_button;
   logic halted;
   logic mem_write;
@@ -53,6 +57,14 @@ module top #(
   assign led_n = halted ? 8'h00 : ~led;
   assign dip_switch = ~dip_switch_n;
   assign push_button = ~push_button_n;
+  assign gpio_in = gpio;
+
+  genvar i;
+  generate
+    for (i = 0; i < NumGpio; i++) begin : gen_gpio_tristate
+      assign gpio[i] = gpio_oe[i] ? gpio_out[i] : 1'bz;
+    end
+  endgenerate
 
   always_ff @(posedge clk_12mhz) begin
     if (!rst_n) begin
@@ -81,6 +93,9 @@ module top #(
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
     .spi_cs_n(spi_cs_n),
+    .gpio_in(gpio_in),
+    .gpio_out(gpio_out),
+    .gpio_oe(gpio_oe),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),

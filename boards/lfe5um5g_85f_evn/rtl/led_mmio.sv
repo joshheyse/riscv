@@ -15,7 +15,7 @@ module led_mmio #(
   output logic [NumLeds-1:0] led
 );
 
-  localparam int unsigned WordBits = 32;
+  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
   initial begin
     assert (NumLeds < WordBits);
   end

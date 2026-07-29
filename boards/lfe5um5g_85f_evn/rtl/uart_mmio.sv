@@ -67,7 +67,7 @@ module uart_mmio #(
     end
   end
 
-  localparam int unsigned WordBits = 32;
+  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
   logic unused_write_data;
   assign unused_write_data = |mem_write_data[WordBits-1:8];
 

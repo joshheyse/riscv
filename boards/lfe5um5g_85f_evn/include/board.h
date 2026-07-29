@@ -62,4 +62,49 @@ static inline void sleep_s(uint64_t s) {
   }
 }
 
+static inline void gpio_set(uint16_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return;
+  }
+
+  mmio_write32(BOARD_GPIO_SET_ADDR, 1u << pin);
+}
+
+static inline void gpio_clear(uint16_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return;
+  }
+  mmio_write32(BOARD_GPIO_CLEAR_ADDR, 1u << pin);
+}
+
+static inline void gpio_toggle(uint16_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return;
+  }
+  mmio_write32(BOARD_GPIO_TOGGLE_ADDR, 1u << pin);
+}
+
+static inline int gpio_read(uint16_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return -1;
+  }
+  return (int)((mmio_read32(BOARD_GPIO_DATA_IN_ADDR) >> pin) & 1u);
+}
+
+static inline void gpio_set_output(uint32_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return;
+  }
+  mmio_write32(BOARD_GPIO_DIR_ADDR,
+               mmio_read32(BOARD_GPIO_DIR_ADDR) | (1u << pin));
+}
+
+static inline void gpio_set_input(uint32_t pin) {
+  if (BOARD_NUM_GPIO <= pin) {
+    return;
+  }
+  mmio_write32(BOARD_GPIO_DIR_ADDR,
+               mmio_read32(BOARD_GPIO_DIR_ADDR) & ~(1u << pin));
+}
+
 #endif

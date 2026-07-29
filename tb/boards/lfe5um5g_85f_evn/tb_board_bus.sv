@@ -18,6 +18,9 @@ module tb_board_bus
   logic spi_mosi;
   logic spi_miso;
   logic spi_cs_n;
+  logic [memmap_pkg::NumGpio-1:0] gpio_in;
+  logic [memmap_pkg::NumGpio-1:0] gpio_out;
+  logic [memmap_pkg::NumGpio-1:0] gpio_oe;
   logic mem_write;
   word_t mem_addr;
   word_t mem_write_data;
@@ -41,6 +44,9 @@ module tb_board_bus
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
     .spi_cs_n(spi_cs_n),
+    .gpio_in(gpio_in),
+    .gpio_out(gpio_out),
+    .gpio_oe(gpio_oe),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
@@ -110,10 +116,13 @@ module tb_board_bus
     dip_switch     = 8'h00;
     push_button    = 1'b0;
     spi_miso       = 1'b0;
+    gpio_in        = '0;
 
     repeat (2) @(posedge clk);
     #1;
     expect_byte(led, 8'h00, "reset clears LEDs");
+    expect_byte(gpio_out, 8'h00, "reset clears GPIO output latch");
+    expect_byte(gpio_oe, 8'h00, "reset clears GPIO output enable");
     expect_bit(uart_tx, 1'b1, "reset leaves UART idle high");
     expect_bit(spi_sck, 1'b0, "reset leaves SPI clock idle low");
     expect_bit(spi_mosi, 1'b0, "reset leaves SPI MOSI idle low");
@@ -152,6 +161,27 @@ module tb_board_bus
     #1;
     set_read_addr(memmap_pkg::PushButtonAddr);
     expect_word(mem_read_data, 32'h0000_0001, "push button read routes through board bus");
+
+    gpio_in = 8'h3c;
+    set_read_addr(memmap_pkg::GpioDataInAddr);
+    expect_word(mem_read_data, 32'h0000_003c, "GPIO input read routes through board bus");
+
+    write_bus(memmap_pkg::GpioDataOutAddr, 32'h0000_0055);
+    expect_byte(gpio_out, 8'h55, "GPIO output write reaches GPIO MMIO");
+    set_read_addr(memmap_pkg::GpioDataOutAddr);
+    expect_word(mem_read_data, 32'h0000_0055, "GPIO output read routes through board bus");
+
+    write_bus(memmap_pkg::GpioDirAddr, 32'h0000_00f0);
+    expect_byte(gpio_oe, 8'hf0, "GPIO direction write reaches GPIO MMIO");
+    set_read_addr(memmap_pkg::GpioDirAddr);
+    expect_word(mem_read_data, 32'h0000_00f0, "GPIO direction read routes through board bus");
+
+    write_bus(memmap_pkg::GpioSetAddr, 32'h0000_000a);
+    expect_byte(gpio_out, 8'h5f, "GPIO set write routes through board bus");
+    write_bus(memmap_pkg::GpioClearAddr, 32'h0000_0015);
+    expect_byte(gpio_out, 8'h4a, "GPIO clear write routes through board bus");
+    write_bus(memmap_pkg::GpioToggleAddr, 32'h0000_00ff);
+    expect_byte(gpio_out, 8'hb5, "GPIO toggle write routes through board bus");
 
     set_read_addr(memmap_pkg::UartStatusAddr);
     expect_word(mem_read_data, 32'h0000_0001, "UART status read routes ready bit");

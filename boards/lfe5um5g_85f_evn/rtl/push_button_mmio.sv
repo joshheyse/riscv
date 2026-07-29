@@ -13,7 +13,7 @@ module push_button_mmio #(
   input logic [NumPushButtons-1:0] push_button
 );
 
-  localparam int unsigned WordBits = 32;
+  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
   localparam int unsigned DebounceCounterBits = $clog2(DebounceCycles + 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterMax = DebounceCounterBits'(DebounceCycles - 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterInc = DebounceCounterBits'(1);
