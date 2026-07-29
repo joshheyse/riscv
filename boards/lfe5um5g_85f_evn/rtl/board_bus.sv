@@ -123,7 +123,9 @@ module board_bus #(
     .tx(uart_tx)
   );
 
-  spi_mmio sm (
+  spi_mmio #(
+    .ClocksPerHalfBit(memmap_pkg::SpiClocksPerHalfBit)
+  ) sm (
     .clk(clk),
     .rst(rst),
     .mem_write(spi_write),

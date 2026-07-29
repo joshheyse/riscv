@@ -20,6 +20,7 @@ constants:
   spi_data_addr: 0x10004000
   spi_control_addr: 0x10004004
   spi_status_addr: 0x10004008
+  spi_clocks_per_half_bit: 3
   i2c_data_addr: 0x10005000
   i2c_address_addr: 0x10005004
   i2c_control_addr: 0x10005008

@@ -20,6 +20,7 @@ package memmap_pkg;
   localparam logic [31:0] SpiDataAddr = 32'h10004000;
   localparam logic [31:0] SpiControlAddr = 32'h10004004;
   localparam logic [31:0] SpiStatusAddr = 32'h10004008;
+  localparam logic [31:0] SpiClocksPerHalfBit = 32'h00000003;
   localparam logic [31:0] I2cDataAddr = 32'h10005000;
   localparam logic [31:0] I2cAddressAddr = 32'h10005004;
   localparam logic [31:0] I2cControlAddr = 32'h10005008;

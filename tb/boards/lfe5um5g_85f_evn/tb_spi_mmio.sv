@@ -5,7 +5,8 @@ module tb_spi_mmio
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 200;
+  localparam int unsigned ClocksPerHalfBit = memmap_pkg::SpiClocksPerHalfBit;
+  localparam int unsigned TimeoutCycles = 400;
   localparam word_t DataAddr = 32'h1000_4000;
   localparam word_t ControlAddr = 32'h1000_4004;
   localparam word_t StatusAddr = 32'h1000_4008;
@@ -28,9 +29,10 @@ module tb_spi_mmio
   int unsigned checks = 0;
 
   spi_mmio #(
-    .DataAddr   (DataAddr),
-    .ControlAddr(ControlAddr),
-    .StatusAddr (StatusAddr)
+    .DataAddr         (DataAddr),
+    .ControlAddr      (ControlAddr),
+    .StatusAddr       (StatusAddr),
+    .ClocksPerHalfBit (ClocksPerHalfBit)
   ) dut (
     .clk(clk),
     .rst(rst),
@@ -96,6 +98,8 @@ module tb_spi_mmio
   endtask
 
   task automatic expect_spi_bit(input logic [2:0] bit_index);
+    logic miso_sampled;
+
     // After the first bit, the previous check leaves the FSM in SCK_LOW. One
     // extra clock advances into LOAD_BIT before MOSI is registered in SETUP.
     if (bit_index != 3'd7) begin
@@ -112,19 +116,28 @@ module tb_spi_mmio
     expect_bit(spi_sck, 1'b0, "sck low during setup");
     expect_bit(spi_mosi, TxByte[bit_index], "mosi bit during setup");
 
-    // SCK_HIGH state: sample MISO for this bit.
+    // SCK_HIGH state: hold the sample clock high for the configured divider.
     spi_miso = RxByte[bit_index];
-    @(posedge clk);
-    #1;
-    expect_bit(spi_cs_n, 1'b0, "cs active during high");
-    expect_bit(spi_sck, 1'b1, "sck high during sample");
-    expect_bit(spi_mosi, TxByte[bit_index], "mosi stable during high");
+    miso_sampled = 1'b0;
+    for (int unsigned cycle = 0; cycle < ClocksPerHalfBit; cycle++) begin
+      @(posedge clk);
+      #1;
+      expect_bit(spi_cs_n, 1'b0, "cs active during high");
+      expect_bit(spi_sck, 1'b1, "sck high during sample");
+      expect_bit(spi_mosi, TxByte[bit_index], "mosi stable during high");
+      if (cycle == 0) begin
+        miso_sampled = 1'b1;
+      end
+    end
+    expect_bit(miso_sampled, 1'b1, "miso sample cycle observed");
 
-    // SCK_LOW state: clock returns low before next bit/done.
-    @(posedge clk);
-    #1;
-    expect_bit(spi_cs_n, 1'b0, "cs active during low");
-    expect_bit(spi_sck, 1'b0, "sck low after sample");
+    // SCK_LOW state: hold the clock low for the configured divider.
+    for (int unsigned cycle = 0; cycle < ClocksPerHalfBit; cycle++) begin
+      @(posedge clk);
+      #1;
+      expect_bit(spi_cs_n, 1'b0, "cs active during low");
+      expect_bit(spi_sck, 1'b0, "sck low after sample");
+    end
   endtask
 
   initial begin
