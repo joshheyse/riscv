@@ -20,7 +20,9 @@ module top #(
   output logic               spi_sck,
   output logic               spi_mosi,
   input  logic               spi_miso,
-  output logic               spi_cs_n
+  output logic               spi_cs_n,
+  inout  logic               i2c_sda,
+  inout  logic               i2c_scl
 );
 
   localparam int unsigned ResetCounterBits = $clog2(PowerOnResetCycles + 1);
@@ -34,13 +36,8 @@ module top #(
   logic power_on_rst;
   riscv_pkg::pc_t pc;
   riscv_pkg::instr_u instr;
-  logic [7:0] led;
-  logic [7:0] dip_switch;
-  logic [NumGpio-1:0] gpio_in;
-  logic [NumGpio-1:0] gpio_out;
-  logic [NumGpio-1:0] gpio_oe;
-  logic push_button;
   logic halted;
+
   logic mem_write;
   riscv_pkg::word_t mem_addr;
   riscv_pkg::word_t mem_write_data;
@@ -48,16 +45,36 @@ module top #(
   riscv_pkg::mem_size_t mem_size;
   logic mem_unsigned;
 
+  logic [7:0] led;
+  logic [7:0] dip_switch;
+  logic push_button;
+
+  logic [NumGpio-1:0] gpio_in;
+  logic [NumGpio-1:0] gpio_out;
+  logic [NumGpio-1:0] gpio_oe;
+
+  logic i2c_sda_in;
+  logic i2c_sda_drive_low;
+  logic i2c_scl_in;
+  logic i2c_scl_drive_low;
+
   initial begin
     assert (PowerOnResetCycles > 0);
   end
 
   assign power_on_rst = (reset_counter != ResetCounterMax);
   assign rst = ~rst_n | power_on_rst;
+
   assign led_n = halted ? 8'h00 : ~led;
   assign dip_switch = ~dip_switch_n;
   assign push_button = ~push_button_n;
   assign gpio_in = gpio;
+
+  assign i2c_sda_in = i2c_sda;
+  assign i2c_scl_in = i2c_scl;
+
+  assign i2c_sda = i2c_sda_drive_low ? 1'b0 : 1'bz;
+  assign i2c_scl = i2c_scl_drive_low ? 1'b0 : 1'bz;
 
   genvar i;
   generate
@@ -96,6 +113,10 @@ module top #(
     .gpio_in(gpio_in),
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe),
+    .i2c_sda_in(i2c_sda_in),
+    .i2c_sda_drive_low(i2c_sda_drive_low),
+    .i2c_scl_in(i2c_scl_in),
+    .i2c_scl_drive_low(i2c_scl_drive_low),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),

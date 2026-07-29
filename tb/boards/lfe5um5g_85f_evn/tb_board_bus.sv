@@ -18,6 +18,10 @@ module tb_board_bus
   logic spi_mosi;
   logic spi_miso;
   logic spi_cs_n;
+  logic i2c_sda_in;
+  logic i2c_sda_drive_low;
+  logic i2c_scl_in;
+  logic i2c_scl_drive_low;
   logic [memmap_pkg::NumGpio-1:0] gpio_in;
   logic [memmap_pkg::NumGpio-1:0] gpio_out;
   logic [memmap_pkg::NumGpio-1:0] gpio_oe;
@@ -44,6 +48,10 @@ module tb_board_bus
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
     .spi_cs_n(spi_cs_n),
+    .i2c_sda_in(i2c_sda_in),
+    .i2c_sda_drive_low(i2c_sda_drive_low),
+    .i2c_scl_in(i2c_scl_in),
+    .i2c_scl_drive_low(i2c_scl_drive_low),
     .gpio_in(gpio_in),
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe),
@@ -116,6 +124,8 @@ module tb_board_bus
     dip_switch     = 8'h00;
     push_button    = 1'b0;
     spi_miso       = 1'b0;
+    i2c_sda_in     = 1'b1;
+    i2c_scl_in     = 1'b1;
     gpio_in        = '0;
 
     repeat (2) @(posedge clk);
@@ -127,6 +137,8 @@ module tb_board_bus
     expect_bit(spi_sck, 1'b0, "reset leaves SPI clock idle low");
     expect_bit(spi_mosi, 1'b0, "reset leaves SPI MOSI idle low");
     expect_bit(spi_cs_n, 1'b1, "reset leaves SPI chip select inactive");
+    expect_bit(i2c_sda_drive_low, 1'b0, "reset releases I2C SDA");
+    expect_bit(i2c_scl_drive_low, 1'b0, "reset releases I2C SCL");
 
     @(negedge clk);
     rst = 1'b0;
@@ -209,6 +221,18 @@ module tb_board_bus
 
     set_read_addr(memmap_pkg::SpiStatusAddr);
     expect_word(mem_read_data, '0, "SPI status read routes through board bus");
+
+    set_read_addr(memmap_pkg::I2cDataAddr);
+    expect_word(mem_read_data, '0, "I2C data read routes through board bus");
+
+    set_read_addr(memmap_pkg::I2cAddressAddr);
+    expect_word(mem_read_data, '0, "I2C address read routes through board bus");
+
+    set_read_addr(memmap_pkg::I2cControlAddr);
+    expect_word(mem_read_data, '0, "I2C control read routes through board bus");
+
+    set_read_addr(memmap_pkg::I2cStatusAddr);
+    expect_word(mem_read_data, '0, "I2C status read routes through board bus");
 
     if (errors == 0) begin
       $display("tb_board_bus: PASS (%0d checks)", checks);

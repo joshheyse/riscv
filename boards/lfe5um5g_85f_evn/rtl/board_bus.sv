@@ -25,6 +25,11 @@ module board_bus #(
   output logic [NumGpio-1:0] gpio_out,
   output logic [NumGpio-1:0] gpio_oe,
 
+  input  logic i2c_sda_in,
+  output logic i2c_sda_drive_low,
+  input  logic i2c_scl_in,
+  output logic i2c_scl_drive_low,
+
   input  logic                 mem_write,
   input  riscv_pkg::word_t     mem_addr,
   input  riscv_pkg::word_t     mem_write_data,
@@ -41,6 +46,7 @@ module board_bus #(
   riscv_pkg::word_t uart_read_data;
   riscv_pkg::word_t timer_read_data;
   riscv_pkg::word_t spi_read_data;
+  riscv_pkg::word_t i2c_read_data;
   logic dmem_selected;
   logic led_selected;
   logic dip_switch_selected;
@@ -49,20 +55,24 @@ module board_bus #(
   logic uart_selected;
   logic timer_selected;
   logic spi_selected;
+  logic i2c_selected;
   logic mmio_selected;
   logic dmem_write;
   logic led_write;
   logic gpio_write;
   logic uart_write;
   logic spi_write;
+  logic i2c_write;
+
 
   assign dmem_selected = ((mem_addr - memmap_pkg::DmemBase) < memmap_pkg::DmemSize);
-  assign mmio_selected = led_selected | uart_selected | timer_selected | dip_switch_selected | push_button_selected | spi_selected | gpio_selected;
+  assign mmio_selected = led_selected | uart_selected | timer_selected | dip_switch_selected | push_button_selected | spi_selected | gpio_selected | i2c_selected;
   assign dmem_write = mem_write & dmem_selected & !mmio_selected;
   assign led_write = mem_write & led_selected;
   assign gpio_write = mem_write & gpio_selected;
   assign uart_write = mem_write & uart_selected;
   assign spi_write = mem_write & spi_selected;
+  assign i2c_write = mem_write & i2c_selected;
 
   always_comb begin
     mem_read_data = '0;
@@ -81,6 +91,8 @@ module board_bus #(
       mem_read_data = timer_read_data;
     end else if (spi_selected) begin
       mem_read_data = spi_read_data;
+    end else if (i2c_selected) begin
+      mem_read_data = i2c_read_data;
     end else if (dmem_selected) begin
       mem_read_data = lsu_read_data;
     end
@@ -161,6 +173,20 @@ module board_bus #(
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
     .spi_cs_n(spi_cs_n)
+  );
+
+  i2c_mmio #() im_i (
+    .clk(clk),
+    .rst(rst),
+    .mem_write(i2c_write),
+    .mem_addr(mem_addr),
+    .mem_write_data(mem_write_data),
+    .selected(i2c_selected),
+    .read_data(i2c_read_data),
+    .i2c_sda_in(i2c_sda_in),
+    .i2c_sda_drive_low(i2c_sda_drive_low),
+    .i2c_scl_in(i2c_scl_in),
+    .i2c_scl_drive_low(i2c_scl_drive_low)
   );
 
   lsu #(
