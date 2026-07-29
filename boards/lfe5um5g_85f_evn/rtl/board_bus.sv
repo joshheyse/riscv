@@ -29,9 +29,15 @@ module board_bus #(
   logic uart_selected;
   logic timer_selected;
   logic mmio_selected;
+  logic dmem_write;
+  logic led_write;
+  logic uart_write;
 
   assign dmem_selected = ((mem_addr - memmap_pkg::DmemBase) < memmap_pkg::DmemSize);
   assign mmio_selected = led_selected | uart_selected | timer_selected;
+  assign dmem_write    = mem_write & dmem_selected & !mmio_selected;
+  assign led_write     = mem_write & led_selected;
+  assign uart_write    = mem_write & uart_selected;
 
   always_comb begin
     mem_read_data = '0;
@@ -50,7 +56,7 @@ module board_bus #(
   led_mmio lm (
     .clk(clk),
     .rst(rst),
-    .mem_write(mem_write),
+    .mem_write(led_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(led_selected),
@@ -63,7 +69,7 @@ module board_bus #(
   ) um (
     .clk(clk),
     .rst(rst),
-    .mem_write(mem_write),
+    .mem_write(uart_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(uart_selected),
@@ -84,7 +90,7 @@ module board_bus #(
     .InitFile  (DmemInitFile)
   ) lsu_i (
     .clk(clk),
-    .mem_write(mem_write & dmem_selected & !mmio_selected),
+    .mem_write(dmem_write),
     .addr(mem_addr),
     .write_data(mem_write_data),
     .read_data(lsu_read_data),
