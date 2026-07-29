@@ -11,3 +11,4 @@ constants:
   sim_halt_addr: 0x1000f000
   timer_lo_addr: 0x10002000
   timer_hi_addr: 0x10002004
+  timer_hz: 12000000

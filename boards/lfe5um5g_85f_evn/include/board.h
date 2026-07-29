@@ -6,6 +6,9 @@
 #include "board_memmap.h"
 #include "riscv_soc/mmio.h"
 
+#define BOARD_TIMER_CYCLES_PER_US (BOARD_TIMER_HZ / 1000000u)
+#define BOARD_TIMER_CYCLES_PER_MS (BOARD_TIMER_HZ / 1000u)
+
 static inline void led_write(uint32_t value) {
   mmio_write32(BOARD_LED_ADDR, value);
 }
@@ -33,24 +36,25 @@ static inline uint64_t timer_read_cycles(void) {
 
 static inline void timer_sleep_cycles(uint64_t cycles) {
   uint64_t start = timer_read_cycles();
-  while ((timer_read_cycles() - start) < cycles);
+  while ((timer_read_cycles() - start) < cycles)
+    ;
 }
 
 static inline void sleep_us(uint64_t us) {
   while (us--) {
-    timer_sleep_cycles(12u);
+    timer_sleep_cycles(BOARD_TIMER_CYCLES_PER_US);
   }
 }
 
 static inline void sleep_ms(uint64_t ms) {
   while (ms--) {
-    sleep_us(1000u);
+    timer_sleep_cycles(BOARD_TIMER_CYCLES_PER_MS);
   }
 }
 
-static inline void sleep(uint64_t s) {
+static inline void sleep_s(uint64_t s) {
   while (s--) {
-    sleep_ms(1000u);
+    timer_sleep_cycles(BOARD_TIMER_HZ);
   }
 }
 

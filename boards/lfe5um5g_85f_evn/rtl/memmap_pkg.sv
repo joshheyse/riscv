@@ -11,5 +11,6 @@ package memmap_pkg;
   localparam logic [31:0] SimHaltAddr = 32'h1000f000;
   localparam logic [31:0] TimerLoAddr = 32'h10002000;
   localparam logic [31:0] TimerHiAddr = 32'h10002004;
+  localparam logic [31:0] TimerHz = 32'h00b71b00;
   /* verilator lint_on UNUSEDPARAM */
 endpackage
