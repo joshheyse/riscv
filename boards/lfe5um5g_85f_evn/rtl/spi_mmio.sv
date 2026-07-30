@@ -40,7 +40,7 @@ module spi_mmio #(
   logic mosi_reg;
   riscv_pkg::byte_t tx_data;
   riscv_pkg::byte_t rx_data;
-  logic [2:0] bit_counter;
+  logic [2:0] bit_index;
   logic [SpiCounterBits-1:0] spi_counter;
   logic half_bit_done;
 
@@ -57,7 +57,7 @@ module spi_mmio #(
       mosi_reg <= 0;
       tx_data <= 0;
       rx_data <= 0;
-      bit_counter <= 0;
+      bit_index <= 0;
       spi_counter <= 0;
     end else begin
       if (mem_write && data_selected) begin
@@ -66,13 +66,13 @@ module spi_mmio #(
       unique case (state)
         SPI_IDLE: begin
           if (mem_write && control_selected && mem_write_data[0]) begin
-            bit_counter <= 3'b111;
+            bit_index <= 3'b111;
             rx_data <= 0;
             state <= SPI_LOAD_BIT;
           end
         end
         SPI_LOAD_BIT: begin
-          mosi_reg <= tx_data[bit_counter];
+          mosi_reg <= tx_data[bit_index];
           state <= SPI_SETUP;
         end
         SPI_SETUP: begin
@@ -80,7 +80,7 @@ module spi_mmio #(
           spi_counter <= 0;
         end
         SPI_SCK_HIGH: begin
-          rx_data[bit_counter] <= spi_miso;
+          rx_data[bit_index] <= spi_miso;
           if (half_bit_done) begin
             spi_counter <= 0;
             state <= SPI_SCK_LOW;
@@ -91,10 +91,10 @@ module spi_mmio #(
         SPI_SCK_LOW: begin
           if (half_bit_done) begin
             spi_counter <= 0;
-            if (bit_counter == 3'b000) begin
+            if (bit_index == 3'b000) begin
               state <= SPI_DONE;
             end else begin
-              bit_counter <= bit_counter - 1'b1;
+              bit_index <= bit_index - 1'b1;
               state <= SPI_LOAD_BIT;
             end
           end else begin
