@@ -5,8 +5,7 @@ typedef enum logic [2:0] {
   I2C_START     = 3'b001,
   I2C_SEND_BYTE = 3'b010,
   I2C_ACK       = 3'b011,
-  I2C_STOP      = 3'b100,
-  I2C_DONE      = 3'b101
+  I2C_STOP      = 3'b100
 } i2c_state_t;
 
 typedef enum logic {
@@ -55,12 +54,9 @@ module i2c_mmio #(
   riscv_pkg::byte_t i2c_byte;
   logic [2:0] bit_index;
 
-  localparam int unsigned I2cCounterBits = (ClocksPerHalfBit <= 1) ? 1 : $clog2(ClocksPerHalfBit);
-
-  logic [I2cCounterBits-1:0] i2c_counter;
-  logic half_bit_done;
-
-  assign half_bit_done = i2c_counter == I2cCounterBits'(ClocksPerHalfBit - 1);
+  logic stg_enabled;
+  logic stg_clear;
+  logic stg_tick;
 
   assign data_selected = mem_addr == DataAddr;
   assign control_selected = mem_addr == ControlAddr;
@@ -68,18 +64,29 @@ module i2c_mmio #(
   assign address_selected = mem_addr == AddressAddr;
   assign selected = data_selected || control_selected || status_selected || address_selected;
 
+  assign stg_enabled = state != I2C_IDLE;
+  assign stg_clear = state == I2C_IDLE;
+
+  serial_tick_generator #(
+    .ClocksPerTick(ClocksPerHalfBit)
+  ) stg (
+    .clk(clk),
+    .rst(rst),
+    .enable(stg_enabled),
+    .clear(stg_clear),
+    .tick(stg_tick)
+  );
 
   always_ff @(posedge clk) begin
     if (rst) begin
       state <= I2C_IDLE;
-      tx_data <= 0;
-      rx_data <= 0;
-      i2c_addr <= 0;
-      bit_index <= 0;
+      tx_data <= '0;
+      rx_data <= '0;
+      i2c_addr <= '0;
+      bit_index <= '0;
+      i2c_byte <= '0;
+      ack_error <= 1'b0;
       phase <= I2C_PHASE_LOW;
-      i2c_counter <= 0;
-      ack_error <= 0;
-      i2c_byte <= 0;
       byte_type <= I2C_BYTE_ADDR;
     end else begin
       if (mem_write) begin
@@ -94,12 +101,11 @@ module i2c_mmio #(
           if (mem_write && control_selected) begin
             state <= I2C_START;
             phase <= I2C_PHASE_LOW;
-            i2c_counter <= 0;
             ack_error <= 1'b0;
           end
         end
         I2C_START: begin
-          if (half_bit_done) begin
+          if (stg_tick) begin
             if (phase == I2C_PHASE_LOW) begin
               phase <= I2C_PHASE_HIGH;
             end else begin
@@ -109,13 +115,10 @@ module i2c_mmio #(
               i2c_byte <= {i2c_addr, 1'b0};
               byte_type <= I2C_BYTE_ADDR;
             end
-            i2c_counter <= 0;
-          end else begin
-            i2c_counter <= i2c_counter + I2cCounterBits'(1'b1);
           end
         end
         I2C_SEND_BYTE: begin
-          if (half_bit_done) begin
+          if (stg_tick) begin
             if (phase == I2C_PHASE_LOW) begin
               phase <= I2C_PHASE_HIGH;
             end else begin
@@ -126,14 +129,10 @@ module i2c_mmio #(
                 bit_index <= bit_index - 1;
               end
             end
-            i2c_counter <= 0;
-          end else begin
-            i2c_counter <= i2c_counter + I2cCounterBits'(1'b1);
           end
         end
         I2C_ACK: begin
-          if (half_bit_done) begin
-            i2c_counter <= '0;
+          if (stg_tick) begin
             if (phase == I2C_PHASE_LOW) begin
               phase <= I2C_PHASE_HIGH;
             end else begin
@@ -152,21 +151,16 @@ module i2c_mmio #(
                 ack_error <= 1'b1;
               end
             end
-          end else begin
-            i2c_counter <= i2c_counter + I2cCounterBits'(1'b1);
           end
         end
         I2C_STOP: begin
-          if (half_bit_done) begin
+          if (stg_tick) begin
             if (phase == I2C_PHASE_LOW) begin
               phase <= I2C_PHASE_HIGH;
             end else begin
               state <= I2C_IDLE;
               phase <= I2C_PHASE_LOW;
             end
-            i2c_counter <= 0;
-          end else begin
-            i2c_counter <= i2c_counter + I2cCounterBits'(1'b1);
           end
         end
         default: begin
@@ -180,7 +174,7 @@ module i2c_mmio #(
     i2c_sda_drive_low = 1'b0;
     i2c_scl_drive_low = 1'b0;
     case (state)
-      I2C_START: begin
+      I2C_START, I2C_STOP: begin
         busy = 1'b1;
         i2c_sda_drive_low = (phase == I2C_PHASE_LOW);
         i2c_scl_drive_low = 1'b0;
@@ -194,11 +188,6 @@ module i2c_mmio #(
         busy = 1'b1;
         i2c_sda_drive_low = 1'b0;
         i2c_scl_drive_low = (phase == I2C_PHASE_LOW);
-      end
-      I2C_STOP: begin
-        busy = 1'b1;
-        i2c_sda_drive_low = (phase == I2C_PHASE_LOW);
-        i2c_scl_drive_low = 1'b0;
       end
       default: begin
       end
@@ -217,7 +206,7 @@ module i2c_mmio #(
   end
 
   logic unused_inputs;
-  assign unused_inputs = |i2c_scl_in | (|mem_write_data);
+  assign unused_inputs = |i2c_scl_in | (|mem_write_data[31:8]);
 
 
 endmodule
