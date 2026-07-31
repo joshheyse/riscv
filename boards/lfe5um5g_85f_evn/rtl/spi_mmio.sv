@@ -2,7 +2,6 @@
 
 typedef enum logic [2:0] {
   SPI_IDLE     = 3'b000,
-  SPI_LOAD_BIT = 3'b001,
   SPI_SETUP    = 3'b010,
   SPI_SCK_HIGH = 3'b011,
   SPI_SCK_LOW  = 3'b100,
@@ -35,7 +34,6 @@ module spi_mmio #(
   logic data_selected;
   logic control_selected;
   logic status_selected;
-  logic mosi_reg;
   riscv_pkg::byte_t tx_data;
   riscv_pkg::byte_t rx_data;
   logic [2:0] bit_index;
@@ -44,7 +42,6 @@ module spi_mmio #(
   assign control_selected = mem_addr == ControlAddr;
   assign status_selected = mem_addr == StatusAddr;
   assign selected = data_selected || control_selected || status_selected;
-  assign spi_mosi = mosi_reg;
 
   logic stg_enabled;
   logic stg_clear;
@@ -66,7 +63,6 @@ module spi_mmio #(
   always_ff @(posedge clk) begin
     if (rst) begin
       state <= SPI_IDLE;
-      mosi_reg <= 0;
       tx_data <= 0;
       rx_data <= 0;
       bit_index <= 0;
@@ -79,12 +75,8 @@ module spi_mmio #(
           if (mem_write && control_selected && mem_write_data[0]) begin
             bit_index <= 3'b111;
             rx_data <= 0;
-            state <= SPI_LOAD_BIT;
+            state <= SPI_SETUP;
           end
-        end
-        SPI_LOAD_BIT: begin
-          mosi_reg <= tx_data[bit_index];
-          state <= SPI_SETUP;
         end
         SPI_SETUP: begin
           state <= SPI_SCK_HIGH;
@@ -101,12 +93,11 @@ module spi_mmio #(
               state <= SPI_DONE;
             end else begin
               bit_index <= bit_index - 1'b1;
-              state <= SPI_LOAD_BIT;
+              state <= SPI_SETUP;
             end
           end
         end
         SPI_DONE: begin
-          mosi_reg <= 1'b0;
           state <= SPI_IDLE;
         end
       endcase
@@ -117,20 +108,21 @@ module spi_mmio #(
     spi_sck = 1'b0;
     spi_cs_n = 1'b1;
     busy = 1'b0;
+    spi_mosi = 1'b0;
 
     case (state)
-      SPI_SCK_HIGH: begin
-        spi_sck = 1'b1;
-        spi_cs_n = 1'b0;
-        busy = 1'b1;
-      end
-      SPI_LOAD_BIT, SPI_SETUP, SPI_SCK_LOW: begin
+      SPI_SETUP, SPI_SCK_LOW, SPI_SCK_HIGH: begin
         busy = 1'b1;
         spi_cs_n = 1'b0;
+        spi_mosi = tx_data[bit_index];
       end
       default: begin
       end
     endcase
+
+    if (state == SPI_SCK_HIGH) begin
+      spi_sck = 1'b1;
+    end
 
     if (data_selected) begin
       read_data = {24'b0, rx_data};

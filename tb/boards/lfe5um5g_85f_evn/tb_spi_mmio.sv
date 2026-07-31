@@ -100,17 +100,14 @@ module tb_spi_mmio
   task automatic expect_spi_bit(input logic [2:0] bit_index);
     logic miso_sampled;
 
-    // After the first bit, the previous check leaves the FSM in SCK_LOW. One
-    // extra clock advances into LOAD_BIT before MOSI is registered in SETUP.
+    // After the first bit, the previous check leaves the FSM at the end of
+    // SCK_LOW. One extra clock advances into SETUP for the next bit.
     if (bit_index != 3'd7) begin
       @(posedge clk);
       #1;
-      expect_bit(spi_cs_n, 1'b0, "cs active during load bit");
-      expect_bit(spi_sck, 1'b0, "sck low during load bit");
     end
 
     // SETUP state: CS active, SCK low, MOSI stable before sample edge.
-    @(posedge clk);
     #1;
     expect_bit(spi_cs_n, 1'b0, "cs active during setup");
     expect_bit(spi_sck, 1'b0, "sck low during setup");
