@@ -23,41 +23,35 @@ module board_bus #(
   input  logic                 mem_unsigned
 );
 
-  riscv_pkg::word_t lsu_read_data;
-  riscv_pkg::word_t led_read_data;
-  riscv_pkg::word_t uart_read_data;
-  riscv_pkg::word_t timer_read_data;
-  logic dmem_selected;
-  logic led_selected;
-  logic uart_selected;
-  logic timer_selected;
+  localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
+
   logic mmio_selected;
-  logic dmem_write;
-  logic led_write;
-  logic uart_write;
 
-  localparam int unsigned UartClocksPerBit =
-      board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
+  localparam int unsigned DmemIdx = 0;
+  localparam int unsigned LedIdx = 1;
+  localparam int unsigned UartIdx = 2;
+  localparam int unsigned TimerIdx = 3;
+  localparam int unsigned NumSources = 4;
 
-  assign dmem_selected = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
-  assign mmio_selected = led_selected | uart_selected | timer_selected;
-  assign dmem_write = mem_write & dmem_selected & !mmio_selected;
-  assign led_write = mem_write & led_selected;
-  assign uart_write = mem_write & uart_selected;
+  logic [NumSources-1:0] selected;
+  logic [NumSources-1:0] write_enabled;
+  riscv_pkg::word_t read_data[NumSources];
 
-  always_comb begin
-    mem_read_data = '0;
+  assign selected[DmemIdx] = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
+  assign mmio_selected = selected[LedIdx] | selected[UartIdx] | selected[TimerIdx];
+  assign write_enabled[TimerIdx] = 1'b0;
+  assign write_enabled[DmemIdx] = mem_write & selected[DmemIdx] & !mmio_selected;
+  assign write_enabled[LedIdx] = mem_write & selected[LedIdx];
+  assign write_enabled[UartIdx] = mem_write & selected[UartIdx];
 
-    if (led_selected) begin
-      mem_read_data = led_read_data;
-    end else if (uart_selected) begin
-      mem_read_data = uart_read_data;
-    end else if (timer_selected) begin
-      mem_read_data = timer_read_data;
-    end else if (dmem_selected) begin
-      mem_read_data = lsu_read_data;
-    end
-  end
+  onehot_mux #(
+    .Width($bits(riscv_pkg::word_t)),
+    .NumInputs(NumSources)
+  ) om (
+    .selected(selected),
+    .data_in (read_data),
+    .data_out(mem_read_data)
+  );
 
   led_mmio #(
     .LedAddr(board_constants_pkg::LedAddr),
@@ -65,11 +59,11 @@ module board_bus #(
   ) lm_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(led_write),
+    .mem_write(write_enabled[LedIdx]),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
-    .selected(led_selected),
-    .read_data(led_read_data),
+    .selected(selected[LedIdx]),
+    .read_data(read_data[LedIdx]),
     .led(led)
   );
 
@@ -80,8 +74,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_addr(mem_addr),
-    .selected(timer_selected),
-    .read_data(timer_read_data)
+    .selected(selected[TimerIdx]),
+    .read_data(read_data[TimerIdx])
   );
 
   uart_mmio #(
@@ -91,23 +85,23 @@ module board_bus #(
   ) um_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(uart_write),
+    .mem_write(write_enabled[UartIdx]),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
-    .selected(uart_selected),
-    .read_data(uart_read_data),
+    .selected(selected[UartIdx]),
+    .read_data(read_data[UartIdx]),
     .tx(uart_tx)
   );
 
   lsu #(
     .DepthWords(DmemDepthWords),
     .InitFile  (DmemInitFile)
-  ) lsu_i (
+  ) dmem_i (
     .clk(clk),
-    .mem_write(dmem_write),
+    .mem_write(write_enabled[DmemIdx]),
     .addr(mem_addr),
     .write_data(mem_write_data),
-    .read_data(lsu_read_data),
+    .read_data(read_data[DmemIdx]),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned)
   );
