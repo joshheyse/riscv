@@ -29,10 +29,10 @@ module tb_spi_mmio
   int unsigned checks = 0;
 
   spi_mmio #(
-    .DataAddr         (DataAddr),
-    .ControlAddr      (ControlAddr),
-    .StatusAddr       (StatusAddr),
-    .ClocksPerHalfBit (ClocksPerHalfBit)
+    .DataAddr        (DataAddr),
+    .ControlAddr     (ControlAddr),
+    .StatusAddr      (StatusAddr),
+    .ClocksPerHalfBit(ClocksPerHalfBit)
   ) dut (
     .clk(clk),
     .rst(rst),

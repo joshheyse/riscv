@@ -19,10 +19,10 @@ typedef enum logic {
 } i2c_byte_t;
 
 module i2c_mmio #(
-  parameter riscv_pkg::word_t DataAddr = memmap_pkg::I2cDataAddr,
-  parameter riscv_pkg::word_t ControlAddr = memmap_pkg::I2cControlAddr,
-  parameter riscv_pkg::word_t StatusAddr = memmap_pkg::I2cStatusAddr,
-  parameter riscv_pkg::word_t AddressAddr = memmap_pkg::I2cAddressAddr,
+  parameter riscv_pkg::word_t DataAddr = '0,
+  parameter riscv_pkg::word_t ControlAddr = '0,
+  parameter riscv_pkg::word_t StatusAddr = '0,
+  parameter riscv_pkg::word_t AddressAddr = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
   input logic clk,

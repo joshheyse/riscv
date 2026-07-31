@@ -1,8 +1,8 @@
 # RTL build/sim driver.
 #
 # Parameterised by DESIGN so later variants (multicycle, pipelined, ...) drop in
-# as new rtl/<DESIGN> + tb/<DESIGN> directories with no Makefile changes, and by
-# TB so each module can be simulated against its own standalone testbench.
+# as new rtl/cpu/<DESIGN> + tb/<DESIGN> directories with no Makefile changes, and
+# by TB so each module can be simulated against its own standalone testbench.
 #
 #   make lint                  # lint the whole design (top = core)
 #   make lint TOP=reg_file     # lint one module standalone
@@ -18,19 +18,26 @@ BOARD  ?= lfe5um5g_85f_evn
 TB     ?= $(TOP)
 TB_TOP := tb_$(TB)
 
-RTL_DIR    := rtl/$(DESIGN)
-TB_DIR     := tb/$(DESIGN)
-BUILD_ROOT := build/$(DESIGN)
-SIM_DIR    := $(BUILD_ROOT)/$(TB_TOP)
+RTL_LIB_DIR    := rtl/lib
+RTL_PERIPH_DIR := rtl/periph
+CPU_LIB_DIR    := rtl/cpu/lib
+CPU_DESIGN_DIR := rtl/cpu/$(DESIGN)
+TB_DIR         := tb/$(DESIGN)
+BUILD_ROOT    := build/$(DESIGN)
+SIM_DIR       := $(BUILD_ROOT)/$(TB_TOP)
 
 # Packages must be compiled before anything that imports them. Plain
 # alphabetical globbing would place riscv_pkg.sv after extend.sv and friends and
 # fail elaboration with "Reference to 'word_t' before declaration", so *_pkg.sv
 # is pulled out and placed first.
-PKG_SRCS := $(sort $(wildcard $(RTL_DIR)/*_pkg.sv))
-RTL_SRCS := $(PKG_SRCS) \
-            $(filter-out $(PKG_SRCS), \
-              $(sort $(wildcard $(RTL_DIR)/*.sv) $(wildcard $(RTL_DIR)/*.v)))
+CPU_PKG_SRCS := $(sort $(wildcard $(CPU_LIB_DIR)/*_pkg.sv) $(wildcard $(CPU_DESIGN_DIR)/*_pkg.sv))
+RTL_LIB_SRCS := $(sort $(wildcard $(RTL_LIB_DIR)/*.sv) $(wildcard $(RTL_LIB_DIR)/*.v))
+CPU_LIB_SRCS := $(filter-out $(CPU_PKG_SRCS), \
+                  $(sort $(wildcard $(CPU_LIB_DIR)/*.sv) $(wildcard $(CPU_LIB_DIR)/*.v)))
+CPU_DESIGN_SRCS := $(filter-out $(CPU_PKG_SRCS), \
+                    $(sort $(wildcard $(CPU_DESIGN_DIR)/*.sv) $(wildcard $(CPU_DESIGN_DIR)/*.v)))
+PERIPH_SRCS := $(sort $(wildcard $(RTL_PERIPH_DIR)/*.sv) $(wildcard $(RTL_PERIPH_DIR)/*.v))
+RTL_SRCS := $(CPU_PKG_SRCS) $(RTL_LIB_SRCS) $(CPU_LIB_SRCS) $(CPU_DESIGN_SRCS)
 TB_SRC   := $(TB_DIR)/$(TB_TOP).sv
 SRCS     := $(RTL_SRCS) $(TB_SRC)
 
@@ -51,7 +58,7 @@ BOARD_PKG_SRCS    := $(sort $(wildcard $(BOARD_RTL_DIR)/*_pkg.sv))
 BOARD_LOCAL_SRCS := $(BOARD_PKG_SRCS) \
                     $(filter-out $(BOARD_PKG_SRCS), \
                       $(sort $(wildcard $(BOARD_RTL_DIR)/*.sv) $(wildcard $(BOARD_RTL_DIR)/*.v)))
-BOARD_SRCS       := $(RTL_SRCS) $(BOARD_LOCAL_SRCS)
+BOARD_SRCS       := $(RTL_SRCS) $(PERIPH_SRCS) $(BOARD_LOCAL_SRCS)
 BOARD_SIM_SRC    := $(BOARD_SIM_SRC_DIR)/$(BOARD_SIM_TOP).sv
 BOARD_SIM_HARNESS_SRCS := $(BOARD_SRCS) $(BOARD_SIM_SRC)
 BOARD_LPF       := $(BOARD_RTL_DIR)/pins.lpf
@@ -131,13 +138,17 @@ ECP5_FREQ    ?= 12
 # compiles just the one selected by TB, so sibling top-level modules don't
 # collide.
 ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v))
+ALL_BOARD_TB_SRCS := $(sort $(wildcard tb/boards/*/*.sv) $(wildcard tb/boards/*/*.v))
 ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*.v) \
                          $(wildcard boards/*/sim/*.sv) $(wildcard boards/*/sim/*.v))
 
 VERILATOR ?= verilator
-VERILATOR_FLAGS := -sv --timing --assert -Wall -I$(RTL_DIR) -I$(TB_DIR)
+VERILATOR_FLAGS := -sv --timing --assert -Wall \
+                   -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) -I$(TB_DIR)
 BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall \
-                              -I$(RTL_DIR) -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
+                              -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
+                              -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
+                              -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
 
 # Set TRACE=1 to build with waveform support and dump a VCD.
 ifeq ($(TRACE),1)
@@ -188,11 +199,11 @@ FMT_FLAGS := --port_declarations_indentation=indent \
              --named_parameter_indentation=indent
 
 fmt:
-	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_SRCS)
+	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(PERIPH_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS)
 
 ## fmt-check: fail if anything is not formatted (no files modified)
 fmt-check:
-	@fail=0; for f in $(RTL_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_SRCS); do \
+	@fail=0; for f in $(RTL_SRCS) $(PERIPH_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS); do \
 		verible-verilog-format $(FMT_FLAGS) "$$f" | diff -q - "$$f" >/dev/null 2>&1 \
 			|| { echo "needs formatting: $$f"; fail=1; }; \
 	done; exit $$fail

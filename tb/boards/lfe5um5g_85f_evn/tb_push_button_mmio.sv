@@ -21,7 +21,7 @@ module tb_push_button_mmio
   int unsigned checks = 0;
 
   push_button_mmio #(
-    .PushButtonAddr (PushButtonAddr),
+    .PushButtonAddr(PushButtonAddr),
     .NumPushButtons(NumPushButtons),
     .DebounceCycles(DebounceCycles)
   ) dut (

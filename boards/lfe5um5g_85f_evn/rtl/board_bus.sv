@@ -7,14 +7,17 @@
 module board_bus #(
   parameter int unsigned DmemDepthWords = 512,
   parameter DmemInitFile = "",
+  parameter int unsigned NumLeds = memmap_pkg::NumLeds,
+  parameter int unsigned NumDipSwitches = memmap_pkg::NumDipSwitches,
+  parameter int unsigned NumPushButtons = memmap_pkg::NumPushButtons,
   parameter int unsigned NumGpio = memmap_pkg::NumGpio
 ) (
-  input  logic       clk,
-  input  logic       rst,
-  output logic [7:0] led,
-  input  logic [7:0] dip_switch,
-  input  logic       push_button,
-  output logic       uart_tx,
+  input  logic                      clk,
+  input  logic                      rst,
+  output logic [       NumLeds-1:0] led,
+  input  logic [NumDipSwitches-1:0] dip_switch,
+  input  logic [NumPushButtons-1:0] push_button,
+  output logic                      uart_tx,
 
   output logic spi_sck,
   output logic spi_mosi,
@@ -98,7 +101,10 @@ module board_bus #(
     end
   end
 
-  led_mmio lm_i (
+  led_mmio #(
+    .LedAddr(memmap_pkg::LedAddr),
+    .NumLeds(NumLeds)
+  ) lm_i (
     .clk(clk),
     .rst(rst),
     .mem_write(led_write),
@@ -109,14 +115,20 @@ module board_bus #(
     .led(led)
   );
 
-  dip_switch_mmio dm_i (
+  dip_switch_mmio #(
+    .DipSwitchAddr (memmap_pkg::DipSwitchAddr),
+    .NumDipSwitches(NumDipSwitches)
+  ) dm_i (
     .mem_addr  (mem_addr),
     .selected  (dip_switch_selected),
     .read_data (dip_switch_read_data),
     .dip_switch(dip_switch)
   );
 
-  push_button_mmio pbm_i (
+  push_button_mmio #(
+    .PushButtonAddr(memmap_pkg::PushButtonAddr),
+    .NumPushButtons(NumPushButtons)
+  ) pbm_i (
     .clk(clk),
     .rst(rst),
     .mem_addr(mem_addr),
@@ -125,7 +137,15 @@ module board_bus #(
     .push_button(push_button)
   );
 
-  gpio_mmio gm_i (
+  gpio_mmio #(
+    .GpioDataInAddr(memmap_pkg::GpioDataInAddr),
+    .GpioDataOutAddr(memmap_pkg::GpioDataOutAddr),
+    .GpioDirAddr(memmap_pkg::GpioDirAddr),
+    .GpioSetAddr(memmap_pkg::GpioSetAddr),
+    .GpioClearAddr(memmap_pkg::GpioClearAddr),
+    .GpioToggleAddr(memmap_pkg::GpioToggleAddr),
+    .NumGpio(memmap_pkg::NumGpio)
+  ) gm_i (
     .clk(clk),
     .rst(rst),
     .mem_write(gpio_write),
@@ -138,7 +158,10 @@ module board_bus #(
     .gpio_oe(gpio_oe)
   );
 
-  timer_mmio tm_i (
+  timer_mmio #(
+    .TimerLoAddr(memmap_pkg::TimerLoAddr),
+    .TimerHiAddr(memmap_pkg::TimerHiAddr)
+  ) tm_i (
     .clk(clk),
     .rst(rst),
     .mem_addr(mem_addr),
@@ -147,7 +170,9 @@ module board_bus #(
   );
 
   uart_mmio #(
-    .ClocksPerBit(memmap_pkg::UartClocksPerBit)
+    .ClocksPerBit(memmap_pkg::UartClocksPerBit),
+    .TxDataAddr  (memmap_pkg::UartTxAddr),
+    .StatusAddr  (memmap_pkg::UartStatusAddr)
   ) um_i (
     .clk(clk),
     .rst(rst),
@@ -160,6 +185,9 @@ module board_bus #(
   );
 
   spi_mmio #(
+    .DataAddr        (memmap_pkg::SpiDataAddr),
+    .ControlAddr     (memmap_pkg::SpiControlAddr),
+    .StatusAddr      (memmap_pkg::SpiStatusAddr),
     .ClocksPerHalfBit(memmap_pkg::SpiClocksPerHalfBit)
   ) sm_i (
     .clk(clk),
@@ -175,7 +203,12 @@ module board_bus #(
     .spi_cs_n(spi_cs_n)
   );
 
-  i2c_mmio #() im_i (
+  i2c_mmio #(
+    .DataAddr   (memmap_pkg::I2cDataAddr),
+    .ControlAddr(memmap_pkg::I2cControlAddr),
+    .StatusAddr (memmap_pkg::I2cStatusAddr),
+    .AddressAddr(memmap_pkg::I2cAddressAddr)
+  ) im_i (
     .clk(clk),
     .rst(rst),
     .mem_write(i2c_write),

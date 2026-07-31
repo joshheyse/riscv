@@ -32,11 +32,11 @@ module tb_i2c_mmio
   int unsigned checks = 0;
 
   i2c_mmio #(
-    .DataAddr          (DataAddr),
-    .ControlAddr       (ControlAddr),
-    .StatusAddr        (StatusAddr),
-    .AddressAddr       (AddressAddr),
-    .ClocksPerHalfBit  (ClocksPerHalfBit)
+    .DataAddr        (DataAddr),
+    .ControlAddr     (ControlAddr),
+    .StatusAddr      (StatusAddr),
+    .AddressAddr     (AddressAddr),
+    .ClocksPerHalfBit(ClocksPerHalfBit)
   ) dut (
     .clk(clk),
     .rst(rst),

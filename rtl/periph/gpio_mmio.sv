@@ -1,13 +1,13 @@
 `timescale 1ns / 1ps
 
 module gpio_mmio #(
-  parameter logic [31:0] GpioDataInAddr = memmap_pkg::GpioDataInAddr,
-  parameter logic [31:0] GpioDataOutAddr = memmap_pkg::GpioDataOutAddr,
-  parameter logic [31:0] GpioDirAddr = memmap_pkg::GpioDirAddr,
-  parameter logic [31:0] GpioSetAddr = memmap_pkg::GpioSetAddr,
-  parameter logic [31:0] GpioClearAddr = memmap_pkg::GpioClearAddr,
-  parameter logic [31:0] GpioToggleAddr = memmap_pkg::GpioToggleAddr,
-  parameter int unsigned NumGpio = memmap_pkg::NumGpio
+  parameter logic [31:0] GpioDataInAddr = '0,
+  parameter logic [31:0] GpioDataOutAddr = '0,
+  parameter logic [31:0] GpioDirAddr = '0,
+  parameter logic [31:0] GpioSetAddr = '0,
+  parameter logic [31:0] GpioClearAddr = '0,
+  parameter logic [31:0] GpioToggleAddr = '0,
+  parameter int unsigned NumGpio = 1
 ) (
   input logic clk,
   input logic rst,
@@ -23,7 +23,7 @@ module gpio_mmio #(
   output logic [NumGpio-1:0] gpio_oe
 );
 
-  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
+  localparam int unsigned WordBits = $bits(mem_addr);
   initial begin
     assert (NumGpio < WordBits);
   end

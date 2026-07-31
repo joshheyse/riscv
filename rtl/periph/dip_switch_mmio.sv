@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 module dip_switch_mmio #(
-  parameter riscv_pkg::word_t DipSwitchAddr = memmap_pkg::DipSwitchAddr,
-  parameter int unsigned NumDipSwitches = memmap_pkg::NumDipSwitches
+  parameter riscv_pkg::word_t DipSwitchAddr = '0,
+  parameter int unsigned NumDipSwitches = 1
 ) (
   input riscv_pkg::word_t mem_addr,
   output logic selected,
@@ -10,7 +10,7 @@ module dip_switch_mmio #(
   input logic [NumDipSwitches-1:0] dip_switch
 );
 
-  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
+  localparam int unsigned WordBits = $bits(mem_addr);
   initial begin
     assert (NumDipSwitches < WordBits);
   end

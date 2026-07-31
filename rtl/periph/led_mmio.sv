@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 module led_mmio #(
-  parameter riscv_pkg::word_t LedAddr = memmap_pkg::LedAddr,
-  parameter int unsigned NumLeds = memmap_pkg::NumLeds
+  parameter riscv_pkg::word_t LedAddr = '0,
+  parameter int unsigned NumLeds = 1
 ) (
   input logic clk,
   input logic rst,
@@ -15,7 +15,7 @@ module led_mmio #(
   output logic [NumLeds-1:0] led
 );
 
-  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
+  localparam int unsigned WordBits = $bits(mem_addr);
   initial begin
     assert (NumLeds < WordBits);
   end

@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
 
 module uart_mmio #(
-  parameter int unsigned      ClocksPerBit = memmap_pkg::UartClocksPerBit,
-  parameter riscv_pkg::word_t TxDataAddr   = memmap_pkg::UartTxAddr,
-  parameter riscv_pkg::word_t StatusAddr   = memmap_pkg::UartStatusAddr
+  parameter int unsigned      ClocksPerBit = 1,
+  parameter riscv_pkg::word_t TxDataAddr   = '0,
+  parameter riscv_pkg::word_t StatusAddr   = '0
 ) (
   input logic clk,
   input logic rst,
@@ -22,9 +22,9 @@ module uart_mmio #(
   logic tx_busy;
   logic tx_ready;
 
-  assign selected  = (mem_addr == TxDataAddr | mem_addr == StatusAddr);
+  assign selected = (mem_addr == TxDataAddr | mem_addr == StatusAddr);
 
-  assign tx_ready  = !tx_busy;
+  assign tx_ready = !tx_busy;
   assign read_data = (mem_addr == StatusAddr) ? {31'b0, tx_ready} : 32'h0;
   assign data_bit_idx = bit_idx[2:0] - 3'd1;
 
@@ -76,7 +76,7 @@ module uart_mmio #(
     end
   end
 
-  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
+  localparam int unsigned WordBits = $bits(mem_addr);
   logic unused_write_data;
   assign unused_write_data = |mem_write_data[WordBits-1:8];
 

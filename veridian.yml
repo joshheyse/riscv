@@ -39,10 +39,13 @@ verilator:
       - --assert
       - -Wall
       - -Wno-MODDUP
-      - -Irtl/single_stage
+      - -Irtl/lib
+      - -Irtl/periph
+      - -Irtl/cpu/lib
+      - -Irtl/cpu/single_stage
       - -Iboards/lfe5um5g_85f_evn/rtl
       - -Itb/single_stage
-      - rtl/single_stage/riscv_pkg.sv
+      - rtl/cpu/lib/riscv_pkg.sv
       - boards/lfe5um5g_85f_evn/rtl/memmap_pkg.sv
 
 verible:

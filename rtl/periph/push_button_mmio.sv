@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 module push_button_mmio #(
-  parameter riscv_pkg::word_t PushButtonAddr = memmap_pkg::PushButtonAddr,
-  parameter int unsigned NumPushButtons = memmap_pkg::NumPushButtons,
+  parameter riscv_pkg::word_t PushButtonAddr = '0,
+  parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
   input logic clk,
@@ -13,7 +13,7 @@ module push_button_mmio #(
   input logic [NumPushButtons-1:0] push_button
 );
 
-  localparam int unsigned WordBits = $bits(riscv_pkg::word_t);
+  localparam int unsigned WordBits = $bits(mem_addr);
   localparam int unsigned DebounceCounterBits = $clog2(DebounceCycles + 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterMax = DebounceCounterBits'(DebounceCycles - 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterInc = DebounceCounterBits'(1);

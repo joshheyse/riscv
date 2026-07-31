@@ -9,10 +9,10 @@ typedef enum logic [2:0] {
 } spi_state_t;
 
 module spi_mmio #(
-  parameter riscv_pkg::word_t DataAddr = memmap_pkg::SpiDataAddr,
-  parameter riscv_pkg::word_t ControlAddr = memmap_pkg::SpiControlAddr,
-  parameter riscv_pkg::word_t StatusAddr = memmap_pkg::SpiStatusAddr,
-  parameter int unsigned ClocksPerHalfBit = memmap_pkg::SpiClocksPerHalfBit
+  parameter riscv_pkg::word_t DataAddr = '0,
+  parameter riscv_pkg::word_t ControlAddr = '0,
+  parameter riscv_pkg::word_t StatusAddr = '0,
+  parameter int unsigned ClocksPerHalfBit = 1
 ) (
   input logic clk,
   input logic rst,

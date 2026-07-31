@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 module timer_mmio #(
-  parameter riscv_pkg::word_t TimerLoAddr = memmap_pkg::TimerLoAddr,
-  parameter riscv_pkg::word_t TimerHiAddr = memmap_pkg::TimerHiAddr
+  parameter riscv_pkg::word_t TimerLoAddr = '0,
+  parameter riscv_pkg::word_t TimerHiAddr = '0
 ) (
   input logic clk,
   input logic rst,

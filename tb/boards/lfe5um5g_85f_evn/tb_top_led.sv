@@ -8,19 +8,37 @@ module tb_top_led;
   logic       rst_n;
   logic       uart_tx;
   logic [7:0] led_n;
-  logic       unused_uart_tx;
+  logic [7:0] dip_switch_n;
+  logic       push_button_n;
+  tri   [7:0] gpio;
+  logic       spi_sck;
+  logic       spi_mosi;
+  logic       spi_miso;
+  logic       spi_cs_n;
+  tri1        i2c_sda;
+  tri1        i2c_scl;
+  logic       unused_outputs;
   int         errors;
 
-  assign unused_uart_tx = uart_tx;
+  assign unused_outputs = uart_tx | spi_sck | spi_mosi | spi_cs_n | (|gpio) | i2c_sda | i2c_scl;
 
   top #(
     .ImemInitFile      (ProgramFile),
     .PowerOnResetCycles(4)
   ) dut (
-    .clk_12mhz(clk_12mhz),
-    .rst_n    (rst_n),
-    .uart_tx  (uart_tx),
-    .led_n    (led_n)
+    .clk_12mhz    (clk_12mhz),
+    .rst_n        (rst_n),
+    .uart_tx      (uart_tx),
+    .led_n        (led_n),
+    .dip_switch_n (dip_switch_n),
+    .push_button_n(push_button_n),
+    .gpio         (gpio),
+    .spi_sck      (spi_sck),
+    .spi_mosi     (spi_mosi),
+    .spi_miso     (spi_miso),
+    .spi_cs_n     (spi_cs_n),
+    .i2c_sda      (i2c_sda),
+    .i2c_scl      (i2c_scl)
   );
 
   initial begin
@@ -29,8 +47,11 @@ module tb_top_led;
   end
 
   initial begin
-    errors = 0;
-    rst_n  = 1'b1;
+    errors        = 0;
+    rst_n         = 1'b1;
+    dip_switch_n  = 8'hff;
+    push_button_n = 1'b1;
+    spi_miso      = 1'b0;
 
     repeat (12) @(posedge clk_12mhz);
 
