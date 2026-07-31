@@ -26,6 +26,8 @@ module soc #(
   riscv_pkg::word_t mem_write_data;
   riscv_pkg::word_t mem_read_data;
   riscv_pkg::mem_size_t mem_size;
+  riscv_pkg::word_t read_mem;
+  riscv_pkg::word_t write_mem;
   logic mem_unsigned;
 
   imem #(
@@ -55,17 +57,25 @@ module soc #(
     .mem_unsigned(mem_unsigned)
   );
 
-  lsu #(
+  lsu lsu_i (
+    .addr(mem_addr),
+    .write_data(mem_write_data),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
+    .read_data(mem_read_data),
+    .write_mem(write_mem),
+    .read_mem(read_mem)
+  );
+
+  dmem #(
     .DepthWords(DmemDepthWords),
     .InitFile  (DmemInitFile)
-  ) lsu_i (
+  ) dmem_i (
     .clk(clk),
     .mem_write(mem_write),
     .addr(mem_addr),
-    .write_data(mem_write_data),
-    .read_data(mem_read_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned)
+    .write_data(write_mem),
+    .read_data(read_mem)
   );
 
 endmodule

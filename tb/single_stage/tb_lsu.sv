@@ -22,6 +22,8 @@ module tb_lsu
   logic        mem_write;
   word_t       addr;
   word_t       write_data;
+  word_t       read_mem;
+  word_t       write_mem;
   word_t       read_data;
   mem_size_t   mem_size;
   logic        mem_unsigned;
@@ -29,17 +31,25 @@ module tb_lsu
   int unsigned errors = 0;
   int unsigned checks = 0;
 
-  lsu #(
-    .DepthWords(DepthWords),
-    .InitFile  (InitFile)
-  ) dut (
-    .clk(clk),
-    .mem_write(mem_write),
+  lsu dut (
     .addr(addr),
     .write_data(write_data),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned),
+    .read_mem(read_mem),
+    .write_mem(write_mem),
     .read_data(read_data)
+  );
+
+  dmem #(
+    .DepthWords(DepthWords),
+    .InitFile  (InitFile)
+  ) dmem_i (
+    .clk(clk),
+    .mem_write(mem_write),
+    .addr(addr),
+    .write_data(write_mem),
+    .read_data(read_mem)
   );
 
   initial begin

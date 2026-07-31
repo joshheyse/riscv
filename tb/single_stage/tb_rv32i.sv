@@ -99,10 +99,10 @@ module tb_rv32i
     expect_word(dut.core_i.d.regfile.regs[29], 32'hffff_8001, "LH");
     expect_word(dut.core_i.d.regfile.regs[30], 32'h0000_8001, "LHU");
 
-    expect_word(dut.lsu_i.memory[0], 32'h8001_7fff, "SB/SH/SW memory result");
-    expect_word(dut.lsu_i.memory[1], 32'h0000_0000, "branch failure code remains zero");
-    expect_word(dut.lsu_i.memory[2], 32'h0000_00ec, "stored JALR link");
-    expect_word(dut.lsu_i.memory[3], 32'h0000_002a, "stored JALR target result");
+    expect_word(dut.dmem_i.memory[0], 32'h8001_7fff, "SB/SH/SW memory result");
+    expect_word(dut.dmem_i.memory[1], 32'h0000_0000, "branch failure code remains zero");
+    expect_word(dut.dmem_i.memory[2], 32'h0000_00ec, "stored JALR link");
+    expect_word(dut.dmem_i.memory[3], 32'h0000_002a, "stored JALR target result");
     expect_word({31'b0, halted}, 32'h0, "legal RV32I program does not halt");
 
     // This is the architectural JALR rule: target bit 0 is cleared before the

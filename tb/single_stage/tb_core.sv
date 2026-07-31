@@ -116,8 +116,8 @@ module tb_core
     expect_word(dut.core_i.d.regfile.regs[8], 32'hffff_8001, "x8 = lh sign-extended halfword");
     expect_word(dut.core_i.d.regfile.regs[9], 32'h0000_8001, "x9 = lhu zero-extended halfword");
     expect_word(dut.core_i.d.regfile.regs[10], 32'h8001_7fff, "x10 = lw after byte/half stores");
-    expect_word(dut.lsu_i.memory[0], 32'h8001_7fff, "dmem[0] byte/half store result");
-    expect_word(dut.lsu_i.memory[1], 32'h8001_7fff, "dmem[1] copied by sw");
+    expect_word(dut.dmem_i.memory[0], 32'h8001_7fff, "dmem[0] byte/half store result");
+    expect_word(dut.dmem_i.memory[1], 32'h8001_7fff, "dmem[1] copied by sw");
 
     if (errors == 0) begin
       $display("tb_core: PASS (%0d checks)", checks);
