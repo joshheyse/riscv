@@ -37,6 +37,9 @@ module board_bus #(
   logic [NumSources-1:0] selected;
   logic [NumSources-1:0] write_enabled;
   logic [(NumSources*WordBits)-1:0] read_data;
+  riscv_pkg::word_t dmem_read_data;
+  riscv_pkg::word_t dmem_write_data;
+  logic [3:0] dmem_write_mask;
 
   `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
@@ -96,17 +99,28 @@ module board_bus #(
     .tx(uart_tx)
   );
 
-  lsu #(
+  lsu lsu_i (
+    .addr(mem_addr),
+    .write_data(mem_write_data),
+    .mem_size(mem_size),
+    .mem_unsigned(mem_unsigned),
+    .read_mem(dmem_read_data),
+    .write_mem(dmem_write_data),
+    .write_mask(dmem_write_mask),
+    .read_data(`READ_DATA(DmemIdx))
+  );
+
+  dmem #(
     .DepthWords(DmemDepthWords),
     .InitFile  (DmemInitFile)
   ) dmem_i (
     .clk(clk),
+    .rst(rst),
     .mem_write(write_enabled[DmemIdx]),
     .addr(mem_addr),
-    .write_data(mem_write_data),
-    .read_data(`READ_DATA(DmemIdx)),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned)
+    .write_data(dmem_write_data),
+    .write_mask(dmem_write_mask),
+    .read_data(dmem_read_data)
   );
 
   `undef READ_DATA
