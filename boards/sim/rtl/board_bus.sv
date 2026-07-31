@@ -32,20 +32,23 @@ module board_bus #(
   localparam int unsigned UartIdx = 2;
   localparam int unsigned TimerIdx = 3;
   localparam int unsigned NumSources = 4;
+  localparam int unsigned WordBits = riscv_pkg::XLEN;
 
   logic [NumSources-1:0] selected;
   logic [NumSources-1:0] write_enabled;
-  riscv_pkg::word_t read_data[NumSources];
+  logic [(NumSources*WordBits)-1:0] read_data;
+
+  `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
   assign selected[DmemIdx] = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
-  assign mmio_selected = selected[LedIdx] | selected[UartIdx] | selected[TimerIdx];
+  assign mmio_selected = |selected[NumSources-1:1];
   assign write_enabled[TimerIdx] = 1'b0;
   assign write_enabled[DmemIdx] = mem_write & selected[DmemIdx] & !mmio_selected;
   assign write_enabled[LedIdx] = mem_write & selected[LedIdx];
   assign write_enabled[UartIdx] = mem_write & selected[UartIdx];
 
   onehot_mux #(
-    .Width($bits(riscv_pkg::word_t)),
+    .Width(WordBits),
     .NumInputs(NumSources)
   ) om (
     .selected(selected),
@@ -63,7 +66,7 @@ module board_bus #(
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(selected[LedIdx]),
-    .read_data(read_data[LedIdx]),
+    .read_data(`READ_DATA(LedIdx)),
     .led(led)
   );
 
@@ -75,7 +78,7 @@ module board_bus #(
     .rst(rst),
     .mem_addr(mem_addr),
     .selected(selected[TimerIdx]),
-    .read_data(read_data[TimerIdx])
+    .read_data(`READ_DATA(TimerIdx))
   );
 
   uart_mmio #(
@@ -89,7 +92,7 @@ module board_bus #(
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(selected[UartIdx]),
-    .read_data(read_data[UartIdx]),
+    .read_data(`READ_DATA(UartIdx)),
     .tx(uart_tx)
   );
 
@@ -101,9 +104,11 @@ module board_bus #(
     .mem_write(write_enabled[DmemIdx]),
     .addr(mem_addr),
     .write_data(mem_write_data),
-    .read_data(read_data[DmemIdx]),
+    .read_data(`READ_DATA(DmemIdx)),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned)
   );
+
+  `undef READ_DATA
 
 endmodule
