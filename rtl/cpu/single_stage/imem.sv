@@ -19,6 +19,7 @@ module imem #(
 ) (
   input logic clk,
   input logic rst,
+  input logic en,
   input  riscv_pkg::pc_t    addr,
   output riscv_pkg::instr_t instr
 );
@@ -36,7 +37,9 @@ module imem #(
     if (rst) begin
       instr <= '0;
     end else begin
-      instr <= rom[addr[IndexBits+1:2]];
+      if (en) begin
+        instr <= rom[addr[IndexBits+1:2]];
+      end
     end
   end
 

@@ -70,7 +70,7 @@ module tb_rv32i
     @(negedge clk);
     rst = 1'b0;
 
-    repeat (62) step("run");
+    repeat (70) step("run");
 
     expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_0008, "ADD");
     expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_0002, "SUB");

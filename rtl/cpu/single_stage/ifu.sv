@@ -29,11 +29,11 @@ module ifu (
       imem_addr <= '0;
       instr_valid <= '0;
     end else begin
-      pc <= imem_addr;
       if (pc_en) begin
+        pc <= imem_addr;
         imem_addr <= pc_src == riscv_pkg::PC_SRC_INC ? imem_addr + riscv_pkg::pc_t'(4) : ieu_addr;
+        instr_valid <= pc_src == riscv_pkg::PC_SRC_INC;
       end
-      instr_valid <= pc_en && (pc_src == riscv_pkg::PC_SRC_INC);
     end
   end
 

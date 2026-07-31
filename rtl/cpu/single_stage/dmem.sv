@@ -5,9 +5,11 @@ module dmem #(
   parameter InitFile = ""
 ) (
   input logic clk,
+  input logic rst,
   input logic mem_write,
   input riscv_pkg::word_t addr,
   input riscv_pkg::word_t write_data,
+  input logic [3:0] write_mask,
   output riscv_pkg::word_t read_data
 );
   riscv_pkg::word_t memory[0:DepthWords-1];
@@ -19,17 +21,23 @@ module dmem #(
 
   localparam int unsigned IndexBits = $clog2(DepthWords);
   logic [IndexBits-1:0] word_index;
-
   assign word_index = addr[IndexBits+1:2];
-  assign read_data  = memory[word_index];
 
   always_ff @(posedge clk) begin
-    if (mem_write) begin
-      memory[word_index] <= write_data;
+    if (rst) begin
+      read_data <= '0;
+    end else begin
+      read_data <= memory[word_index];
+      if (mem_write) begin
+        if (write_mask[0]) memory[word_index][7:0] <= write_data[7:0];
+        if (write_mask[1]) memory[word_index][15:8] <= write_data[15:8];
+        if (write_mask[2]) memory[word_index][23:16] <= write_data[23:16];
+        if (write_mask[3]) memory[word_index][31:24] <= write_data[31:24];
+      end
     end
   end
 
   logic unused_addr_bits;
-  assign unused_addr_bits = |{{addr[31:IndexBits+2], addr[1:0]}};
+  assign unused_addr_bits = |{addr[31:IndexBits+2], addr[1:0]};
 
 endmodule

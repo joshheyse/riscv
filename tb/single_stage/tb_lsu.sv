@@ -18,18 +18,20 @@ module tb_lsu
   localparam int unsigned DepthWords = 8;
   localparam string InitFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_lsu_init.mem";
 
-  logic        clk;
-  logic        mem_write;
-  word_t       addr;
-  word_t       write_data;
-  word_t       read_mem;
-  word_t       write_mem;
-  word_t       read_data;
-  mem_size_t   mem_size;
-  logic        mem_unsigned;
+  logic              clk;
+  logic              rst;
+  logic              mem_write;
+  word_t             addr;
+  word_t             write_data;
+  word_t             read_mem;
+  word_t             write_mem;
+  word_t             read_data;
+  mem_size_t         mem_size;
+  logic              mem_unsigned;
+  logic        [3:0] write_mask;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
 
   lsu dut (
     .addr(addr),
@@ -38,6 +40,7 @@ module tb_lsu
     .mem_unsigned(mem_unsigned),
     .read_mem(read_mem),
     .write_mem(write_mem),
+    .write_mask(write_mask),
     .read_data(read_data)
   );
 
@@ -46,9 +49,11 @@ module tb_lsu
     .InitFile  (InitFile)
   ) dmem_i (
     .clk(clk),
+    .rst(rst),
     .mem_write(mem_write),
     .addr(addr),
     .write_data(write_mem),
+    .write_mask(write_mask),
     .read_data(read_mem)
   );
 
@@ -74,6 +79,7 @@ module tb_lsu
     addr         = a;
     mem_size     = size;
     mem_unsigned = unsgnd;
+    @(posedge clk);
     #1;
     expect_word(read_data, exp, what);
   endtask
@@ -99,10 +105,15 @@ module tb_lsu
     end
 
     mem_write    = 1'b0;
+    rst          = 1'b1;
     addr         = '0;
     write_data   = '0;
     mem_size     = MEM_SIZE_WORD;
     mem_unsigned = 1'b0;
+
+    repeat (2) @(posedge clk);
+    @(negedge clk);
+    rst = 1'b0;
 
     read_addr(32'h0000_0000, MEM_SIZE_WORD, 1'b0, 32'h1111_1111, "init word at byte address 0");
     read_addr(32'h0000_0004, MEM_SIZE_WORD, 1'b0, 32'h2222_2222, "init word at byte address 4");

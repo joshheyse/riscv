@@ -27,7 +27,8 @@ module core (
   output riscv_pkg::word_t mem_write_data,
   input riscv_pkg::word_t mem_read_data,
   output riscv_pkg::mem_size_t mem_size,
-  output logic mem_unsigned
+  output logic mem_unsigned,
+  output logic imem_en
 );
 
   logic reg_write;
@@ -51,21 +52,37 @@ module core (
   logic instr_valid;
   riscv_pkg::pc_src_t ifu_pc_src;
 
+  logic load_pending;
+  logic load_issue;
+  logic load_complete;
+  logic load_instr;
 
   assign ifu_ieu_addr = clear_pc_lsb ? {raw_ieu_addr[31:1], 1'b0} : raw_ieu_addr;
 
-  assign halt_now = halted | (illegal_instr & instr_valid);
-  assign pc_en = !halt_now;
-  assign reg_write = reg_write_raw & instr_valid & !halt_now;
-  assign mem_write = mem_write_raw & instr_valid & !halt_now;
+  assign halt_now = halted || (illegal_instr && instr_valid);
+  assign pc_en = !halt_now && !load_issue;
+  assign imem_en = pc_en;
+  assign reg_write = reg_write_raw && instr_valid && !halt_now && (!load_instr || load_complete);
+  assign mem_write = mem_write_raw && instr_valid && !halt_now;
 
   assign ifu_pc_src = instr_valid ? pc_src : riscv_pkg::PC_SRC_INC;
+
+  assign load_instr = result_src == riscv_pkg::RESULT_MEM;
+  assign load_issue = instr_valid && load_instr && !load_pending;
+  assign load_complete = instr_valid && load_instr && load_pending;
 
   always_ff @(posedge clk) begin
     if (rst) begin
       halted <= 1'b0;
     end else if (illegal_instr & instr_valid) begin
       halted <= 1'b1;
+    end
+    if (rst || halt_now) begin
+      load_pending <= 1'b0;
+    end else if (load_issue) begin
+      load_pending <= 1'b1;
+    end else if (load_complete) begin
+      load_pending <= 1'b0;
     end
   end
 

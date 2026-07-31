@@ -23,6 +23,7 @@ module lsu (
   input logic mem_unsigned,
   input riscv_pkg::word_t read_mem,
   output riscv_pkg::word_t write_mem,
+  output logic [3:0] write_mask,
   output riscv_pkg::word_t read_data
 );
 
@@ -33,6 +34,8 @@ module lsu (
     selected_byte = 8'h0;
     selected_half = 16'h0;
     read_data = 32'h0;
+    write_mask = 4'b0000;
+    write_mem = 32'h0;
     unique case (mem_size)
       riscv_pkg::MEM_SIZE_BYTE: begin
         unique case (addr[1:0])
@@ -57,26 +60,44 @@ module lsu (
       end
     endcase
 
-    write_mem = read_mem;
     unique case (mem_size)
       riscv_pkg::MEM_SIZE_BYTE: begin
         unique case (addr[1:0])
-          2'b00: write_mem = {write_mem[31:8], write_data[7:0]};
-          2'b01: write_mem = {write_mem[31:16], write_data[7:0], write_mem[7:0]};
-          2'b10: write_mem = {write_mem[31:24], write_data[7:0], write_mem[15:0]};
-          2'b11: write_mem = {write_data[7:0], write_mem[23:0]};
+          2'b00: begin
+            write_mem  = {24'b0, write_data[7:0]};
+            write_mask = 4'b0001;
+          end
+          2'b01: begin
+            write_mem  = {16'b0, write_data[7:0], 8'b0};
+            write_mask = 4'b0010;
+          end
+          2'b10: begin
+            write_mem  = {8'b0, write_data[7:0], 16'b0};
+            write_mask = 4'b0100;
+          end
+          2'b11: begin
+            write_mem  = {write_data[7:0], 24'b0};
+            write_mask = 4'b1000;
+          end
         endcase
       end
       riscv_pkg::MEM_SIZE_HALF: begin
         case (addr[1:0])
-          2'b00: write_mem = {write_mem[31:16], write_data[15:0]};
-          2'b10: write_mem = {write_data[15:0], write_mem[15:0]};
+          2'b00: begin
+            write_mem  = {16'b0, write_data[15:0]};
+            write_mask = 4'b0011;
+          end
+          2'b10: begin
+            write_mem  = {write_data[15:0], 16'b0};
+            write_mask = 4'b1100;
+          end
           default: begin
           end
         endcase
       end
       riscv_pkg::MEM_SIZE_WORD: begin
-        write_mem = write_data;
+        write_mem  = write_data;
+        write_mask = 4'b1111;
       end
     endcase
   end
