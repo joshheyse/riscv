@@ -19,6 +19,7 @@ module tb_rv32i
   logic   rst;
   logic   halted;
   pc_t    pc;
+  pc_t    imem_addr;
   instr_u instr;
 
   int unsigned errors = 0;
@@ -31,6 +32,7 @@ module tb_rv32i
     .clk  (clk),
     .rst  (rst),
     .pc   (pc),
+    .imem_addr(imem_addr),
     .instr(instr),
     .halted(halted)
   );
@@ -51,7 +53,8 @@ module tb_rv32i
   task automatic step(input string what);
     @(posedge clk);
     #1;
-    $display("tb_rv32i: %-24s pc=0x%08h instr=0x%08h", what, pc, instr.raw);
+    $display("tb_rv32i: %-24s pc=0x%08h imem_addr=0x%08h instr=0x%08h", what, pc, imem_addr,
+             instr.raw);
   endtask
 
   initial begin
@@ -67,7 +70,7 @@ module tb_rv32i
     @(negedge clk);
     rst = 1'b0;
 
-    repeat (56) step("run");
+    repeat (62) step("run");
 
     expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_0008, "ADD");
     expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_0002, "SUB");

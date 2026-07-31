@@ -20,6 +20,7 @@ module core (
   input logic rst,
   input riscv_pkg::instr_u instr,
   output riscv_pkg::pc_t pc,
+  output riscv_pkg::pc_t imem_addr,
   output logic halted,
   output logic mem_write,
   output riscv_pkg::word_t mem_addr,
@@ -47,17 +48,23 @@ module core (
   logic pc_en;
   logic reg_write_raw;
   logic mem_write_raw;
+  logic instr_valid;
+  riscv_pkg::pc_src_t ifu_pc_src;
+
 
   assign ifu_ieu_addr = clear_pc_lsb ? {raw_ieu_addr[31:1], 1'b0} : raw_ieu_addr;
-  assign halt_now = illegal_instr | halted;
+
+  assign halt_now = halted | (illegal_instr & instr_valid);
   assign pc_en = !halt_now;
-  assign reg_write = reg_write_raw & !halt_now;
-  assign mem_write = mem_write_raw & !halt_now;
+  assign reg_write = reg_write_raw & instr_valid & !halt_now;
+  assign mem_write = mem_write_raw & instr_valid & !halt_now;
+
+  assign ifu_pc_src = instr_valid ? pc_src : riscv_pkg::PC_SRC_INC;
 
   always_ff @(posedge clk) begin
     if (rst) begin
       halted <= 1'b0;
-    end else if (illegal_instr) begin
+    end else if (illegal_instr & instr_valid) begin
       halted <= 1'b1;
     end
   end
@@ -65,10 +72,12 @@ module core (
   ifu ifu_i (
     .clk(clk),
     .rst(rst),
-    .pc_src(pc_src),
+    .pc_src(ifu_pc_src),
     .pc_en(pc_en),
     .ieu_addr(ifu_ieu_addr),
-    .pc(pc)
+    .pc(pc),
+    .imem_addr(imem_addr),
+    .instr_valid(instr_valid)
   );
 
   controller c (

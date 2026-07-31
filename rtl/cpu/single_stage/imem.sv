@@ -17,19 +17,28 @@ module imem #(
   parameter int unsigned DepthWords = 512,
   parameter InitFile = ""
 ) (
+  input logic clk,
+  input logic rst,
   input  riscv_pkg::pc_t    addr,
   output riscv_pkg::instr_t instr
 );
 
+  localparam int unsigned IndexBits = $clog2(DepthWords);
   riscv_pkg::instr_t rom[DepthWords-1:0];
+
   initial begin
     if (InitFile != "") begin
       $readmemh(InitFile, rom);
     end
   end
 
-  localparam int unsigned IndexBits = $clog2(DepthWords);
-  assign instr = rom[addr[IndexBits+1:2]];
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      instr <= '0;
+    end else begin
+      instr <= rom[addr[IndexBits+1:2]];
+    end
+  end
 
   // intentionally ignored for this small aligned ROM
   logic unused_addr_bits;

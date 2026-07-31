@@ -16,6 +16,7 @@ module soc #(
   input logic rst,
 
   output riscv_pkg::pc_t    pc,
+  output riscv_pkg::pc_t    imem_addr,
   output riscv_pkg::instr_u instr,
   output logic halted
 );
@@ -31,7 +32,11 @@ module soc #(
     .DepthWords(ImemDepthWords),
     .InitFile  (ImemInitFile)
   ) imem_i (
-    .addr (pc),
+    .clk(clk),
+    .rst(rst),
+
+    .addr(imem_addr),
+
     .instr(instr.raw)
   );
 
@@ -40,6 +45,7 @@ module soc #(
     .rst(rst),
     .instr(instr),
     .pc(pc),
+    .imem_addr(imem_addr),
     .halted(halted),
     .mem_write(mem_write),
     .mem_addr(mem_addr),

@@ -21,6 +21,7 @@ module tb_core
   logic        clk;
   logic        rst;
   pc_t         pc;
+  pc_t         imem_addr;
   instr_u      instr;
   logic        halted;
 
@@ -34,6 +35,7 @@ module tb_core
     .clk(clk),
     .rst(rst),
     .pc(pc),
+    .imem_addr(imem_addr),
     .instr(instr),
     .halted(halted)
   );
@@ -64,7 +66,8 @@ module tb_core
   task automatic step(input string what);
     @(posedge clk);
     #1;
-    $display("tb_core: %-28s pc=0x%08h instr=0x%08h", what, pc, instr.raw);
+    $display("tb_core: %-28s pc=0x%08h imem_addr=0x%08h instr=0x%08h", what, pc, imem_addr,
+             instr.raw);
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -98,6 +101,7 @@ module tb_core
     step("lw x10,0(x1)");
     step("sw x10,4(x1)");
     step("jal x0,0");
+    step("jal fallthrough bubble");
     step("jal x0,0 again");
 
     expect_bit(halted, 1'b0, "legal core smoke program does not halt");
