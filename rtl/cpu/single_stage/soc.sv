@@ -22,6 +22,8 @@ module soc #(
 );
 
   logic mem_write;
+  logic mem_valid;
+  logic mem_ready;
   logic imem_en;
   riscv_pkg::word_t mem_addr;
   riscv_pkg::word_t mem_write_data;
@@ -50,10 +52,12 @@ module soc #(
     .pc(pc),
     .imem_addr(imem_addr),
     .halted(halted),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .mem_read_data(mem_read_data),
+    .mem_ready(mem_ready),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned),
     .imem_en(imem_en)
@@ -76,10 +80,12 @@ module soc #(
   ) dmem_i (
     .clk(clk),
     .rst(rst),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .addr(mem_addr),
     .write_data(write_mem),
     .read_data(read_mem),
+    .mem_ready(mem_ready),
     .write_mask(write_mask)
   );
 

@@ -20,7 +20,9 @@ module tb_lsu
 
   logic              clk;
   logic              rst;
+  logic              mem_valid;
   logic              mem_write;
+  logic              mem_ready;
   word_t             addr;
   word_t             write_data;
   word_t             read_mem;
@@ -50,10 +52,12 @@ module tb_lsu
   ) dmem_i (
     .clk(clk),
     .rst(rst),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .addr(addr),
     .write_data(write_mem),
     .write_mask(write_mask),
+    .mem_ready(mem_ready),
     .read_data(read_mem)
   );
 
@@ -75,17 +79,21 @@ module tb_lsu
   task automatic read_addr(input word_t a, input mem_size_t size, input logic unsgnd,
                            input word_t exp, input string what);
     @(negedge clk);
+    mem_valid    = 1'b1;
     mem_write    = 1'b0;
     addr         = a;
     mem_size     = size;
     mem_unsigned = unsgnd;
     @(posedge clk);
     #1;
+    mem_valid = 1'b0;
+    expect_word({31'b0, mem_ready}, 32'h0000_0001, {what, " ready"});
     expect_word(read_data, exp, what);
   endtask
 
   task automatic write_addr(input word_t a, input word_t data, input mem_size_t size);
     @(negedge clk);
+    mem_valid    = 1'b1;
     addr         = a;
     write_data   = data;
     mem_size     = size;
@@ -93,6 +101,8 @@ module tb_lsu
     mem_write    = 1'b1;
     @(posedge clk);
     #1;
+    expect_word({31'b0, mem_ready}, 32'h0000_0001, "write ready");
+    mem_valid = 1'b0;
     mem_write = 1'b0;
   endtask
 
@@ -105,6 +115,7 @@ module tb_lsu
     end
 
     mem_write    = 1'b0;
+    mem_valid    = 1'b0;
     rst          = 1'b1;
     addr         = '0;
     write_data   = '0;

@@ -15,10 +15,12 @@ module board_bus #(
   output logic [NumLeds-1:0] led,
   output logic               uart_tx,
 
+  input  logic                 mem_valid,
   input  logic                 mem_write,
   input  riscv_pkg::word_t     mem_addr,
   input  riscv_pkg::word_t     mem_write_data,
   output riscv_pkg::word_t     mem_read_data,
+  output logic                 mem_ready,
   input  riscv_pkg::mem_size_t mem_size,
   input  logic                 mem_unsigned
 );
@@ -40,15 +42,17 @@ module board_bus #(
   riscv_pkg::word_t dmem_read_data;
   riscv_pkg::word_t dmem_write_data;
   logic [3:0] dmem_write_mask;
+  logic dmem_ready;
 
   `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
   assign selected[DmemIdx] = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign mmio_selected = |selected[NumSources-1:1];
+  assign mem_ready = selected[DmemIdx] ? dmem_ready : mem_valid;
   assign write_enabled[TimerIdx] = 1'b0;
-  assign write_enabled[DmemIdx] = mem_write & selected[DmemIdx] & !mmio_selected;
-  assign write_enabled[LedIdx] = mem_write & selected[LedIdx];
-  assign write_enabled[UartIdx] = mem_write & selected[UartIdx];
+  assign write_enabled[DmemIdx] = mem_valid & mem_write & selected[DmemIdx] & !mmio_selected;
+  assign write_enabled[LedIdx] = mem_valid & mem_write & selected[LedIdx];
+  assign write_enabled[UartIdx] = mem_valid & mem_write & selected[UartIdx];
 
   onehot_mux #(
     .Width(WordBits),
@@ -116,10 +120,12 @@ module board_bus #(
   ) dmem_i (
     .clk(clk),
     .rst(rst),
+    .mem_valid(mem_valid & selected[DmemIdx] & !mmio_selected),
     .mem_write(write_enabled[DmemIdx]),
     .addr(mem_addr),
     .write_data(dmem_write_data),
     .write_mask(dmem_write_mask),
+    .mem_ready(dmem_ready),
     .read_data(dmem_read_data)
   );
 

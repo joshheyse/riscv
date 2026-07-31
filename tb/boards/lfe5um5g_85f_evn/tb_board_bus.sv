@@ -25,7 +25,9 @@ module tb_board_bus
   logic [board_constants_pkg::NumGpio-1:0] gpio_in;
   logic [board_constants_pkg::NumGpio-1:0] gpio_out;
   logic [board_constants_pkg::NumGpio-1:0] gpio_oe;
+  logic mem_valid;
   logic mem_write;
+  logic mem_ready;
   word_t mem_addr;
   word_t mem_write_data;
   word_t mem_read_data;
@@ -55,10 +57,12 @@ module tb_board_bus
     .gpio_in(gpio_in),
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .mem_read_data(mem_read_data),
+    .mem_ready(mem_ready),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned)
   );
@@ -94,18 +98,25 @@ module tb_board_bus
 
   task automatic set_read_addr(input word_t addr);
     @(negedge clk);
+    mem_valid = 1'b1;
     mem_write = 1'b0;
     mem_addr  = addr;
+    @(posedge clk);
     #1;
+    expect_bit(mem_ready, 1'b1, "read ready");
+    mem_valid = 1'b0;
   endtask
 
   task automatic write_bus(input word_t addr, input word_t data);
     @(negedge clk);
+    mem_valid      = 1'b1;
     mem_addr       = addr;
     mem_write_data = data;
     mem_write      = 1'b1;
     @(posedge clk);
     #1;
+    expect_bit(mem_ready, 1'b1, "write ready");
+    mem_valid = 1'b0;
     mem_write = 1'b0;
   endtask
 
@@ -116,6 +127,7 @@ module tb_board_bus
     end
 
     rst            = 1'b1;
+    mem_valid      = 1'b0;
     mem_write      = 1'b0;
     mem_addr       = '0;
     mem_write_data = '0;

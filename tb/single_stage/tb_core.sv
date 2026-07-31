@@ -88,8 +88,10 @@ module tb_core
     step("addi x1,x0,0");
     step("addi x2,x0,-1");
     step("sw x2,0(x1)");
+    step("sw x2,0(x1) complete");
     step("addi x3,x0,127");
     step("sb x3,1(x1)");
+    step("sb x3,1(x1) complete");
     step("lb x4,1(x1)");
     step("lb x4,1(x1) complete");
     step("lb x5,2(x1)");
@@ -99,6 +101,7 @@ module tb_core
     step("lui x7,0x8");
     step("addi x7,x7,1");
     step("sh x7,2(x1)");
+    step("sh x7,2(x1) complete");
     step("lh x8,2(x1)");
     step("lh x8,2(x1) complete");
     step("lhu x9,2(x1)");
@@ -106,6 +109,7 @@ module tb_core
     step("lw x10,0(x1)");
     step("lw x10,0(x1) complete");
     step("sw x10,4(x1)");
+    step("sw x10,4(x1) complete");
     step("jal x0,0");
     step("jal fallthrough bubble");
     step("jal x0,0 again");

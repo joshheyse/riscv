@@ -35,10 +35,14 @@ module top #(
   logic rst;
   logic power_on_rst;
   riscv_pkg::pc_t pc;
+  riscv_pkg::pc_t imem_addr;
   riscv_pkg::instr_u instr;
   logic halted;
 
+  logic mem_valid;
   logic mem_write;
+  logic mem_ready;
+  logic imem_en;
   riscv_pkg::word_t mem_addr;
   riscv_pkg::word_t mem_write_data;
   riscv_pkg::word_t mem_read_data;
@@ -95,7 +99,10 @@ module top #(
     .DepthWords(ImemDepthWords),
     .InitFile  (ImemInitFile)
   ) imem_i (
-    .addr (pc),
+    .clk(clk_12mhz),
+    .rst(rst),
+    .en(imem_en),
+    .addr(imem_addr),
     .instr(instr.raw)
   );
 
@@ -117,10 +124,12 @@ module top #(
     .i2c_sda_drive_low(i2c_sda_drive_low),
     .i2c_scl_in(i2c_scl_in),
     .i2c_scl_drive_low(i2c_scl_drive_low),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .mem_read_data(mem_read_data),
+    .mem_ready(mem_ready),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned)
   );
@@ -130,13 +139,17 @@ module top #(
     .rst(rst),
     .instr(instr),
     .pc(pc),
+    .imem_addr(imem_addr),
     .halted(halted),
+    .mem_valid(mem_valid),
     .mem_write(mem_write),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .mem_read_data(mem_read_data),
+    .mem_ready(mem_ready),
     .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned)
+    .mem_unsigned(mem_unsigned),
+    .imem_en(imem_en)
   );
 
 endmodule
