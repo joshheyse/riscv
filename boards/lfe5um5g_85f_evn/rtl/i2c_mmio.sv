@@ -54,18 +54,18 @@ module i2c_mmio #(
   riscv_pkg::byte_t i2c_byte;
   logic [2:0] bit_index;
 
-  logic stg_enabled;
-  logic stg_clear;
-  logic stg_tick;
-
   assign data_selected = mem_addr == DataAddr;
   assign control_selected = mem_addr == ControlAddr;
   assign status_selected = mem_addr == StatusAddr;
   assign address_selected = mem_addr == AddressAddr;
-  assign selected = data_selected || control_selected || status_selected || address_selected;
+  assign selected = data_selected | control_selected | status_selected | address_selected;
+
+  logic stg_enabled;
+  logic stg_clear;
+  logic stg_tick;
 
   assign stg_enabled = state != I2C_IDLE;
-  assign stg_clear = state == I2C_IDLE;
+  assign stg_clear   = state == I2C_IDLE;
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerHalfBit)

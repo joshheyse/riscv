@@ -30,8 +30,6 @@ module spi_mmio #(
   output logic spi_cs_n
 );
 
-  localparam int unsigned SpiCounterBits = (ClocksPerHalfBit <= 1) ? 1 : $clog2(ClocksPerHalfBit);
-
   spi_state_t state;
   logic busy;
   logic data_selected;
@@ -41,15 +39,29 @@ module spi_mmio #(
   riscv_pkg::byte_t tx_data;
   riscv_pkg::byte_t rx_data;
   logic [2:0] bit_index;
-  logic [SpiCounterBits-1:0] spi_counter;
-  logic half_bit_done;
 
   assign data_selected = mem_addr == DataAddr;
   assign control_selected = mem_addr == ControlAddr;
   assign status_selected = mem_addr == StatusAddr;
   assign selected = data_selected || control_selected || status_selected;
   assign spi_mosi = mosi_reg;
-  assign half_bit_done = spi_counter == SpiCounterBits'(ClocksPerHalfBit - 1);
+
+  logic stg_enabled;
+  logic stg_clear;
+  logic stg_tick;
+
+  assign stg_enabled = (state == SPI_SCK_HIGH || state == SPI_SCK_LOW);
+  assign stg_clear   = !stg_enabled;
+
+  serial_tick_generator #(
+    .ClocksPerTick(ClocksPerHalfBit)
+  ) stg (
+    .clk(clk),
+    .rst(rst),
+    .enable(stg_enabled),
+    .clear(stg_clear),
+    .tick(stg_tick)
+  );
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -58,7 +70,6 @@ module spi_mmio #(
       tx_data <= 0;
       rx_data <= 0;
       bit_index <= 0;
-      spi_counter <= 0;
     end else begin
       if (mem_write && data_selected) begin
         tx_data <= mem_write_data[7:0];
@@ -77,28 +88,21 @@ module spi_mmio #(
         end
         SPI_SETUP: begin
           state <= SPI_SCK_HIGH;
-          spi_counter <= 0;
         end
         SPI_SCK_HIGH: begin
           rx_data[bit_index] <= spi_miso;
-          if (half_bit_done) begin
-            spi_counter <= 0;
+          if (stg_tick) begin
             state <= SPI_SCK_LOW;
-          end else begin
-            spi_counter <= spi_counter + SpiCounterBits'(1'b1);
           end
         end
         SPI_SCK_LOW: begin
-          if (half_bit_done) begin
-            spi_counter <= 0;
+          if (stg_tick) begin
             if (bit_index == 3'b000) begin
               state <= SPI_DONE;
             end else begin
               bit_index <= bit_index - 1'b1;
               state <= SPI_LOAD_BIT;
             end
-          end else begin
-            spi_counter <= spi_counter + SpiCounterBits'(1'b1);
           end
         end
         SPI_DONE: begin

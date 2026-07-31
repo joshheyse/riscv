@@ -14,19 +14,17 @@ module serial_tick_generator #(
   localparam logic [CounterBits-1:0] TerminalCount = CounterBits'(ClocksPerTick - 1);
   logic [CounterBits-1:0] counter;
 
+  assign tick = enable && !clear && (counter == TerminalCount);
+
   always_ff @(posedge clk) begin
     if (rst) begin
       counter <= 0;
-      tick <= 1'b0;
     end else if (clear || !enable) begin
       counter <= 0;
-      tick <= 1'b0;
     end else if (counter == TerminalCount) begin
       counter <= 0;
-      tick <= 1'b1;
     end else begin
       counter <= counter + 1;
-      tick <= 1'b0;
     end
   end
 

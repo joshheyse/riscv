@@ -78,9 +78,9 @@ module tb_serial_tick_generator;
     expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 1");
     step_expect(1'b0, "enabled cycle 2 no tick");
     expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 2");
-    step_expect(1'b0, "enabled cycle 3 no tick");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 3");
-    step_expect(1'b1, "enabled cycle 4 ticks");
+    step_expect(1'b1, "enabled terminal-count cycle ticks");
+    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on terminal-count cycle");
+    step_expect(1'b0, "enabled cycle after tick no tick");
     expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks with normal generator");
     step_expect(1'b0, "tick is one cycle");
     expect_bit(tick_every_cycle, 1'b1, "every-cycle generator continues ticking");
@@ -95,8 +95,8 @@ module tb_serial_tick_generator;
     clear = 1'b0;
     step_expect(1'b0, "after clear cycle 1 no tick");
     step_expect(1'b0, "after clear cycle 2 no tick");
-    step_expect(1'b0, "after clear cycle 3 no tick");
-    step_expect(1'b1, "after clear cycle 4 ticks");
+    step_expect(1'b1, "after clear terminal-count cycle ticks");
+    step_expect(1'b0, "after clear cycle after tick no tick");
 
     @(negedge clk);
     enable = 1'b0;
@@ -110,8 +110,8 @@ module tb_serial_tick_generator;
     step_expect(1'b0, "re-enabled cycle 1 no tick");
     expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks after re-enable");
     step_expect(1'b0, "re-enabled cycle 2 no tick");
-    step_expect(1'b0, "re-enabled cycle 3 no tick");
-    step_expect(1'b1, "re-enabled cycle 4 ticks");
+    step_expect(1'b1, "re-enabled terminal-count cycle ticks");
+    step_expect(1'b0, "re-enabled cycle after tick no tick");
 
     if (errors == 0) begin
       $display("tb_serial_tick_generator: PASS (%0d checks)", checks);
