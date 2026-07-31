@@ -65,7 +65,7 @@ module i2c_mmio #(
   logic stg_tick;
 
   assign stg_enabled = state != I2C_IDLE;
-  assign stg_clear   = state == I2C_IDLE;
+  assign stg_clear   = !stg_enabled;
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerHalfBit)
