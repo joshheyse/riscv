@@ -4,6 +4,7 @@ cross := env_var_or_default("CROSS_COMPILE", "riscv64-none-elf-")
 design := env_var_or_default("DESIGN", "single_stage")
 board := env_var_or_default("BOARD", "lfe5um5g_85f_evn")
 default_app := "boards/" + board + "/rtl/programs/led_skip.S"
+default_sim_app := "examples/apps/uart_halt_c"
 
 _default:
     @just --list
@@ -28,8 +29,8 @@ sim tb="core":
 wave tb="core":
     make wave DESIGN={{design}} TB={{tb}}
 
-# Run a board-level simulator: just board-sim top_sim examples/apps/uart_halt_c
-board-sim sim="top_sim" app=default_app target=board:
+# Run the simulated platform: just board-sim top_sim examples/apps/uart_halt_c
+board-sim sim="top_sim" app=default_sim_app target="sim":
     @board="{{target}}"; \
     board="${board#boards/}"; \
     make board-sim BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
@@ -104,11 +105,11 @@ app-build app=default_app target=board:
     board="${board#boards/}"; \
     make app-build BOARD="$board" APP="{{app}}"
 
-# Regenerate generated memory-map files for a board: just memmap boards/lfe5um5g_85f_evn
-memmap target=board:
+# Regenerate generated board constants files: just board-constants boards/lfe5um5g_85f_evn
+board-constants target=board:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make memmap BOARD="$board"
+    make board-constants BOARD="$board"
 
 # Disassemble an app: just app-dump path/to/app.c
 app-dump app=default_app target=board:

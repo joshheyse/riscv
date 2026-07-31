@@ -5,8 +5,10 @@ module top_sim #(
   parameter int unsigned ImemDepthWords = 512,
   parameter int unsigned DmemDepthWords = 512,
   parameter string DmemInitFile = "",
-  parameter int unsigned ClocksPerBit = memmap_pkg::UartClocksPerBit,
-  parameter riscv_pkg::word_t SimHaltAddr = memmap_pkg::SimHaltAddr,
+  parameter int unsigned ClockHz = board_constants_pkg::ClockHz,
+  parameter int unsigned UartBaud = board_constants_pkg::UartBaud,
+  parameter int unsigned ClocksPerBit = ClockHz / UartBaud,
+  parameter riscv_pkg::word_t SimHaltAddr = board_constants_pkg::SimHaltAddr,
   parameter int unsigned TimeoutCycles = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;

@@ -38,19 +38,15 @@ LOCATE COMP "uart_tx" SITE "P3";
 IOBUF PORT "uart_rx" IO_TYPE=LVCMOS33;
 IOBUF PORT "uart_tx" IO_TYPE=LVCMOS33;
 
-# Onboard quad SPI flash / configuration SPI pins.
-LOCATE COMP "spi_sck" SITE "U3";
+# Generic 4-wire SPI port on valid CABGA381 user IO sites.
 LOCATE COMP "spi_mosi" SITE "W2";
 LOCATE COMP "spi_miso" SITE "V2";
 LOCATE COMP "spi_cs_n" SITE "R2";
-LOCATE COMP "spi_dq2" SITE "Y2";
-LOCATE COMP "spi_dq3" SITE "W1";
+LOCATE COMP "spi_sck" SITE "W1";
 IOBUF PORT "spi_sck" IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_mosi" IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_miso" IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_cs_n" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_dq2" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_dq3" IO_TYPE=LVCMOS33;
 
 # Arduino local I2C pins. R25/R26 are DNI for optional global I2C connection.
 LOCATE COMP "i2c_sda" SITE "G16";

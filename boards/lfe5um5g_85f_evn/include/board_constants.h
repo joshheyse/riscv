@@ -1,6 +1,6 @@
-/* Generated from boards/lfe5um5g_85f_evn/memmap.yml. Do not edit. */
-#ifndef LFE5UM5G_85F_EVN_MEMMAP_H
-#define LFE5UM5G_85F_EVN_MEMMAP_H
+/* Generated from boards/lfe5um5g_85f_evn/board_constants.yml. Do not edit. */
+#ifndef LFE5UM5G_85F_EVN_BOARD_CONSTANTS_H
+#define LFE5UM5G_85F_EVN_BOARD_CONSTANTS_H
 
 #define BOARD_DMEM_BASE          0x00000000u
 #define BOARD_DMEM_SIZE          0x00000800u
@@ -20,7 +20,6 @@
 #define BOARD_SPI_DATA_ADDR      0x10004000u
 #define BOARD_SPI_CONTROL_ADDR   0x10004004u
 #define BOARD_SPI_STATUS_ADDR    0x10004008u
-#define BOARD_SPI_CLOCKS_PER_HALF_BIT 0x00000003u
 #define BOARD_I2C_DATA_ADDR      0x10005000u
 #define BOARD_I2C_ADDRESS_ADDR   0x10005004u
 #define BOARD_I2C_CONTROL_ADDR   0x10005008u
@@ -31,13 +30,9 @@
 #define BOARD_GPIO_SET_ADDR      0x1000600cu
 #define BOARD_GPIO_CLEAR_ADDR    0x10006010u
 #define BOARD_GPIO_TOGGLE_ADDR   0x10006014u
+#define BOARD_CLOCK_HZ           0x00b71b00u
 #define BOARD_UART_BAUD          0x0001c200u
-#define BOARD_UART_CLOCKS_PER_BIT 0x00000068u
-#define BOARD_SIM_HALT_ADDR      0x1000f000u
-#define BOARD_TIMER_HZ           0x00b71b00u
-
-#ifndef RISCV_SOC_SIM_HALT_ADDR
-#define RISCV_SOC_SIM_HALT_ADDR BOARD_SIM_HALT_ADDR
-#endif
+#define BOARD_SPI_HZ             0x001e8480u
+#define BOARD_I2C_HZ             0x000186a0u
 
 #endif

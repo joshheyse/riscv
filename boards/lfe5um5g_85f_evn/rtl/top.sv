@@ -8,7 +8,7 @@ module top #(
   parameter int unsigned ImemDepthWords = 512,
   parameter ImemInitFile = "",
   parameter int unsigned PowerOnResetCycles = 16,
-  parameter int unsigned NumGpio = memmap_pkg::NumGpio
+  parameter int unsigned NumGpio = board_constants_pkg::NumGpio
 ) (
   input  logic               clk_12mhz,
   input  logic               rst_n,

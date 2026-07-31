@@ -12,7 +12,16 @@
 
 DESIGN ?= single_stage
 TOP    ?= soc
-BOARD  ?= lfe5um5g_85f_evn
+
+DEFAULT_BOARD     := lfe5um5g_85f_evn
+DEFAULT_SIM_BOARD := sim
+DEFAULT_SIM_APP   := examples/apps/uart_halt_c
+
+ifneq ($(filter board-sim board-run,$(MAKECMDGOALS)),)
+BOARD ?= $(DEFAULT_SIM_BOARD)
+else
+BOARD ?= $(DEFAULT_BOARD)
+endif
 
 # Which testbench to build and run: tb/<DESIGN>/tb_<TB>.sv
 TB     ?= $(TOP)
@@ -81,12 +90,16 @@ SDK_CRT0_SRC := $(SDK_DIR)/crt0.S
 SDK_INCLUDE  := $(SDK_DIR)/include
 BOARD_INCLUDE := $(BOARD_DIR)/include
 APP_HEADER_DEPS := $(shell find $(SDK_INCLUDE) $(BOARD_INCLUDE) -type f -name '*.h' 2>/dev/null)
-BOARD_MEMMAP      := $(BOARD_DIR)/memmap.yml
-BOARD_MEMMAP_HDR  := $(BOARD_INCLUDE)/board_memmap.h
-BOARD_MEMMAP_PKG  := $(BOARD_RTL_DIR)/memmap_pkg.sv
+BOARD_CONSTANTS      := $(BOARD_DIR)/board_constants.yml
+BOARD_CONSTANTS_HDR  := $(BOARD_INCLUDE)/board_constants.h
+BOARD_CONSTANTS_PKG  := $(BOARD_RTL_DIR)/board_constants_pkg.sv
 COMPILE_COMMANDS  := compile_commands.json
 
+ifneq ($(filter board-sim board-run,$(MAKECMDGOALS)),)
+APP ?= $(DEFAULT_SIM_APP)
+else
 APP ?= $(BOARD_PROGRAM_SRC)
+endif
 APP_IS_DIR := $(shell test -d "$(APP)" && echo 1)
 ifeq ($(APP_IS_DIR),1)
 APP_NAME := $(notdir $(patsubst %/,%,$(APP)))
@@ -160,7 +173,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint sim run wave fmt fmt-check filelist compile-commands memmap app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help
+.PHONY: all lint sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -208,11 +221,11 @@ fmt-check:
 			|| { echo "needs formatting: $$f"; fail=1; }; \
 	done; exit $$fail
 
-$(BOARD_MEMMAP_HDR) $(BOARD_MEMMAP_PKG) &: $(BOARD_MEMMAP) tools/gen_memmap.py
-	tools/gen_memmap.py $< --c-header $(BOARD_MEMMAP_HDR) --sv-package $(BOARD_MEMMAP_PKG)
+$(BOARD_CONSTANTS_HDR) $(BOARD_CONSTANTS_PKG) &: $(BOARD_CONSTANTS) tools/gen_board_constants.py
+	tools/gen_board_constants.py $< --c-header $(BOARD_CONSTANTS_HDR) --sv-package $(BOARD_CONSTANTS_PKG)
 
-## memmap: regenerate the selected board's generated memory-map files
-memmap: $(BOARD_MEMMAP_HDR) $(BOARD_MEMMAP_PKG)
+## board-constants: regenerate the selected board's generated constants files
+board-constants: $(BOARD_CONSTANTS_HDR) $(BOARD_CONSTANTS_PKG)
 
 ## filelist: regenerate verible.filelist (language server cross-file symbols)
 # Without this file verible-verilog-ls only sees the buffer being edited, so
@@ -223,13 +236,13 @@ filelist:
 	        ! -name '*_pkg.sv' 2>/dev/null | sort; } > verible.filelist
 	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
 
-$(COMPILE_COMMANDS): tools/gen_compile_commands.py $(BOARD_MEMMAP_HDR)
+$(COMPILE_COMMANDS): FORCE tools/gen_compile_commands.py $(BOARD_CONSTANTS_HDR)
 	tools/gen_compile_commands.py --board $(BOARD) --output $@
 
 ## compile-commands: regenerate compile_commands.json for clangd
 compile-commands: $(COMPILE_COMMANDS)
 
-$(APP_BUILD_DIR)/%.S.o: %.S $(BOARD_MEMMAP_HDR)
+$(APP_BUILD_DIR)/%.S.o: %.S $(BOARD_CONSTANTS_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }
 	@mkdir -p $(dir $@)
 	$(RISCV_GCC) $(APP_ASFLAGS) -c $< -o $@
@@ -308,7 +321,7 @@ board-tb: board-tb-run
 ## board-program: build the selected APP into a readmemh file
 board-program: app-build
 
-$(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_MEMMAP_PKG)
+$(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
 	yosys -p 'read_verilog -sv $(BOARD_SRCS); chparam -set ImemInitFile "$(APP_MEM)" $(BOARD_TOP); synth_ecp5 -top $(BOARD_TOP) -json $@'

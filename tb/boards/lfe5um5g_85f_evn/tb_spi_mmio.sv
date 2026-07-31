@@ -5,7 +5,8 @@ module tb_spi_mmio
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned ClocksPerHalfBit = memmap_pkg::SpiClocksPerHalfBit;
+  localparam int unsigned ClocksPerHalfBit =
+      board_constants_pkg::ClockHz / (2 * board_constants_pkg::SpiHz);
   localparam int unsigned TimeoutCycles = 400;
   localparam word_t DataAddr = 32'h1000_4000;
   localparam word_t ControlAddr = 32'h1000_4004;

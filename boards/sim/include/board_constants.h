@@ -1,0 +1,17 @@
+/* Generated from boards/sim/board_constants.yml. Do not edit. */
+#ifndef SIM_BOARD_CONSTANTS_H
+#define SIM_BOARD_CONSTANTS_H
+
+#define BOARD_DMEM_BASE          0x00000000u
+#define BOARD_DMEM_SIZE          0x00000800u
+#define BOARD_NUM_LEDS           0x00000008u
+#define BOARD_LED_ADDR           0x10000000u
+#define BOARD_UART_TX_ADDR       0x10001000u
+#define BOARD_UART_STATUS_ADDR   0x1000100cu
+#define BOARD_TIMER_LO_ADDR      0x10002000u
+#define BOARD_TIMER_HI_ADDR      0x10002004u
+#define BOARD_CLOCK_HZ           0x00b71b00u
+#define BOARD_UART_BAUD          0x0001c200u
+#define BOARD_SIM_HALT_ADDR      0x1000f000u
+
+#endif

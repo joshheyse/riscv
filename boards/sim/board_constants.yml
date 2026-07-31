@@ -1,0 +1,16 @@
+board: sim
+sv_package: board_constants_pkg
+c_prefix: BOARD
+
+constants:
+  dmem_base: 0x00000000
+  dmem_size: 0x00000800
+  num_leds: 8
+  led_addr: 0x10000000
+  uart_tx_addr: 0x10001000
+  uart_status_addr: 0x1000100c
+  timer_lo_addr: 0x10002000
+  timer_hi_addr: 0x10002004
+  clock_hz: 12000000
+  uart_baud: 115200
+  sim_halt_addr: 0x1000f000

@@ -1,5 +1,5 @@
 board: lfe5um5g_85f_evn
-sv_package: memmap_pkg
+sv_package: board_constants_pkg
 c_prefix: BOARD
 
 constants:
@@ -21,7 +21,6 @@ constants:
   spi_data_addr: 0x10004000
   spi_control_addr: 0x10004004
   spi_status_addr: 0x10004008
-  spi_clocks_per_half_bit: 3
   i2c_data_addr: 0x10005000
   i2c_address_addr: 0x10005004
   i2c_control_addr: 0x10005008
@@ -32,7 +31,7 @@ constants:
   gpio_set_addr: 0x1000600c
   gpio_clear_addr: 0x10006010
   gpio_toggle_addr: 0x10006014
+  clock_hz: 12000000
   uart_baud: 115200
-  uart_clocks_per_bit: 104
-  sim_halt_addr: 0x1000f000
-  timer_hz: 12000000
+  spi_hz: 2000000
+  i2c_hz: 100000

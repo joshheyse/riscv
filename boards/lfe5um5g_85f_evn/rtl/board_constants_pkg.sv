@@ -1,7 +1,7 @@
-// Generated from boards/lfe5um5g_85f_evn/memmap.yml. Do not edit.
+// Generated from boards/lfe5um5g_85f_evn/board_constants.yml. Do not edit.
 `timescale 1ns / 1ps
 
-package memmap_pkg;
+package board_constants_pkg;
   /* verilator lint_off UNUSEDPARAM */
   localparam logic [31:0] DmemBase = 32'h00000000;
   localparam logic [31:0] DmemSize = 32'h00000800;
@@ -21,7 +21,6 @@ package memmap_pkg;
   localparam logic [31:0] SpiDataAddr = 32'h10004000;
   localparam logic [31:0] SpiControlAddr = 32'h10004004;
   localparam logic [31:0] SpiStatusAddr = 32'h10004008;
-  localparam logic [31:0] SpiClocksPerHalfBit = 32'h00000003;
   localparam logic [31:0] I2cDataAddr = 32'h10005000;
   localparam logic [31:0] I2cAddressAddr = 32'h10005004;
   localparam logic [31:0] I2cControlAddr = 32'h10005008;
@@ -32,9 +31,9 @@ package memmap_pkg;
   localparam logic [31:0] GpioSetAddr = 32'h1000600c;
   localparam logic [31:0] GpioClearAddr = 32'h10006010;
   localparam logic [31:0] GpioToggleAddr = 32'h10006014;
+  localparam logic [31:0] ClockHz = 32'h00b71b00;
   localparam logic [31:0] UartBaud = 32'h0001c200;
-  localparam logic [31:0] UartClocksPerBit = 32'h00000068;
-  localparam logic [31:0] SimHaltAddr = 32'h1000f000;
-  localparam logic [31:0] TimerHz = 32'h00b71b00;
+  localparam logic [31:0] SpiHz = 32'h001e8480;
+  localparam logic [31:0] I2cHz = 32'h000186a0;
   /* verilator lint_on UNUSEDPARAM */
 endpackage

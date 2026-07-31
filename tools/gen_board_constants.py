@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 
 
-def parse_memmap(path):
+def parse_board_constants(path):
     data = {}
     constants = {}
     in_constants = False
@@ -48,13 +48,13 @@ def sv_value(value):
     return f"32'h{value:08x}"
 
 
-def write_c_header(memmap, output):
-    guard = f"{memmap['board'].upper()}_MEMMAP_H"
-    prefix = memmap["c_prefix"]
-    constants = memmap["constants"]
+def write_c_header(board_constants, output):
+    guard = f"{board_constants['board'].upper()}_BOARD_CONSTANTS_H"
+    prefix = board_constants["c_prefix"]
+    constants = board_constants["constants"]
 
     lines = [
-        "/* Generated from boards/{}/memmap.yml. Do not edit. */".format(memmap["board"]),
+        "/* Generated from boards/{}/board_constants.yml. Do not edit. */".format(board_constants["board"]),
         f"#ifndef {guard}",
         f"#define {guard}",
         "",
@@ -63,24 +63,16 @@ def write_c_header(memmap, output):
     for key, value in constants.items():
         lines.append(f"#define {c_name(prefix, key):<24} {c_value(value)}")
 
-    if "sim_halt_addr" in constants:
-        lines += [
-            "",
-            "#ifndef RISCV_SOC_SIM_HALT_ADDR",
-            f"#define RISCV_SOC_SIM_HALT_ADDR {c_name(prefix, 'sim_halt_addr')}",
-            "#endif",
-        ]
-
     lines += ["", "#endif", ""]
     output.write_text("\n".join(lines))
 
 
-def write_sv_package(memmap, output):
-    package = memmap["sv_package"]
-    constants = memmap["constants"]
+def write_sv_package(board_constants, output):
+    package = board_constants["sv_package"]
+    constants = board_constants["constants"]
 
     lines = [
-        "// Generated from boards/{}/memmap.yml. Do not edit.".format(memmap["board"]),
+        "// Generated from boards/{}/board_constants.yml. Do not edit.".format(board_constants["board"]),
         "`timescale 1ns / 1ps",
         "",
         f"package {package};",
@@ -97,16 +89,16 @@ def write_sv_package(memmap, output):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("memmap", type=Path)
+    parser.add_argument("board_constants", type=Path)
     parser.add_argument("--c-header", type=Path, required=True)
     parser.add_argument("--sv-package", type=Path, required=True)
     args = parser.parse_args()
 
-    memmap = parse_memmap(args.memmap)
+    board_constants = parse_board_constants(args.board_constants)
     args.c_header.parent.mkdir(parents=True, exist_ok=True)
     args.sv_package.parent.mkdir(parents=True, exist_ok=True)
-    write_c_header(memmap, args.c_header)
-    write_sv_package(memmap, args.sv_package)
+    write_c_header(board_constants, args.c_header)
+    write_sv_package(board_constants, args.sv_package)
 
 
 if __name__ == "__main__":

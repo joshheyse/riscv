@@ -1,8 +1,10 @@
-boards/lfe5um5g_85f_evn/rtl/memmap_pkg.sv
+boards/lfe5um5g_85f_evn/rtl/board_constants_pkg.sv
+boards/sim/rtl/board_constants_pkg.sv
 rtl/cpu/lib/riscv_pkg.sv
 boards/lfe5um5g_85f_evn/rtl/board_bus.sv
 boards/lfe5um5g_85f_evn/rtl/top.sv
-boards/lfe5um5g_85f_evn/sim/top_sim.sv
+boards/sim/rtl/board_bus.sv
+boards/sim/sim/top_sim.sv
 rtl/cpu/lib/alu.sv
 rtl/cpu/lib/alu_decoder.sv
 rtl/cpu/lib/branch_logic.sv
@@ -30,6 +32,7 @@ tb/boards/lfe5um5g_85f_evn/tb_board_bus.sv
 tb/boards/lfe5um5g_85f_evn/tb_dip_switch_mmio.sv
 tb/boards/lfe5um5g_85f_evn/tb_gpio_mmio.sv
 tb/boards/lfe5um5g_85f_evn/tb_i2c_mmio.sv
+tb/boards/lfe5um5g_85f_evn/tb_led_mmio.sv
 tb/boards/lfe5um5g_85f_evn/tb_push_button_mmio.sv
 tb/boards/lfe5um5g_85f_evn/tb_serial_tick_generator.sv
 tb/boards/lfe5um5g_85f_evn/tb_spi_mmio.sv

@@ -22,9 +22,9 @@ module tb_board_bus
   logic i2c_sda_drive_low;
   logic i2c_scl_in;
   logic i2c_scl_drive_low;
-  logic [memmap_pkg::NumGpio-1:0] gpio_in;
-  logic [memmap_pkg::NumGpio-1:0] gpio_out;
-  logic [memmap_pkg::NumGpio-1:0] gpio_oe;
+  logic [board_constants_pkg::NumGpio-1:0] gpio_in;
+  logic [board_constants_pkg::NumGpio-1:0] gpio_out;
+  logic [board_constants_pkg::NumGpio-1:0] gpio_oe;
   logic mem_write;
   word_t mem_addr;
   word_t mem_write_data;
@@ -146,9 +146,9 @@ module tb_board_bus
     set_read_addr(32'h2000_0000);
     expect_word(mem_read_data, '0, "unmapped read returns zero");
 
-    write_bus(memmap_pkg::LedAddr, 32'h0000_00a5);
+    write_bus(board_constants_pkg::LedAddr, 32'h0000_00a5);
     expect_byte(led, 8'ha5, "LED write reaches LED MMIO");
-    set_read_addr(memmap_pkg::LedAddr);
+    set_read_addr(board_constants_pkg::LedAddr);
     expect_word(mem_read_data, 32'h0000_00a5, "LED read routes through board bus");
 
     write_bus(32'h2000_0000, 32'h0000_005a);
@@ -156,82 +156,82 @@ module tb_board_bus
     set_read_addr(32'h2000_0000);
     expect_word(mem_read_data, '0, "unmapped read still returns zero after write");
 
-    write_bus(memmap_pkg::DmemBase + 32'h0000_0004, 32'hdead_beef);
-    set_read_addr(memmap_pkg::DmemBase + 32'h0000_0004);
+    write_bus(board_constants_pkg::DmemBase + 32'h0000_0004, 32'hdead_beef);
+    set_read_addr(board_constants_pkg::DmemBase + 32'h0000_0004);
     expect_word(mem_read_data, 32'hdead_beef, "DMEM write/read routes to LSU");
 
-    write_bus(memmap_pkg::LedAddr, 32'h0000_0011);
-    set_read_addr(memmap_pkg::DmemBase + 32'h0000_0004);
+    write_bus(board_constants_pkg::LedAddr, 32'h0000_0011);
+    set_read_addr(board_constants_pkg::DmemBase + 32'h0000_0004);
     expect_word(mem_read_data, 32'hdead_beef, "LED write does not change DMEM");
 
     dip_switch = 8'hc3;
-    set_read_addr(memmap_pkg::DipSwitchAddr);
+    set_read_addr(board_constants_pkg::DipSwitchAddr);
     expect_word(mem_read_data, 32'h0000_00c3, "DIP switch read routes through board bus");
 
     push_button = 1'b1;
     repeat (PushButtonDebounceCycles + 3) @(posedge clk);
     #1;
-    set_read_addr(memmap_pkg::PushButtonAddr);
+    set_read_addr(board_constants_pkg::PushButtonAddr);
     expect_word(mem_read_data, 32'h0000_0001, "push button read routes through board bus");
 
     gpio_in = 8'h3c;
-    set_read_addr(memmap_pkg::GpioDataInAddr);
+    set_read_addr(board_constants_pkg::GpioDataInAddr);
     expect_word(mem_read_data, 32'h0000_003c, "GPIO input read routes through board bus");
 
-    write_bus(memmap_pkg::GpioDataOutAddr, 32'h0000_0055);
+    write_bus(board_constants_pkg::GpioDataOutAddr, 32'h0000_0055);
     expect_byte(gpio_out, 8'h55, "GPIO output write reaches GPIO MMIO");
-    set_read_addr(memmap_pkg::GpioDataOutAddr);
+    set_read_addr(board_constants_pkg::GpioDataOutAddr);
     expect_word(mem_read_data, 32'h0000_0055, "GPIO output read routes through board bus");
 
-    write_bus(memmap_pkg::GpioDirAddr, 32'h0000_00f0);
+    write_bus(board_constants_pkg::GpioDirAddr, 32'h0000_00f0);
     expect_byte(gpio_oe, 8'hf0, "GPIO direction write reaches GPIO MMIO");
-    set_read_addr(memmap_pkg::GpioDirAddr);
+    set_read_addr(board_constants_pkg::GpioDirAddr);
     expect_word(mem_read_data, 32'h0000_00f0, "GPIO direction read routes through board bus");
 
-    write_bus(memmap_pkg::GpioSetAddr, 32'h0000_000a);
+    write_bus(board_constants_pkg::GpioSetAddr, 32'h0000_000a);
     expect_byte(gpio_out, 8'h5f, "GPIO set write routes through board bus");
-    write_bus(memmap_pkg::GpioClearAddr, 32'h0000_0015);
+    write_bus(board_constants_pkg::GpioClearAddr, 32'h0000_0015);
     expect_byte(gpio_out, 8'h4a, "GPIO clear write routes through board bus");
-    write_bus(memmap_pkg::GpioToggleAddr, 32'h0000_00ff);
+    write_bus(board_constants_pkg::GpioToggleAddr, 32'h0000_00ff);
     expect_byte(gpio_out, 8'hb5, "GPIO toggle write routes through board bus");
 
-    set_read_addr(memmap_pkg::UartStatusAddr);
+    set_read_addr(board_constants_pkg::UartStatusAddr);
     expect_word(mem_read_data, 32'h0000_0001, "UART status read routes ready bit");
-    write_bus(memmap_pkg::UartTxAddr, 32'h0000_0055);
-    set_read_addr(memmap_pkg::UartStatusAddr);
+    write_bus(board_constants_pkg::UartTxAddr, 32'h0000_0055);
+    set_read_addr(board_constants_pkg::UartStatusAddr);
     expect_word(mem_read_data, 32'h0000_0000, "UART TX write makes UART busy");
     expect_byte(led, 8'h11, "UART write does not change LED MMIO");
 
     repeat (2) @(posedge clk);
-    set_read_addr(memmap_pkg::TimerLoAddr);
+    set_read_addr(board_constants_pkg::TimerLoAddr);
     if (mem_read_data == '0) begin
       errors++;
       $display("  FAIL [%0t] timer low read: got zero after reset release", $time);
     end
     checks++;
 
-    set_read_addr(memmap_pkg::TimerHiAddr);
+    set_read_addr(board_constants_pkg::TimerHiAddr);
     expect_word(mem_read_data, '0, "timer high read routes through board bus");
 
-    set_read_addr(memmap_pkg::SpiDataAddr);
+    set_read_addr(board_constants_pkg::SpiDataAddr);
     expect_word(mem_read_data, '0, "SPI data read routes through board bus");
 
-    set_read_addr(memmap_pkg::SpiControlAddr);
+    set_read_addr(board_constants_pkg::SpiControlAddr);
     expect_word(mem_read_data, '0, "SPI control read routes through board bus");
 
-    set_read_addr(memmap_pkg::SpiStatusAddr);
+    set_read_addr(board_constants_pkg::SpiStatusAddr);
     expect_word(mem_read_data, '0, "SPI status read routes through board bus");
 
-    set_read_addr(memmap_pkg::I2cDataAddr);
+    set_read_addr(board_constants_pkg::I2cDataAddr);
     expect_word(mem_read_data, '0, "I2C data read routes through board bus");
 
-    set_read_addr(memmap_pkg::I2cAddressAddr);
+    set_read_addr(board_constants_pkg::I2cAddressAddr);
     expect_word(mem_read_data, '0, "I2C address read routes through board bus");
 
-    set_read_addr(memmap_pkg::I2cControlAddr);
+    set_read_addr(board_constants_pkg::I2cControlAddr);
     expect_word(mem_read_data, '0, "I2C control read routes through board bus");
 
-    set_read_addr(memmap_pkg::I2cStatusAddr);
+    set_read_addr(board_constants_pkg::I2cStatusAddr);
     expect_word(mem_read_data, '0, "I2C status read routes through board bus");
 
     if (errors == 0) begin

@@ -1,5 +1,4 @@
 #include "board.h"
-#include "riscv_soc/sim.h"
 
 static void put_result(uint32_t errors) {
   uart_putc(errors == 0u ? 'P' : 'F');
@@ -32,6 +31,6 @@ int main(void) {
   while (!uart_tx_ready()) {
   }
 
-  sim_halt(errors);
+  halt(errors);
   return 0;
 }

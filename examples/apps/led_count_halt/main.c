@@ -1,5 +1,4 @@
 #include "board.h"
-#include "riscv_soc/sim.h"
 
 int main(void) {
   for (uint32_t i = 0; i < 8u; i++) {
@@ -8,6 +7,6 @@ int main(void) {
   }
 
   led_write(0xaau);
-  sim_halt(0);
+  halt(0);
   return 0;
 }
