@@ -22,14 +22,14 @@ module core (
   output riscv_pkg::pc_t pc,
   output riscv_pkg::pc_t imem_addr,
   output logic halted,
-  output logic mem_valid,
-  output logic mem_write,
-  output riscv_pkg::word_t mem_addr,
-  output riscv_pkg::word_t mem_write_data,
-  input riscv_pkg::word_t mem_read_data,
-  input logic mem_ready,
-  output riscv_pkg::mem_size_t mem_size,
-  output logic mem_unsigned,
+  output logic dbus_valid,
+  output logic dbus_write,
+  output riscv_pkg::word_t dbus_addr,
+  output riscv_pkg::word_t dbus_write_data,
+  input riscv_pkg::word_t dbus_read_data,
+  input logic dbus_ready,
+  output riscv_pkg::mem_size_t dbus_size,
+  output logic dbus_unsigned,
   output logic imem_en
 );
 
@@ -54,27 +54,27 @@ module core (
   logic instr_valid;
   riscv_pkg::pc_src_t ifu_pc_src;
 
-  logic mem_pending;
-  logic mem_instr;
-  logic mem_wait;
+  logic dbus_pending;
+  logic dbus_instr;
+  logic dbus_wait;
   logic load_complete;
   logic load_instr;
 
   assign ifu_ieu_addr = clear_pc_lsb ? {raw_ieu_addr[31:1], 1'b0} : raw_ieu_addr;
 
   assign halt_now = halted || (illegal_instr && instr_valid);
-  assign mem_instr = load_instr || mem_write_raw;
-  assign mem_valid = instr_valid && mem_instr && !halt_now && !mem_pending;
-  assign mem_wait = instr_valid && mem_instr && !halt_now && !mem_ready;
-  assign pc_en = !halt_now && !mem_wait;
+  assign dbus_instr = load_instr || mem_write_raw;
+  assign dbus_valid = instr_valid && dbus_instr && !halt_now && !dbus_pending;
+  assign dbus_wait = instr_valid && dbus_instr && !halt_now && !dbus_ready;
+  assign pc_en = !halt_now && !dbus_wait;
   assign imem_en = pc_en;
   assign reg_write = reg_write_raw && instr_valid && !halt_now && (!load_instr || load_complete);
-  assign mem_write = mem_write_raw && instr_valid && !halt_now;
+  assign dbus_write = mem_write_raw && instr_valid && !halt_now;
 
   assign ifu_pc_src = instr_valid ? pc_src : riscv_pkg::PC_SRC_INC;
 
   assign load_instr = result_src == riscv_pkg::RESULT_MEM;
-  assign load_complete = instr_valid && load_instr && mem_ready;
+  assign load_complete = instr_valid && load_instr && dbus_ready;
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -83,11 +83,11 @@ module core (
       halted <= 1'b1;
     end
     if (rst || halt_now) begin
-      mem_pending <= 1'b0;
-    end else if (mem_valid && !mem_ready) begin
-      mem_pending <= 1'b1;
-    end else if (mem_pending && mem_ready) begin
-      mem_pending <= 1'b0;
+      dbus_pending <= 1'b0;
+    end else if (dbus_valid && !dbus_ready) begin
+      dbus_pending <= 1'b1;
+    end else if (dbus_pending && dbus_ready) begin
+      dbus_pending <= 1'b0;
     end
   end
 
@@ -115,8 +115,8 @@ module core (
     .sub_arith(sub_arith),
     .pc_src(pc_src),
     .branch_sgnd(branch_sgnd),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
+    .mem_size(dbus_size),
+    .mem_unsigned(dbus_unsigned),
     .clear_pc_lsb(clear_pc_lsb),
     .illegal_instr(illegal_instr)
   );
@@ -133,10 +133,10 @@ module core (
     .result_src(result_src),
     .sub_arith(sub_arith),
     .branch_sgnd(branch_sgnd),
-    .read_data(mem_read_data),
+    .read_data(dbus_read_data),
     .ieu_addr(raw_ieu_addr),
-    .alu_result(mem_addr),
-    .write_data(mem_write_data),
+    .alu_result(dbus_addr),
+    .write_data(dbus_write_data),
     .branch_flags(branch_flags)
   );
 

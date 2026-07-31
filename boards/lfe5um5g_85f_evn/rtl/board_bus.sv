@@ -33,14 +33,14 @@ module board_bus #(
   input  logic i2c_scl_in,
   output logic i2c_scl_drive_low,
 
-  input  logic                 mem_valid,
-  input  logic                 mem_write,
-  input  riscv_pkg::word_t     mem_addr,
-  input  riscv_pkg::word_t     mem_write_data,
-  output riscv_pkg::word_t     mem_read_data,
-  output logic                 mem_ready,
-  input  riscv_pkg::mem_size_t mem_size,
-  input  logic                 mem_unsigned
+  input  logic                 dbus_valid,
+  input  logic                 dbus_write,
+  input  riscv_pkg::word_t     dbus_addr,
+  input  riscv_pkg::word_t     dbus_write_data,
+  output riscv_pkg::word_t     dbus_read_data,
+  output logic                 dbus_ready,
+  input  riscv_pkg::mem_size_t dbus_size,
+  input  logic                 dbus_unsigned
 );
 
   logic mmio_selected;
@@ -71,18 +71,18 @@ module board_bus #(
 
   `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
-  assign selected[DmemIdx] = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
+  assign selected[DmemIdx] = ((dbus_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign mmio_selected = |selected[NumSources-1:1];
-  assign mem_ready = selected[DmemIdx] ? dmem_ready : mem_valid;
-  assign write_enabled[DmemIdx] = mem_valid & mem_write & selected[DmemIdx] & !mmio_selected;
-  assign write_enabled[LedIdx] = mem_valid & mem_write & selected[LedIdx];
+  assign dbus_ready = selected[DmemIdx] ? dmem_ready : dbus_valid;
+  assign write_enabled[DmemIdx] = dbus_valid & dbus_write & selected[DmemIdx] & !mmio_selected;
+  assign write_enabled[LedIdx] = dbus_valid & dbus_write & selected[LedIdx];
   assign write_enabled[DipSwitchIdx] = 1'b0;
   assign write_enabled[PushButtonIdx] = 1'b0;
-  assign write_enabled[GpioIdx] = mem_valid & mem_write & selected[GpioIdx];
-  assign write_enabled[UartIdx] = mem_valid & mem_write & selected[UartIdx];
+  assign write_enabled[GpioIdx] = dbus_valid & dbus_write & selected[GpioIdx];
+  assign write_enabled[UartIdx] = dbus_valid & dbus_write & selected[UartIdx];
   assign write_enabled[TimerIdx] = 1'b0;
-  assign write_enabled[SpiIdx] = mem_valid & mem_write & selected[SpiIdx];
-  assign write_enabled[I2cIdx] = mem_valid & mem_write & selected[I2cIdx];
+  assign write_enabled[SpiIdx] = dbus_valid & dbus_write & selected[SpiIdx];
+  assign write_enabled[I2cIdx] = dbus_valid & dbus_write & selected[I2cIdx];
 
   onehot_mux #(
     .Width(WordBits),
@@ -90,7 +90,7 @@ module board_bus #(
   ) om (
     .selected(selected),
     .data_in (read_data),
-    .data_out(mem_read_data)
+    .data_out(dbus_read_data)
   );
 
   led_mmio #(
@@ -100,8 +100,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[LedIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[LedIdx]),
     .read_data(`READ_DATA(LedIdx)),
     .led(led)
@@ -111,7 +111,7 @@ module board_bus #(
     .DipSwitchAddr (board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) dm_i (
-    .mem_addr  (mem_addr),
+    .mem_addr  (dbus_addr),
     .selected  (selected[DipSwitchIdx]),
     .read_data (`READ_DATA(DipSwitchIdx)),
     .dip_switch(dip_switch)
@@ -123,7 +123,7 @@ module board_bus #(
   ) pbm_i (
     .clk(clk),
     .rst(rst),
-    .mem_addr(mem_addr),
+    .mem_addr(dbus_addr),
     .selected(selected[PushButtonIdx]),
     .read_data(`READ_DATA(PushButtonIdx)),
     .push_button(push_button)
@@ -141,8 +141,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[GpioIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[GpioIdx]),
     .read_data(`READ_DATA(GpioIdx)),
     .gpio_in(gpio_in),
@@ -156,7 +156,7 @@ module board_bus #(
   ) tm_i (
     .clk(clk),
     .rst(rst),
-    .mem_addr(mem_addr),
+    .mem_addr(dbus_addr),
     .selected(selected[TimerIdx]),
     .read_data(`READ_DATA(TimerIdx))
   );
@@ -169,8 +169,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[UartIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[UartIdx]),
     .read_data(`READ_DATA(UartIdx)),
     .tx(uart_tx)
@@ -185,8 +185,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[SpiIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[SpiIdx]),
     .read_data(`READ_DATA(SpiIdx)),
     .spi_sck(spi_sck),
@@ -205,8 +205,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[I2cIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[I2cIdx]),
     .read_data(`READ_DATA(I2cIdx)),
     .i2c_sda_in(i2c_sda_in),
@@ -216,10 +216,10 @@ module board_bus #(
   );
 
   lsu lsu_i (
-    .addr(mem_addr),
-    .write_data(mem_write_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
+    .addr(dbus_addr),
+    .write_data(dbus_write_data),
+    .mem_size(dbus_size),
+    .mem_unsigned(dbus_unsigned),
     .read_mem(dmem_read_data),
     .write_mem(dmem_write_data),
     .write_mask(dmem_write_mask),
@@ -232,9 +232,9 @@ module board_bus #(
   ) dmem_i (
     .clk(clk),
     .rst(rst),
-    .mem_valid(mem_valid & selected[DmemIdx] & !mmio_selected),
+    .mem_valid(dbus_valid & selected[DmemIdx] & !mmio_selected),
     .mem_write(write_enabled[DmemIdx]),
-    .addr(mem_addr),
+    .addr(dbus_addr),
     .write_data(dmem_write_data),
     .write_mask(dmem_write_mask),
     .mem_ready(dmem_ready),

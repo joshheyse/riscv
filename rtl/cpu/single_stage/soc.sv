@@ -21,17 +21,17 @@ module soc #(
   output logic halted
 );
 
-  logic mem_write;
-  logic mem_valid;
-  logic mem_ready;
+  logic dbus_write;
+  logic dbus_valid;
+  logic dbus_ready;
   logic imem_en;
-  riscv_pkg::word_t mem_addr;
-  riscv_pkg::word_t mem_write_data;
-  riscv_pkg::word_t mem_read_data;
-  riscv_pkg::mem_size_t mem_size;
+  riscv_pkg::word_t dbus_addr;
+  riscv_pkg::word_t dbus_write_data;
+  riscv_pkg::word_t dbus_read_data;
+  riscv_pkg::mem_size_t dbus_size;
   riscv_pkg::word_t read_mem;
   riscv_pkg::word_t write_mem;
-  logic mem_unsigned;
+  logic dbus_unsigned;
   logic [3:0] write_mask;
 
   imem #(
@@ -52,23 +52,23 @@ module soc #(
     .pc(pc),
     .imem_addr(imem_addr),
     .halted(halted),
-    .mem_valid(mem_valid),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .mem_read_data(mem_read_data),
-    .mem_ready(mem_ready),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
+    .dbus_valid(dbus_valid),
+    .dbus_write(dbus_write),
+    .dbus_addr(dbus_addr),
+    .dbus_write_data(dbus_write_data),
+    .dbus_read_data(dbus_read_data),
+    .dbus_ready(dbus_ready),
+    .dbus_size(dbus_size),
+    .dbus_unsigned(dbus_unsigned),
     .imem_en(imem_en)
   );
 
   lsu lsu_i (
-    .addr(mem_addr),
-    .write_data(mem_write_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .read_data(mem_read_data),
+    .addr(dbus_addr),
+    .write_data(dbus_write_data),
+    .mem_size(dbus_size),
+    .mem_unsigned(dbus_unsigned),
+    .read_data(dbus_read_data),
     .write_mem(write_mem),
     .read_mem(read_mem),
     .write_mask(write_mask)
@@ -80,12 +80,12 @@ module soc #(
   ) dmem_i (
     .clk(clk),
     .rst(rst),
-    .mem_valid(mem_valid),
-    .mem_write(mem_write),
-    .addr(mem_addr),
+    .mem_valid(dbus_valid),
+    .mem_write(dbus_write),
+    .addr(dbus_addr),
     .write_data(write_mem),
     .read_data(read_mem),
-    .mem_ready(mem_ready),
+    .mem_ready(dbus_ready),
     .write_mask(write_mask)
   );
 

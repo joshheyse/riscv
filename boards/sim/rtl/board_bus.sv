@@ -15,14 +15,14 @@ module board_bus #(
   output logic [NumLeds-1:0] led,
   output logic               uart_tx,
 
-  input  logic                 mem_valid,
-  input  logic                 mem_write,
-  input  riscv_pkg::word_t     mem_addr,
-  input  riscv_pkg::word_t     mem_write_data,
-  output riscv_pkg::word_t     mem_read_data,
-  output logic                 mem_ready,
-  input  riscv_pkg::mem_size_t mem_size,
-  input  logic                 mem_unsigned
+  input  logic                 dbus_valid,
+  input  logic                 dbus_write,
+  input  riscv_pkg::word_t     dbus_addr,
+  input  riscv_pkg::word_t     dbus_write_data,
+  output riscv_pkg::word_t     dbus_read_data,
+  output logic                 dbus_ready,
+  input  riscv_pkg::mem_size_t dbus_size,
+  input  logic                 dbus_unsigned
 );
 
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
@@ -46,13 +46,13 @@ module board_bus #(
 
   `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
-  assign selected[DmemIdx] = ((mem_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
+  assign selected[DmemIdx] = ((dbus_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign mmio_selected = |selected[NumSources-1:1];
-  assign mem_ready = selected[DmemIdx] ? dmem_ready : mem_valid;
+  assign dbus_ready = selected[DmemIdx] ? dmem_ready : dbus_valid;
   assign write_enabled[TimerIdx] = 1'b0;
-  assign write_enabled[DmemIdx] = mem_valid & mem_write & selected[DmemIdx] & !mmio_selected;
-  assign write_enabled[LedIdx] = mem_valid & mem_write & selected[LedIdx];
-  assign write_enabled[UartIdx] = mem_valid & mem_write & selected[UartIdx];
+  assign write_enabled[DmemIdx] = dbus_valid & dbus_write & selected[DmemIdx] & !mmio_selected;
+  assign write_enabled[LedIdx] = dbus_valid & dbus_write & selected[LedIdx];
+  assign write_enabled[UartIdx] = dbus_valid & dbus_write & selected[UartIdx];
 
   onehot_mux #(
     .Width(WordBits),
@@ -60,7 +60,7 @@ module board_bus #(
   ) om (
     .selected(selected),
     .data_in (read_data),
-    .data_out(mem_read_data)
+    .data_out(dbus_read_data)
   );
 
   led_mmio #(
@@ -70,8 +70,8 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[LedIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[LedIdx]),
     .read_data(`READ_DATA(LedIdx)),
     .led(led)
@@ -83,7 +83,7 @@ module board_bus #(
   ) tm_i (
     .clk(clk),
     .rst(rst),
-    .mem_addr(mem_addr),
+    .mem_addr(dbus_addr),
     .selected(selected[TimerIdx]),
     .read_data(`READ_DATA(TimerIdx))
   );
@@ -96,18 +96,18 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_write(write_enabled[UartIdx]),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
+    .mem_addr(dbus_addr),
+    .mem_write_data(dbus_write_data),
     .selected(selected[UartIdx]),
     .read_data(`READ_DATA(UartIdx)),
     .tx(uart_tx)
   );
 
   lsu lsu_i (
-    .addr(mem_addr),
-    .write_data(mem_write_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
+    .addr(dbus_addr),
+    .write_data(dbus_write_data),
+    .mem_size(dbus_size),
+    .mem_unsigned(dbus_unsigned),
     .read_mem(dmem_read_data),
     .write_mem(dmem_write_data),
     .write_mask(dmem_write_mask),
@@ -120,9 +120,9 @@ module board_bus #(
   ) dmem_i (
     .clk(clk),
     .rst(rst),
-    .mem_valid(mem_valid & selected[DmemIdx] & !mmio_selected),
+    .mem_valid(dbus_valid & selected[DmemIdx] & !mmio_selected),
     .mem_write(write_enabled[DmemIdx]),
-    .addr(mem_addr),
+    .addr(dbus_addr),
     .write_data(dmem_write_data),
     .write_mask(dmem_write_mask),
     .mem_ready(dmem_ready),

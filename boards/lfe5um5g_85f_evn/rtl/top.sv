@@ -39,15 +39,15 @@ module top #(
   riscv_pkg::instr_u instr;
   logic halted;
 
-  logic mem_valid;
-  logic mem_write;
-  logic mem_ready;
+  logic dbus_valid;
+  logic dbus_write;
+  logic dbus_ready;
   logic imem_en;
-  riscv_pkg::word_t mem_addr;
-  riscv_pkg::word_t mem_write_data;
-  riscv_pkg::word_t mem_read_data;
-  riscv_pkg::mem_size_t mem_size;
-  logic mem_unsigned;
+  riscv_pkg::word_t dbus_addr;
+  riscv_pkg::word_t dbus_write_data;
+  riscv_pkg::word_t dbus_read_data;
+  riscv_pkg::mem_size_t dbus_size;
+  logic dbus_unsigned;
 
   logic [7:0] led;
   logic [7:0] dip_switch;
@@ -124,14 +124,14 @@ module top #(
     .i2c_sda_drive_low(i2c_sda_drive_low),
     .i2c_scl_in(i2c_scl_in),
     .i2c_scl_drive_low(i2c_scl_drive_low),
-    .mem_valid(mem_valid),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .mem_read_data(mem_read_data),
-    .mem_ready(mem_ready),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned)
+    .dbus_valid(dbus_valid),
+    .dbus_write(dbus_write),
+    .dbus_addr(dbus_addr),
+    .dbus_write_data(dbus_write_data),
+    .dbus_read_data(dbus_read_data),
+    .dbus_ready(dbus_ready),
+    .dbus_size(dbus_size),
+    .dbus_unsigned(dbus_unsigned)
   );
 
   core core_i (
@@ -141,14 +141,14 @@ module top #(
     .pc(pc),
     .imem_addr(imem_addr),
     .halted(halted),
-    .mem_valid(mem_valid),
-    .mem_write(mem_write),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .mem_read_data(mem_read_data),
-    .mem_ready(mem_ready),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
+    .dbus_valid(dbus_valid),
+    .dbus_write(dbus_write),
+    .dbus_addr(dbus_addr),
+    .dbus_write_data(dbus_write_data),
+    .dbus_read_data(dbus_read_data),
+    .dbus_ready(dbus_ready),
+    .dbus_size(dbus_size),
+    .dbus_unsigned(dbus_unsigned),
     .imem_en(imem_en)
   );
 
