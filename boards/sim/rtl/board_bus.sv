@@ -31,28 +31,25 @@ module board_bus
   localparam int unsigned NumSources = 4;
   localparam int unsigned WordBits = XLEN;
 
-  logic  [NumSources-1:0] _selected;
-  logic  [NumSources-1:0] _write_en;
-  logic  [  WordBits-1:0] _read_data       [NumSources];
-  word_t                  _dmem_read_data;
-  word_t                  _dmem_write_data;
-  logic  [           3:0] _dmem_write_mask;
-  logic                   _dmem_ready;
+  logic [NumSources-1:0] _selected;
+  logic [NumSources-1:0] _write_en;
+  logic [  WordBits-1:0] _read_data  [NumSources];
+  logic                  _dmem_ready;
 
   assign _selected[DmemIdx] = ((dbus.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
-  assign dbus.ready = _selected[DmemIdx] ? _dmem_ready : dbus.valid;
   assign _write_en[TimerIdx] = 1'b0;
   assign _write_en[DmemIdx] = dbus.valid & dbus.write_en & _selected[DmemIdx] & !_mmio_selected;
   assign _write_en[LedIdx] = dbus.valid & dbus.write_en & _selected[LedIdx];
   assign _write_en[UartIdx] = dbus.valid & dbus.write_en & _selected[UartIdx];
+  assign dbus.ready = _selected[DmemIdx] ? _dmem_ready : dbus.valid;
 
   onehot_mux #(
     .Width(WordBits),
     .NumInputs(NumSources)
   ) _onehot_mux (
     .selected(_selected),
-    .data_in(_read_data),
+    .data_in (_read_data),
     .data_out(dbus.read_data)
   );
 
@@ -83,8 +80,8 @@ module board_bus
 
   uart_mmio #(
     .ClocksPerBit(UartClocksPerBit),
-    .TxDataAddr(board_constants_pkg::UartTxAddr),
-    .StatusAddr(board_constants_pkg::UartStatusAddr)
+    .TxDataAddr  (board_constants_pkg::UartTxAddr),
+    .StatusAddr  (board_constants_pkg::UartStatusAddr)
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
@@ -96,30 +93,19 @@ module board_bus
     .tx(uart_tx)
   );
 
-  lsu _lsu (
-    .addr(dbus.addr),
-    .write_data(dbus.write_data),
-    .mem_size(dbus.size),
-    .mem_unsigned(dbus.mem_unsigned),
-    .mem_read_data(_dmem_read_data),
-    .mem_write_data(_dmem_write_data),
-    .write_mask(_dmem_write_mask),
-    .read_data(_read_data[DmemIdx])
-  );
-
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile(DmemInitFile)
+    .InitFile  (DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),
     .mem_valid(dbus.valid & _selected[DmemIdx] & !_mmio_selected),
     .mem_write_en(_write_en[DmemIdx]),
     .addr(dbus.addr),
-    .write_data(_dmem_write_data),
-    .write_mask(_dmem_write_mask),
+    .write_data(dbus.write_data),
+    .write_mask(dbus.write_mask),
     .mem_ready(_dmem_ready),
-    .read_data(_dmem_read_data)
+    .read_data(_read_data[DmemIdx])
   );
 
 endmodule

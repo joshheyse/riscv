@@ -36,8 +36,7 @@ module top_sim
   assign _board_dbus.write_en = _core_dbus.write_en & !_sim_halt_selected;
   assign _board_dbus.addr = _core_dbus.addr;
   assign _board_dbus.write_data = _core_dbus.write_data;
-  assign _board_dbus.size = _core_dbus.size;
-  assign _board_dbus.mem_unsigned = _core_dbus.mem_unsigned;
+  assign _board_dbus.write_mask = _core_dbus.write_mask;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -58,7 +57,7 @@ module top_sim
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
+    .InitFile  (ImemInitFile)
   ) _imem (
     .clk(_clk),
     .rst(_rst),
@@ -80,7 +79,7 @@ module top_sim
 
   board_bus #(
     .DmemDepthWords(DmemDepthWords),
-    .DmemInitFile(DmemInitFile)
+    .DmemInitFile  (DmemInitFile)
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),

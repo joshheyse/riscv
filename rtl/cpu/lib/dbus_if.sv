@@ -4,35 +4,39 @@ interface dbus_if
   import riscv_pkg::*;
 ();
 
-  logic      valid;
-  logic      write_en;
-  word_t     addr;
-  word_t     write_data;
-  word_t     read_data;
-  logic      ready;
-  mem_size_t size;
-  logic      mem_unsigned;
+  logic            valid;
+  logic            ready;
+  word_t           addr;
+
+  logic            write_en;
+  word_t           write_data;
+
+  mem_write_mask_t write_mask;
+
+  word_t           read_data;
 
   modport master(
       output valid,
-      output write_en,
+      input ready,
+
       output addr,
-      output write_data,
-      output size,
-      output mem_unsigned,
       input read_data,
-      input ready
+
+      output write_en,
+      output write_data,
+      output write_mask
   );
 
   modport slave(
       input valid,
-      input write_en,
+      output ready,
+
       input addr,
-      input write_data,
-      input size,
-      input mem_unsigned,
       output read_data,
-      output ready
+
+      input write_en,
+      input write_data,
+      input write_mask
   );
 
 endinterface

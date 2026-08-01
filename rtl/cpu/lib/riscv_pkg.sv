@@ -14,6 +14,7 @@ package riscv_pkg;
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
+  typedef logic [3:0] mem_write_mask_t;
 
   // RV32I opcode map used by the main decoder.
   //
@@ -165,5 +166,6 @@ package riscv_pkg;
     MEM_SIZE_HALF,
     MEM_SIZE_WORD
   } mem_size_t;
+
 
 endpackage

@@ -18,14 +18,16 @@
 module core
   import riscv_pkg::*;
 (
-  input  logic          clk,
-  input  logic          rst,
-  input  instr_u        instr,
-  output pc_t           pc,
-  output pc_t           imem_addr,
-  output logic          halted,
-  output logic          imem_en,
-         dbus_if.master dbus
+  input logic   clk,
+  input logic   rst,
+  input instr_u instr,
+
+  output pc_t  pc,
+  output pc_t  imem_addr,
+  output logic halted,
+  output logic imem_en,
+
+  dbus_if.master dbus
 );
 
   logic            _reg_write_en;
@@ -54,6 +56,11 @@ module core
   logic            _dbus_wait;
   logic            _load_complete;
   logic            _load_instr;
+  mem_size_t       _mem_size;
+  logic            _mem_unsigned;
+  word_t           _read_data;
+  word_t           _write_data;
+
 
   assign _ifu_ieu_addr = _clear_pc_lsb ? {_raw_ieu_addr[31:1], 1'b0} : _raw_ieu_addr;
 
@@ -97,6 +104,17 @@ module core
     .instr_valid(_instr_valid)
   );
 
+  lsu _lsu (
+    .addr(dbus.addr),
+    .write_data(_write_data),
+    .mem_size(_mem_size),
+    .mem_unsigned(_mem_unsigned),
+    .read_data(_read_data),
+    .mem_write_data(dbus.write_data),
+    .mem_read_data(dbus.read_data),
+    .write_mask(dbus.write_mask)
+  );
+
   controller _controller (
     .instr(instr),
     .branch_flags(_branch_flags),
@@ -110,8 +128,8 @@ module core
     .sub_arith(_sub_arith),
     .pc_src(_pc_src),
     .branch_sgnd(_branch_sgnd),
-    .mem_size(dbus.size),
-    .mem_unsigned(dbus.mem_unsigned),
+    .mem_size(_mem_size),
+    .mem_unsigned(_mem_unsigned),
     .clear_pc_lsb(_clear_pc_lsb),
     .illegal_instr(_illegal_instr)
   );
@@ -128,10 +146,10 @@ module core
     .result_src(_result_src),
     .sub_arith(_sub_arith),
     .branch_sgnd(_branch_sgnd),
-    .read_data(dbus.read_data),
+    .read_data(_read_data),
     .ieu_addr(_raw_ieu_addr),
     .alu_result(dbus.addr),
-    .write_data(dbus.write_data),
+    .write_data(_write_data),
     .branch_flags(_branch_flags)
   );
 

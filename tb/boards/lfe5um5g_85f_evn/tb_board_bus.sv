@@ -98,6 +98,7 @@ module tb_board_bus
     dbus.valid      = 1'b1;
     dbus.addr       = addr;
     dbus.write_data = data;
+    dbus.write_mask = 4'b1111;
     dbus.write_en   = 1'b1;
     @(posedge _clk);
     #1;
@@ -117,8 +118,7 @@ module tb_board_bus
     dbus.write_en     = 1'b0;
     dbus.addr         = '0;
     dbus.write_data   = '0;
-    dbus.size         = MEM_SIZE_WORD;
-    dbus.mem_unsigned = 1'b0;
+    dbus.write_mask   = '0;
     _dip_switch       = 8'h00;
     _push_button      = 1'b0;
     _spi_miso         = 1'b0;

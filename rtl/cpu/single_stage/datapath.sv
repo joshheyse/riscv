@@ -41,8 +41,7 @@ module datapath
   input result_src_t     result_src,
   input logic            sub_arith,
   input logic            branch_sgnd,
-
-  input word_t read_data,  // later from dmem/LSU
+  input word_t           read_data,       // later from dmem/LSU
 
   output pc_t           ieu_addr,     // branch/jump target
   output word_t         alu_result,   // later dmem address
@@ -60,7 +59,7 @@ module datapath
 
   extend _extend (
     .imm_src(imm_src),
-    .instr(instr[31:7]),
+    .instr  (instr[31:7]),
     .imm_ext(_imm_ext)
   );
 
