@@ -162,6 +162,9 @@ BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall \
                               -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
                               -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                               -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
+YOSYS ?= yosys
+YOSYS_FLAGS := -m slang
+YOSYS_READ := read_slang --ignore-assertions
 
 # Set TRACE=1 to build with waveform support and dump a VCD.
 ifeq ($(TRACE),1)
@@ -324,7 +327,7 @@ board-program: app-build
 $(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
-	yosys -p 'read_verilog -sv $(BOARD_SRCS); chparam -set ImemInitFile "$(APP_MEM)" $(BOARD_TOP); synth_ecp5 -top $(BOARD_TOP) -json $@'
+	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G ImemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
 
 $(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF)
 	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \

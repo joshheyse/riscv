@@ -23,18 +23,11 @@ module soc
   output logic halted
 );
 
-  logic dbus_write_en;
-  logic dbus_valid;
-  logic dbus_ready;
   logic imem_en;
-  word_t dbus_addr;
-  word_t dbus_write_data;
-  word_t dbus_read_data;
-  mem_size_t dbus_size;
   word_t read_mem;
   word_t write_mem;
-  logic dbus_unsigned;
   logic [3:0] write_mask;
+  dbus_if dbus ();
 
   imem #(
     .DepthWords(ImemDepthWords),
@@ -54,23 +47,16 @@ module soc
     .pc(pc),
     .imem_addr(imem_addr),
     .halted(halted),
-    .dbus_valid(dbus_valid),
-    .dbus_write_en(dbus_write_en),
-    .dbus_addr(dbus_addr),
-    .dbus_write_data(dbus_write_data),
-    .dbus_read_data(dbus_read_data),
-    .dbus_ready(dbus_ready),
-    .dbus_size(dbus_size),
-    .dbus_unsigned(dbus_unsigned),
+    .dbus(dbus),
     .imem_en(imem_en)
   );
 
   lsu lsu_i (
-    .addr(dbus_addr),
-    .write_data(dbus_write_data),
-    .mem_size(dbus_size),
-    .mem_unsigned(dbus_unsigned),
-    .read_data(dbus_read_data),
+    .addr(dbus.addr),
+    .write_data(dbus.write_data),
+    .mem_size(dbus.size),
+    .mem_unsigned(dbus.mem_unsigned),
+    .read_data(dbus.read_data),
     .write_mem(write_mem),
     .read_mem(read_mem),
     .write_mask(write_mask)
@@ -82,12 +68,12 @@ module soc
   ) dmem_i (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus_valid),
-    .mem_write_en(dbus_write_en),
-    .addr(dbus_addr),
+    .mem_valid(dbus.valid),
+    .mem_write_en(dbus.write_en),
+    .addr(dbus.addr),
     .write_data(write_mem),
     .read_data(read_mem),
-    .mem_ready(dbus_ready),
+    .mem_ready(dbus.ready),
     .write_mask(write_mask)
   );
 

@@ -41,15 +41,8 @@ module top
   instr_u instr;
   logic halted;
 
-  logic dbus_valid;
-  logic dbus_write_en;
-  logic dbus_ready;
   logic imem_en;
-  word_t dbus_addr;
-  word_t dbus_write_data;
-  word_t dbus_read_data;
-  mem_size_t dbus_size;
-  logic dbus_unsigned;
+  dbus_if dbus ();
 
   logic [7:0] led;
   logic [7:0] dip_switch;
@@ -126,14 +119,7 @@ module top
     .i2c_sda_drive_low(i2c_sda_drive_low),
     .i2c_scl_in(i2c_scl_in),
     .i2c_scl_drive_low(i2c_scl_drive_low),
-    .dbus_valid(dbus_valid),
-    .dbus_write_en(dbus_write_en),
-    .dbus_addr(dbus_addr),
-    .dbus_write_data(dbus_write_data),
-    .dbus_read_data(dbus_read_data),
-    .dbus_ready(dbus_ready),
-    .dbus_size(dbus_size),
-    .dbus_unsigned(dbus_unsigned)
+    .dbus(dbus)
   );
 
   core core_i (
@@ -143,14 +129,7 @@ module top
     .pc(pc),
     .imem_addr(imem_addr),
     .halted(halted),
-    .dbus_valid(dbus_valid),
-    .dbus_write_en(dbus_write_en),
-    .dbus_addr(dbus_addr),
-    .dbus_write_data(dbus_write_data),
-    .dbus_read_data(dbus_read_data),
-    .dbus_ready(dbus_ready),
-    .dbus_size(dbus_size),
-    .dbus_unsigned(dbus_unsigned),
+    .dbus(dbus),
     .imem_en(imem_en)
   );
 

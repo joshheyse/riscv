@@ -24,14 +24,7 @@ module core
   output pc_t pc,
   output pc_t imem_addr,
   output logic halted,
-  output logic dbus_valid,
-  output logic dbus_write_en,
-  output word_t dbus_addr,
-  output word_t dbus_write_data,
-  input word_t dbus_read_data,
-  input logic dbus_ready,
-  output mem_size_t dbus_size,
-  output logic dbus_unsigned,
+  dbus_if.master dbus,
   output logic imem_en
 );
 
@@ -66,17 +59,17 @@ module core
 
   assign halt_now = halted || (illegal_instr && instr_valid);
   assign dbus_instr = load_instr || mem_write_raw;
-  assign dbus_valid = instr_valid && dbus_instr && !halt_now && !dbus_pending;
-  assign dbus_wait = instr_valid && dbus_instr && !halt_now && !dbus_ready;
+  assign dbus.valid = instr_valid && dbus_instr && !halt_now && !dbus_pending;
+  assign dbus_wait = instr_valid && dbus_instr && !halt_now && !dbus.ready;
   assign pc_en = !halt_now && !dbus_wait;
   assign imem_en = pc_en;
   assign reg_write = reg_write_raw && instr_valid && !halt_now && (!load_instr || load_complete);
-  assign dbus_write_en = mem_write_raw && instr_valid && !halt_now;
+  assign dbus.write_en = mem_write_raw && instr_valid && !halt_now;
 
   assign ifu_pc_src = instr_valid ? pc_src : PC_SRC_INC;
 
   assign load_instr = result_src == RESULT_MEM;
-  assign load_complete = instr_valid && load_instr && dbus_ready;
+  assign load_complete = instr_valid && load_instr && dbus.ready;
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -86,9 +79,9 @@ module core
     end
     if (rst || halt_now) begin
       dbus_pending <= 1'b0;
-    end else if (dbus_valid && !dbus_ready) begin
+    end else if (dbus.valid && !dbus.ready) begin
       dbus_pending <= 1'b1;
-    end else if (dbus_pending && dbus_ready) begin
+    end else if (dbus_pending && dbus.ready) begin
       dbus_pending <= 1'b0;
     end
   end
@@ -117,8 +110,8 @@ module core
     .sub_arith(sub_arith),
     .pc_src(pc_src),
     .branch_sgnd(branch_sgnd),
-    .mem_size(dbus_size),
-    .mem_unsigned(dbus_unsigned),
+    .mem_size(dbus.size),
+    .mem_unsigned(dbus.mem_unsigned),
     .clear_pc_lsb(clear_pc_lsb),
     .illegal_instr(illegal_instr)
   );
@@ -135,10 +128,10 @@ module core
     .result_src(result_src),
     .sub_arith(sub_arith),
     .branch_sgnd(branch_sgnd),
-    .read_data(dbus_read_data),
+    .read_data(dbus.read_data),
     .ieu_addr(raw_ieu_addr),
-    .alu_result(dbus_addr),
-    .write_data(dbus_write_data),
+    .alu_result(dbus.addr),
+    .write_data(dbus.write_data),
     .branch_flags(branch_flags)
   );
 
