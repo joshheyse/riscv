@@ -31,7 +31,6 @@ module core
   typedef struct packed {
     instr_u instr;
     pc_t    pc;
-    logic   valid;
   } instr_slot_t;
 
   typedef struct packed {
@@ -51,92 +50,114 @@ module core
     logic            illegal_instr;
   } control_t;
 
+  typedef enum logic [1:0] {
+    CORE_FETCH,
+    CORE_EXEC,
+    CORE_MEM,
+    CORE_HALT
+  } core_state_t;
+
   logic          _reg_write_en;
   branch_flags_t _branch_flags;
   pc_t           _raw_ieu_addr;
   pc_t           _ifu_ieu_addr;
-  logic          _halt_now;
-  logic          _pc_en;
-  logic          _fetch_en;
   logic          _redirect_en;
   logic          _ifu_en;
-  logic          _instr_valid;
   pc_src_t       _ifu_pc_src;
 
   control_t      _ctrl;
   instr_slot_t   _current;
-  logic          _can_retire;
-  pc_t           _pending_fetch_pc;
-  logic          _fetch_pending;
 
-  logic          _dbus_pending;
-  logic          _dbus_instr;
-  logic          _dbus_wait;
-  logic          _load_complete;
-  logic          _load_instr;
+  logic          _in_fetch;
+  logic          _in_exec;
+  logic          _in_mem;
+  logic          _in_halt;
+  logic          _is_load;
+  logic          _is_store;
+  logic          _is_mem_op;
+  logic          _illegal;
+  logic          _exec_done;
+  logic          _mem_done;
+  logic          _retire;
   word_t         _read_data;
   word_t         _write_data;
 
-  assign _halt_now = halted || (_ctrl.illegal_instr && _instr_valid);
-  assign _pc_en = !_halt_now && !_dbus_wait;
-  assign _fetch_en = !_current.valid && !_fetch_pending && _pc_en;
-  assign _redirect_en = _current.valid && _can_retire && (_ctrl.pc_src != PC_SRC_INC);
-  assign _ifu_en = _fetch_en || _redirect_en;
+  core_state_t   _state;
+  core_state_t   _state_next;
 
+  assign _in_fetch = _state == CORE_FETCH;
+  assign _in_exec = _state == CORE_EXEC;
+  assign _in_mem = _state == CORE_MEM;
+  assign _in_halt = _state == CORE_HALT;
+
+  assign _is_load = _ctrl.result_src == RESULT_MEM;
+  assign _is_store = _ctrl.mem_write_en;
+  assign _is_mem_op = _is_load || _is_store;
+  assign _illegal = _in_exec && _ctrl.illegal_instr;
+  assign _exec_done = _in_exec && !_illegal && !_is_mem_op;
+  assign _mem_done = ((_in_exec || _in_mem) && _is_mem_op && dbus.rsp.ready);
+  assign _retire = _exec_done || _mem_done;
+  assign _redirect_en = _retire && (_ctrl.pc_src != PC_SRC_INC);
+  assign _ifu_en = _retire;
   assign _ifu_ieu_addr = _ctrl.clear_pc_lsb ? {_raw_ieu_addr[31:1], 1'b0} : _raw_ieu_addr;
-  assign _instr_valid = _current.valid;
-  assign ibus.req.valid = _fetch_en;
-  assign _can_retire = _current.valid && (!_dbus_instr || dbus.rsp.ready);
-
-  assign _dbus_instr = _load_instr || _ctrl.mem_write_en;
-  assign dbus.req.valid = _instr_valid && _dbus_instr && !_halt_now && !_dbus_pending;
-  assign _dbus_wait = _instr_valid && _dbus_instr && !_halt_now && !dbus.rsp.ready;
-  assign dbus.req.write_en = _ctrl.mem_write_en && _instr_valid && !_halt_now;
-  assign _reg_write_en = _ctrl.reg_write_en && _instr_valid && !_halt_now && (!_load_instr || _load_complete);
-
   assign _ifu_pc_src = _redirect_en ? _ctrl.pc_src : PC_SRC_INC;
 
-  assign _load_instr = _ctrl.result_src == RESULT_MEM;
-  assign _load_complete = _instr_valid && _load_instr && dbus.rsp.ready;
+  assign ibus.req.valid = _in_fetch;
+  assign dbus.req.valid = _is_mem_op && (_in_exec || _in_mem);
+  assign dbus.req.write_en = _is_store && (_in_exec || _in_mem);
+  assign _reg_write_en = _ctrl.reg_write_en && (_exec_done || (_mem_done && _is_load));
 
   always_ff @(posedge clk) begin
     if (rst) begin
       halted <= 1'b0;
-    end else if (_ctrl.illegal_instr & _instr_valid) begin
+    end else if (_illegal) begin
       halted <= 1'b1;
     end
-    if (rst || _halt_now) begin
-      _dbus_pending <= 1'b0;
-    end else if (dbus.req.valid && !dbus.rsp.ready) begin
-      _dbus_pending <= 1'b1;
-    end else if (_dbus_pending && dbus.rsp.ready) begin
-      _dbus_pending <= 1'b0;
-    end
 
-    if (rst || _halt_now) begin
+    if (rst || _illegal || _in_halt) begin
       _current <= '0;
-    end else if (!_current.valid && ibus.rsp.ready) begin
-      _current.valid <= 1'b1;
-      _current.instr <= ibus.rsp.instr;
-      _current.pc <= _pending_fetch_pc;
-    end else if (_current.valid && _can_retire) begin
-      _current.valid <= 1'b0;
+    end else begin
+      if (_in_fetch && ibus.rsp.ready) begin
+        _current.instr <= ibus.rsp.instr;
+        _current.pc    <= ibus.req.addr;
+      end else if (_retire) begin
+        _current <= '0;
+      end
     end
 
     if (rst) begin
-      _fetch_pending <= 1'b0;
-    end else if (ibus.rsp.ready) begin
-      _fetch_pending <= 1'b0;
-    end else if (_fetch_en) begin
-      _fetch_pending <= 1'b1;
+      _state <= CORE_FETCH;
+    end else begin
+      _state <= _state_next;
     end
+  end
 
-    if (rst) begin
-      _pending_fetch_pc <= '0;
-    end else if (_fetch_en) begin
-      _pending_fetch_pc <= ibus.req.addr;
-    end
-
+  always_comb begin
+    _state_next = _state;
+    unique case (_state)
+      CORE_FETCH: begin
+        if (ibus.rsp.ready) begin
+          _state_next = CORE_EXEC;
+        end
+      end
+      CORE_EXEC: begin
+        if (_illegal) begin
+          _state_next = CORE_HALT;
+        end else if (_is_mem_op && !dbus.rsp.ready) begin
+          _state_next = CORE_MEM;
+        end else begin
+          _state_next = CORE_FETCH;
+        end
+      end
+      CORE_MEM: begin
+        if (dbus.rsp.ready) begin
+          _state_next = CORE_FETCH;
+        end
+      end
+      CORE_HALT: begin
+        _state_next = CORE_HALT;
+      end
+    endcase
   end
 
   ifu _ifu (
