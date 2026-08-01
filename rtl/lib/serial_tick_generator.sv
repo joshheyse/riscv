@@ -12,19 +12,19 @@ module serial_tick_generator #(
 
   localparam int unsigned CounterBits = (ClocksPerTick <= 1) ? 1 : $clog2(ClocksPerTick);
   localparam logic [CounterBits-1:0] TerminalCount = CounterBits'(ClocksPerTick - 1);
-  logic [CounterBits-1:0] counter;
+  logic [CounterBits-1:0] _counter;
 
-  assign tick = enable && !clear && (counter == TerminalCount);
+  assign tick = enable && !clear && (_counter == TerminalCount);
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      counter <= 0;
+      _counter <= 0;
     end else if (clear || !enable) begin
-      counter <= 0;
-    end else if (counter == TerminalCount) begin
-      counter <= 0;
+      _counter <= 0;
+    end else if (_counter == TerminalCount) begin
+      _counter <= 0;
     end else begin
-      counter <= counter + 1;
+      _counter <= _counter + 1;
     end
   end
 

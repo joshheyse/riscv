@@ -13,15 +13,15 @@ module timer_mmio
   output word_t read_data
 );
 
-  dword_t counter;
+  dword_t _counter;
   assign selected  = mem_addr == TimerLoAddr || mem_addr == TimerHiAddr;
-  assign read_data = !selected ? '0 : (mem_addr == TimerLoAddr) ? counter[31:0] : counter[63:32];
+  assign read_data = !selected ? '0 : (mem_addr == TimerLoAddr) ? _counter[31:0] : _counter[63:32];
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      counter <= '0;
+      _counter <= '0;
     end else begin
-      counter <= counter + 1;
+      _counter <= _counter + 1;
     end
   end
 

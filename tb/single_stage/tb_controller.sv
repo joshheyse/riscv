@@ -15,44 +15,44 @@ module tb_controller
   localparam int unsigned TimeoutNs = 100_000;
   localparam int unsigned MaxPrintedFailures = 24;
 
-  instr_u          instr;
-  branch_flags_t   branch_flags;
-  logic            reg_write;
-  logic            mem_write;
-  imm_src_t        imm_src;
-  alu_src_t        alu_src;
-  alu_result_src_t alu_result_src;
-  alu_select_t     alu_select;
-  result_src_t     result_src;
-  logic            sub_arith;
-  pc_src_t         pc_src;
-  logic            branch_sgnd;
-  mem_size_t       mem_size;
-  logic            mem_unsigned;
-  logic            clear_pc_lsb;
-  logic            illegal_instr;
+  instr_u          _instr;
+  branch_flags_t   _branch_flags;
+  logic            _reg_write;
+  logic            _mem_write;
+  imm_src_t        _imm_src;
+  alu_src_t        _alu_src;
+  alu_result_src_t _alu_result_src;
+  alu_select_t     _alu_select;
+  result_src_t     _result_src;
+  logic            _sub_arith;
+  pc_src_t         _pc_src;
+  logic            _branch_sgnd;
+  mem_size_t       _mem_size;
+  logic            _mem_unsigned;
+  logic            _clear_pc_lsb;
+  logic            _illegal_instr;
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
   int unsigned     printed = 0;
 
-  controller dut (
-    .instr(instr),
-    .branch_flags(branch_flags),
-    .reg_write(reg_write),
-    .mem_write(mem_write),
-    .imm_src(imm_src),
-    .alu_src(alu_src),
-    .alu_result_src(alu_result_src),
-    .alu_select(alu_select),
-    .result_src(result_src),
-    .sub_arith(sub_arith),
-    .pc_src(pc_src),
-    .branch_sgnd(branch_sgnd),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .clear_pc_lsb(clear_pc_lsb),
-    .illegal_instr(illegal_instr)
+  controller _dut (
+    .instr(_instr),
+    .branch_flags(_branch_flags),
+    .reg_write(_reg_write),
+    .mem_write(_mem_write),
+    .imm_src(_imm_src),
+    .alu_src(_alu_src),
+    .alu_result_src(_alu_result_src),
+    .alu_select(_alu_select),
+    .result_src(_result_src),
+    .sub_arith(_sub_arith),
+    .pc_src(_pc_src),
+    .branch_sgnd(_branch_sgnd),
+    .mem_size(_mem_size),
+    .mem_unsigned(_mem_unsigned),
+    .clear_pc_lsb(_clear_pc_lsb),
+    .illegal_instr(_illegal_instr)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -247,38 +247,38 @@ module tb_controller
     funct7 = word[31:25];
     funct7_bit5 = word[30];
 
-    instr.raw = word;
-    branch_flags.eq = eq;
-    branch_flags.lt = lt;
+    _instr.raw = word;
+    _branch_flags.eq = eq;
+    _branch_flags.lt = lt;
     #1;
     checks++;
-    mem_unsigned_bad = mem_unsigned_matters(op) && (mem_unsigned !== exp_mem_unsigned(op, funct3));
+    mem_unsigned_bad = mem_unsigned_matters(op) && (_mem_unsigned !== exp_mem_unsigned(op, funct3));
 
-    if (reg_write !== exp_reg_write(
+    if (_reg_write !== exp_reg_write(
             op
-        ) || mem_write !== exp_mem_write(
+        ) || _mem_write !== exp_mem_write(
             op
-        ) || imm_src !== exp_imm_src(
+        ) || _imm_src !== exp_imm_src(
             op
-        ) || alu_src !== exp_alu_src(
+        ) || _alu_src !== exp_alu_src(
             op
-        ) || alu_result_src !== exp_alu_result_src(
+        ) || _alu_result_src !== exp_alu_result_src(
             op
-        ) || alu_select !== exp_alu_select(
+        ) || _alu_select !== exp_alu_select(
             op, funct3
-        ) || result_src !== exp_result_src(
+        ) || _result_src !== exp_result_src(
             op
-        ) || sub_arith !== exp_sub_arith(
+        ) || _sub_arith !== exp_sub_arith(
             op, funct3, funct7_bit5
-        ) || pc_src !== exp_pc_src(
+        ) || _pc_src !== exp_pc_src(
             op, eq, lt, funct3
-        ) || branch_sgnd !== exp_branch_sgnd(
+        ) || _branch_sgnd !== exp_branch_sgnd(
             funct3[1]
-        ) || mem_size !== exp_mem_size(
+        ) || _mem_size !== exp_mem_size(
             op, funct3
-        ) || mem_unsigned_bad || clear_pc_lsb !== exp_clear_pc_lsb(
+        ) || mem_unsigned_bad || _clear_pc_lsb !== exp_clear_pc_lsb(
             op
-        ) || illegal_instr !== exp_illegal_instr(
+        ) || _illegal_instr !== exp_illegal_instr(
             op, funct3, funct7
         )) begin
       errors++;
@@ -288,9 +288,9 @@ module tb_controller
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
             "       got reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
-            reg_write, mem_write, imm_src.name(), alu_src.name(), alu_result_src.name(),
-            alu_select.name(), result_src.name(), sub_arith, pc_src.name(), branch_sgnd,
-            mem_size.name(), mem_unsigned, clear_pc_lsb, illegal_instr);
+            _reg_write, _mem_write, _imm_src.name(), _alu_src.name(), _alu_result_src.name(),
+            _alu_select.name(), _result_src.name(), _sub_arith, _pc_src.name(), _branch_sgnd,
+            _mem_size.name(), _mem_unsigned, _clear_pc_lsb, _illegal_instr);
         $display(
             "       exp reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write(op), exp_mem_write(op), exp_imm_src(op).name(), exp_alu_src(op).name(),

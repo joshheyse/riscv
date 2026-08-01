@@ -25,31 +25,31 @@ module push_button_mmio
     assert (DebounceCycles > 1);
   end
 
-  logic [NumPushButtons-1:0] sync_0;
-  logic [NumPushButtons-1:0] sync_1;
-  logic [NumPushButtons-1:0] debounced_button;
-  logic [DebounceCounterBits-1:0] counter;
+  logic [NumPushButtons-1:0] _sync_0;
+  logic [NumPushButtons-1:0] _sync_1;
+  logic [NumPushButtons-1:0] _debounced_button;
+  logic [DebounceCounterBits-1:0] _counter;
 
   assign selected  = (mem_addr == PushButtonAddr);
-  assign read_data = {{(WordBits - NumPushButtons) {1'b0}}, debounced_button};
+  assign read_data = {{(WordBits - NumPushButtons) {1'b0}}, _debounced_button};
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      sync_0 <= 0;
-      sync_1 <= 0;
-      counter <= 0;
-      debounced_button <= 0;
+      _sync_0 <= 0;
+      _sync_1 <= 0;
+      _counter <= 0;
+      _debounced_button <= 0;
     end else begin
-      sync_0 <= push_button;
-      sync_1 <= sync_0;
+      _sync_0 <= push_button;
+      _sync_1 <= _sync_0;
 
-      if (sync_1 == debounced_button) begin
-        counter <= '0;
-      end else if (counter == DebounceCounterMax) begin
-        debounced_button <= sync_1;
-        counter <= '0;
+      if (_sync_1 == _debounced_button) begin
+        _counter <= '0;
+      end else if (_counter == DebounceCounterMax) begin
+        _debounced_button <= _sync_1;
+        _counter <= '0;
       end else begin
-        counter <= counter + DebounceCounterInc;
+        _counter <= _counter + DebounceCounterInc;
       end
     end
   end

@@ -17,49 +17,49 @@ module tb_datapath
   localparam int unsigned TimeoutCycles = 1_000;
   localparam int unsigned MaxPrintedFailures = 24;
 
-  logic            clk;
-  instr_u          instr;
-  pc_t             pc;
-  logic            reg_write;
-  imm_src_t        imm_src;
-  alu_src_t        alu_src;
-  alu_result_src_t alu_result_src;
-  alu_select_t     alu_select;
-  result_src_t     result_src;
-  logic            sub_arith;
-  logic            branch_sgnd;
-  word_t           read_data;
-  pc_t             ieu_addr;
-  word_t           alu_result;
-  word_t           write_data;
-  branch_flags_t   branch_flags;
+  logic            _clk;
+  instr_u          _instr;
+  pc_t             _pc;
+  logic            _reg_write;
+  imm_src_t        _imm_src;
+  alu_src_t        _alu_src;
+  alu_result_src_t _alu_result_src;
+  alu_select_t     _alu_select;
+  result_src_t     _result_src;
+  logic            _sub_arith;
+  logic            _branch_sgnd;
+  word_t           _read_data;
+  pc_t             _ieu_addr;
+  word_t           _alu_result;
+  word_t           _write_data;
+  branch_flags_t   _branch_flags;
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
   int unsigned     printed = 0;
 
-  datapath dut (
-    .clk(clk),
-    .instr(instr),
-    .pc(pc),
-    .reg_write(reg_write),
-    .imm_src(imm_src),
-    .alu_src(alu_src),
-    .alu_result_src(alu_result_src),
-    .alu_select(alu_select),
-    .result_src(result_src),
-    .sub_arith(sub_arith),
-    .branch_sgnd(branch_sgnd),
-    .read_data(read_data),
-    .ieu_addr(ieu_addr),
-    .alu_result(alu_result),
-    .write_data(write_data),
-    .branch_flags(branch_flags)
+  datapath _dut (
+    .clk(_clk),
+    .instr(_instr),
+    .pc(_pc),
+    .reg_write(_reg_write),
+    .imm_src(_imm_src),
+    .alu_src(_alu_src),
+    .alu_result_src(_alu_result_src),
+    .alu_select(_alu_select),
+    .result_src(_result_src),
+    .sub_arith(_sub_arith),
+    .branch_sgnd(_branch_sgnd),
+    .read_data(_read_data),
+    .ieu_addr(_ieu_addr),
+    .alu_result(_alu_result),
+    .write_data(_write_data),
+    .branch_flags(_branch_flags)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   // ------------------------------------------------------------- helpers --
@@ -117,47 +117,47 @@ module tb_datapath
   endtask
 
   task automatic commit;
-    @(posedge clk);
+    @(posedge _clk);
     #1;
   endtask
 
   task automatic set_defaults;
-    instr.raw      = r_instr(7'b0000000, 5'd0, 5'd0, 3'b000, 5'd0, OP_R);
-    pc             = 32'h0000_0000;
-    reg_write      = 1'b0;
-    imm_src        = IMM_I;
-    alu_src        = ALU_SRC_RS1_RS2;
-    alu_result_src = ALU_RES_ALU;
-    alu_select     = ALU_ADDSUB;
-    result_src     = RESULT_ALU;
-    sub_arith      = 1'b0;
-    branch_sgnd    = 1'b1;
-    read_data      = 32'h0000_0000;
+    _instr.raw      = r_instr(7'b0000000, 5'd0, 5'd0, 3'b000, 5'd0, OP_R);
+    _pc             = 32'h0000_0000;
+    _reg_write      = 1'b0;
+    _imm_src        = IMM_I;
+    _alu_src        = ALU_SRC_RS1_RS2;
+    _alu_result_src = ALU_RES_ALU;
+    _alu_select     = ALU_ADDSUB;
+    _result_src     = RESULT_ALU;
+    _sub_arith      = 1'b0;
+    _branch_sgnd    = 1'b1;
+    _read_data      = 32'h0000_0000;
   endtask
 
   task automatic write_lui(input regaddr_t rd, input logic [19:0] imm20, input string what);
-    @(negedge clk);
-    instr.raw      = u_instr(imm20, rd, OP_LUI);
-    reg_write      = 1'b1;
-    imm_src        = IMM_U;
-    alu_src        = ALU_SRC_RS1_RS2;
-    alu_result_src = ALU_RES_IMM;
-    result_src     = RESULT_ALU;
+    @(negedge _clk);
+    _instr.raw      = u_instr(imm20, rd, OP_LUI);
+    _reg_write      = 1'b1;
+    _imm_src        = IMM_U;
+    _alu_src        = ALU_SRC_RS1_RS2;
+    _alu_result_src = ALU_RES_IMM;
+    _result_src     = RESULT_ALU;
     commit();
-    reg_write = 1'b0;
+    _reg_write = 1'b0;
     $display("tb_datapath: wrote %s", what);
   endtask
 
   task automatic write_mem(input regaddr_t rd, input word_t data, input string what);
-    @(negedge clk);
-    instr.raw      = i_instr(12'h000, 5'd0, 3'b010, rd, OP_LOAD);
-    read_data      = data;
-    reg_write      = 1'b1;
-    imm_src        = IMM_I;
-    alu_result_src = ALU_RES_ALU;
-    result_src     = RESULT_MEM;
+    @(negedge _clk);
+    _instr.raw      = i_instr(12'h000, 5'd0, 3'b010, rd, OP_LOAD);
+    _read_data      = data;
+    _reg_write      = 1'b1;
+    _imm_src        = IMM_I;
+    _alu_result_src = ALU_RES_ALU;
+    _result_src     = RESULT_MEM;
     commit();
-    reg_write = 1'b0;
+    _reg_write = 1'b0;
     $display("tb_datapath: wrote %s", what);
   endtask
 
@@ -170,85 +170,85 @@ module tb_datapath
     end
 
     set_defaults();
-    @(negedge clk);
+    @(negedge _clk);
 
     // Seed a few registers through the datapath writeback muxes.
     write_lui(5'd1, 20'h12345, "x1 = 0x12345000 via LUI/immediate writeback");
     write_mem(5'd2, 32'h0000_0010, "x2 = 0x00000010 via memory writeback");
 
     // R-type ALU path: x1 + x2.
-    @(negedge clk);
-    instr.raw      = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd3, OP_R);
-    reg_write      = 1'b1;
-    alu_src        = ALU_SRC_RS1_RS2;
-    alu_select     = ALU_ADDSUB;
-    sub_arith      = 1'b0;
-    alu_result_src = ALU_RES_ALU;
-    result_src     = RESULT_ALU;
+    @(negedge _clk);
+    _instr.raw      = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd3, OP_R);
+    _reg_write      = 1'b1;
+    _alu_src        = ALU_SRC_RS1_RS2;
+    _alu_select     = ALU_ADDSUB;
+    _sub_arith      = 1'b0;
+    _alu_result_src = ALU_RES_ALU;
+    _result_src     = RESULT_ALU;
     settle();
-    expect_word(alu_result, 32'h1234_5010, "R-type add ALU result");
-    expect_word(ieu_addr, 32'h1234_5010, "IEU address follows ALU result");
+    expect_word(_alu_result, 32'h1234_5010, "R-type add ALU result");
+    expect_word(_ieu_addr, 32'h1234_5010, "IEU address follows ALU result");
     commit();
 
     // Read x3 back by using it as rs1 in an add-immediate operation.
-    @(negedge clk);
-    reg_write = 1'b0;
-    instr.raw = i_instr(12'h001, 5'd3, 3'b000, 5'd0, OP_I_ALU);
-    imm_src   = IMM_I;
-    alu_src   = ALU_SRC_RS1_IMM;
+    @(negedge _clk);
+    _reg_write = 1'b0;
+    _instr.raw = i_instr(12'h001, 5'd3, 3'b000, 5'd0, OP_I_ALU);
+    _imm_src   = IMM_I;
+    _alu_src   = ALU_SRC_RS1_IMM;
     settle();
-    expect_word(alu_result, 32'h1234_5011, "x3 writeback visible on rs1");
+    expect_word(_alu_result, 32'h1234_5011, "x3 writeback visible on rs1");
 
     // Store data comes directly from rs2.
-    instr.raw = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd0, OP_STORE);
+    _instr.raw = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd0, OP_STORE);
     settle();
-    expect_word(write_data, 32'h0000_0010, "store write_data is rs2 value");
+    expect_word(_write_data, 32'h0000_0010, "store write_data is rs2 value");
 
     // PC + immediate target path.
-    pc        = 32'h0000_0100;
-    instr.raw = b_instr(13'd16, 5'd2, 5'd1, 3'b000);
-    imm_src   = IMM_B;
-    alu_src   = ALU_SRC_PC_IMM;
+    _pc        = 32'h0000_0100;
+    _instr.raw = b_instr(13'd16, 5'd2, 5'd1, 3'b000);
+    _imm_src   = IMM_B;
+    _alu_src   = ALU_SRC_PC_IMM;
     settle();
-    expect_word(alu_result, 32'h0000_0110, "PC+imm branch target");
-    expect_word(ieu_addr, 32'h0000_0110, "IEU address carries branch target");
+    expect_word(_alu_result, 32'h0000_0110, "PC+imm branch target");
+    expect_word(_ieu_addr, 32'h0000_0110, "IEU address carries branch target");
 
     // PC+4 link writeback path for jal/jalr-style instructions.
-    @(negedge clk);
-    pc             = 32'h0000_0200;
-    instr.raw      = i_instr(12'h004, 5'd1, 3'b000, 5'd4, OP_JALR);
-    imm_src        = IMM_I;
-    alu_src        = ALU_SRC_RS1_IMM;
-    alu_result_src = ALU_RES_PC_PLUS4;
-    result_src     = RESULT_ALU;
-    reg_write      = 1'b1;
+    @(negedge _clk);
+    _pc             = 32'h0000_0200;
+    _instr.raw      = i_instr(12'h004, 5'd1, 3'b000, 5'd4, OP_JALR);
+    _imm_src        = IMM_I;
+    _alu_src        = ALU_SRC_RS1_IMM;
+    _alu_result_src = ALU_RES_PC_PLUS4;
+    _result_src     = RESULT_ALU;
+    _reg_write      = 1'b1;
     commit();
 
-    @(negedge clk);
-    reg_write      = 1'b0;
-    instr.raw      = i_instr(12'h000, 5'd4, 3'b000, 5'd0, OP_I_ALU);
-    imm_src        = IMM_I;
-    alu_src        = ALU_SRC_RS1_IMM;
-    alu_result_src = ALU_RES_ALU;
-    result_src     = RESULT_ALU;
+    @(negedge _clk);
+    _reg_write      = 1'b0;
+    _instr.raw      = i_instr(12'h000, 5'd4, 3'b000, 5'd0, OP_I_ALU);
+    _imm_src        = IMM_I;
+    _alu_src        = ALU_SRC_RS1_IMM;
+    _alu_result_src = ALU_RES_ALU;
+    _result_src     = RESULT_ALU;
     settle();
-    expect_word(alu_result, 32'h0000_0204, "PC+4 writeback visible in x4");
+    expect_word(_alu_result, 32'h0000_0204, "PC+4 writeback visible in x4");
 
     // Comparator signedness reaches branch_flags.lt.
     write_mem(5'd6, 32'hffff_ffff, "x6 = -1/unsigned max");
     write_mem(5'd7, 32'h0000_0001, "x7 = 1");
 
-    @(negedge clk);
-    reg_write   = 1'b0;
-    instr.raw   = r_instr(7'b0000000, 5'd7, 5'd6, 3'b000, 5'd0, OP_BRANCH);
-    branch_sgnd = 1'b1;
+    @(negedge _clk);
+    _reg_write   = 1'b0;
+    _instr.raw   = r_instr(7'b0000000, 5'd7, 5'd6, 3'b000, 5'd0, OP_BRANCH);
+    _branch_sgnd = 1'b1;
     settle();
-    expect_bit(branch_flags.eq, 1'b0, "comparator eq for -1 vs 1");
-    expect_bit(branch_flags.lt, 1'b1, "signed comparator sees -1 < 1");
+    expect_bit(_branch_flags.eq, 1'b0, "comparator eq for -1 vs 1");
+    expect_bit(_branch_flags.lt, 1'b1, "signed comparator sees -1 < 1");
 
-    branch_sgnd = 1'b0;
+    _branch_sgnd = 1'b0;
     settle();
-    expect_bit(branch_flags.lt, 1'b0, "unsigned comparator sees max > 1");
+    expect_bit(_branch_flags.lt, 1'b0, "unsigned comparator sees max > 1");
 
     if (errors == 0) begin
       $display("tb_datapath: PASS (%0d checks)", checks);
@@ -260,7 +260,7 @@ module tb_datapath
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_datapath: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

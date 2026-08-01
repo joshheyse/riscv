@@ -18,12 +18,12 @@ module tb_core
   localparam int unsigned TimeoutCycles = 1_000;
   localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_core_load_store.mem";
 
-  logic        clk;
-  logic        rst;
-  pc_t         pc;
-  pc_t         imem_addr;
-  instr_u      instr;
-  logic        halted;
+  logic        _clk;
+  logic        _rst;
+  pc_t         _pc;
+  pc_t         _imem_addr;
+  instr_u      _instr;
+  logic        _halted;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -31,18 +31,18 @@ module tb_core
   soc #(
     .ImemDepthWords(32),
     .ImemInitFile  (ProgramFile)
-  ) dut (
-    .clk(clk),
-    .rst(rst),
-    .pc(pc),
-    .imem_addr(imem_addr),
-    .instr(instr),
-    .halted(halted)
+  ) _dut (
+    .clk(_clk),
+    .rst(_rst),
+    .pc(_pc),
+    .imem_addr(_imem_addr),
+    .instr(_instr),
+    .halted(_halted)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   // ------------------------------------------------------------- helpers --
@@ -64,10 +64,10 @@ module tb_core
   endtask
 
   task automatic step(input string what);
-    @(posedge clk);
+    @(posedge _clk);
     #1;
-    $display("tb_core: %-28s pc=0x%08h imem_addr=0x%08h instr=0x%08h", what, pc, imem_addr,
-             instr.raw);
+    $display("tb_core: %-28s pc=0x%08h imem_addr=0x%08h instr=0x%08h", what, _pc, _imem_addr,
+             _instr.raw);
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -78,12 +78,12 @@ module tb_core
       $dumpvars(0, tb_core);
     end
 
-    rst = 1'b1;
+    _rst = 1'b1;
     step("reset");
-    expect_word(pc, 32'h0000_0000, "reset pc");
+    expect_word(_pc, 32'h0000_0000, "reset pc");
 
-    @(negedge clk);
-    rst = 1'b0;
+    @(negedge _clk);
+    _rst = 1'b0;
 
     step("addi x1,x0,0");
     step("addi x2,x0,-1");
@@ -114,20 +114,25 @@ module tb_core
     step("jal fallthrough bubble");
     step("jal x0,0 again");
 
-    expect_bit(halted, 1'b0, "legal core smoke program does not halt");
-    expect_word(pc, 32'h0000_003c, "jal holds pc at loop address");
-    expect_word(dut.core_i.d.regfile.regs[1], 32'h0000_0000, "x1 = dmem base");
-    expect_word(dut.core_i.d.regfile.regs[2], 32'hffff_ffff, "x2 = -1");
-    expect_word(dut.core_i.d.regfile.regs[3], 32'h0000_007f, "x3 = byte store value");
-    expect_word(dut.core_i.d.regfile.regs[4], 32'h0000_007f, "x4 = lb positive byte");
-    expect_word(dut.core_i.d.regfile.regs[5], 32'hffff_ffff, "x5 = lb sign-extended byte");
-    expect_word(dut.core_i.d.regfile.regs[6], 32'h0000_00ff, "x6 = lbu zero-extended byte");
-    expect_word(dut.core_i.d.regfile.regs[7], 32'h0000_8001, "x7 = halfword store value");
-    expect_word(dut.core_i.d.regfile.regs[8], 32'hffff_8001, "x8 = lh sign-extended halfword");
-    expect_word(dut.core_i.d.regfile.regs[9], 32'h0000_8001, "x9 = lhu zero-extended halfword");
-    expect_word(dut.core_i.d.regfile.regs[10], 32'h8001_7fff, "x10 = lw after byte/half stores");
-    expect_word(dut.dmem_i.memory[0], 32'h8001_7fff, "dmem[0] byte/half store result");
-    expect_word(dut.dmem_i.memory[1], 32'h8001_7fff, "dmem[1] copied by sw");
+    expect_bit(_halted, 1'b0, "legal core smoke program does not halt");
+    expect_word(_pc, 32'h0000_003c, "jal holds pc at loop address");
+    expect_word(_dut._core._datapath._regfile._regs[1], 32'h0000_0000, "x1 = dmem base");
+    expect_word(_dut._core._datapath._regfile._regs[2], 32'hffff_ffff, "x2 = -1");
+    expect_word(_dut._core._datapath._regfile._regs[3], 32'h0000_007f, "x3 = byte store value");
+    expect_word(_dut._core._datapath._regfile._regs[4], 32'h0000_007f, "x4 = lb positive byte");
+    expect_word(_dut._core._datapath._regfile._regs[5], 32'hffff_ffff,
+                "x5 = lb sign-extended byte");
+    expect_word(_dut._core._datapath._regfile._regs[6], 32'h0000_00ff,
+                "x6 = lbu zero-extended byte");
+    expect_word(_dut._core._datapath._regfile._regs[7], 32'h0000_8001, "x7 = halfword store value");
+    expect_word(_dut._core._datapath._regfile._regs[8], 32'hffff_8001,
+                "x8 = lh sign-extended halfword");
+    expect_word(_dut._core._datapath._regfile._regs[9], 32'h0000_8001,
+                "x9 = lhu zero-extended halfword");
+    expect_word(_dut._core._datapath._regfile._regs[10], 32'h8001_7fff,
+                "x10 = lw after byte/half stores");
+    expect_word(_dut._dmem._memory[0], 32'h8001_7fff, "dmem[0] byte/half store result");
+    expect_word(_dut._dmem._memory[1], 32'h8001_7fff, "dmem[1] copied by sw");
 
     if (errors == 0) begin
       $display("tb_core: PASS (%0d checks)", checks);
@@ -139,7 +144,7 @@ module tb_core
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_core: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

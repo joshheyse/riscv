@@ -36,40 +36,40 @@ module tb_main_decoder
   // that the decoder ignores them.
   localparam int unsigned NoiseVectors = 8;
 
-  instr_u          instr;
-  logic            reg_write;
-  imm_src_t        imm_src;
-  logic            mem_write;
-  alu_src_t        alu_src;
-  alu_result_src_t alu_result_src;
-  result_src_t     result_src;
-  logic            branch;
-  logic            jump;
-  logic            alu_op;
-  mem_size_t       mem_size;
-  logic            mem_unsigned;
-  logic            clear_pc_lsb;
-  logic            illegal_main;
+  instr_u          _instr;
+  logic            _reg_write;
+  imm_src_t        _imm_src;
+  logic            _mem_write;
+  alu_src_t        _alu_src;
+  alu_result_src_t _alu_result_src;
+  result_src_t     _result_src;
+  logic            _branch;
+  logic            _jump;
+  logic            _alu_op;
+  mem_size_t       _mem_size;
+  logic            _mem_unsigned;
+  logic            _clear_pc_lsb;
+  logic            _illegal_main;
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
   int unsigned     printed = 0;
 
-  main_decoder dut (
-    .instr(instr),
-    .reg_write(reg_write),
-    .imm_src(imm_src),
-    .mem_write(mem_write),
-    .alu_src(alu_src),
-    .alu_result_src(alu_result_src),
-    .result_src(result_src),
-    .branch(branch),
-    .jump(jump),
-    .alu_op(alu_op),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .clear_pc_lsb(clear_pc_lsb),
-    .illegal_main(illegal_main)
+  main_decoder _dut (
+    .instr(_instr),
+    .reg_write(_reg_write),
+    .imm_src(_imm_src),
+    .mem_write(_mem_write),
+    .alu_src(_alu_src),
+    .alu_result_src(_alu_result_src),
+    .result_src(_result_src),
+    .branch(_branch),
+    .jump(_jump),
+    .alu_op(_alu_op),
+    .mem_size(_mem_size),
+    .mem_unsigned(_mem_unsigned),
+    .clear_pc_lsb(_clear_pc_lsb),
+    .illegal_main(_illegal_main)
   );
 
   // ------------------------------------------------------------ expected --
@@ -355,31 +355,32 @@ module tb_main_decoder
   // Drive one instruction and check every output against the table.
   task automatic check_all(input logic [6:0] op, input logic [24:0] upper, input string tag);
     string who;
-    instr.raw = {upper, op};
+    _instr.raw = {upper, op};
     #1;
     who = $sformatf("%s %07b (%0s)", tag, op, opcode_name(op));
 
-    chk_bit(reg_write, exp_reg_write(op), 1'b1, who, "reg_write");
-    chk_bit(mem_write, exp_mem_write(op), 1'b1, who, "mem_write");
-    chk_bit(branch, exp_branch(op), 1'b1, who, "branch");
-    chk_bit(jump, exp_jump(op), 1'b1, who, "jump");
-    chk_bit(alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");
-    chk_bit(clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
-    chk_bit(illegal_main, exp_illegal_main(op), 1'b1, who, "illegal_main");
-    chk_bit(mem_unsigned, exp_mem_unsigned(op, instr.r.funct3.raw), mem_unsigned_matters(op), who,
+    chk_bit(_reg_write, exp_reg_write(op), 1'b1, who, "reg_write");
+    chk_bit(_mem_write, exp_mem_write(op), 1'b1, who, "mem_write");
+    chk_bit(_branch, exp_branch(op), 1'b1, who, "branch");
+    chk_bit(_jump, exp_jump(op), 1'b1, who, "jump");
+    chk_bit(_alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");
+    chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
+    chk_bit(_illegal_main, exp_illegal_main(op), 1'b1, who, "illegal_main");
+    chk_bit(_mem_unsigned, exp_mem_unsigned(op, _instr.r.funct3.raw), mem_unsigned_matters(op), who,
             "mem_unsigned");
 
-    chk_enum(imm_src, exp_imm_src(op), imm_src_matters(op), who, "imm_src", imm_name(imm_src),
+    chk_enum(_imm_src, exp_imm_src(op), imm_src_matters(op), who, "imm_src", imm_name(_imm_src),
              imm_name(exp_imm_src(op)));
-    chk_enum({1'b0, alu_src}, {1'b0, exp_alu_src(op)}, alu_src_matters(op), who, "alu_src",
-             alu_src_name(alu_src), alu_src_name(exp_alu_src(op)));
-    chk_enum({1'b0, alu_result_src}, {1'b0, exp_alu_result_src(op)}, alu_result_src_matters(op),
-             who, "alu_result_src", alu_res_name(alu_result_src), alu_res_name(
+    chk_enum({1'b0, _alu_src}, {1'b0, exp_alu_src(op)}, alu_src_matters(op), who, "alu_src",
+             alu_src_name(_alu_src), alu_src_name(exp_alu_src(op)));
+    chk_enum({1'b0, _alu_result_src}, {1'b0, exp_alu_result_src(op)}, alu_result_src_matters(op),
+             who, "alu_result_src", alu_res_name(_alu_result_src), alu_res_name(
              exp_alu_result_src(op)));
-    chk_enum({2'b0, result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
-             "result_src", result_name(result_src), result_name(exp_result_src(op)));
-    chk_enum({1'b0, mem_size}, {1'b0, exp_mem_size(op, instr.r.funct3.raw)}, 1'b1, who, "mem_size",
-             mem_size_name(mem_size), mem_size_name(exp_mem_size(op, instr.r.funct3.raw)));
+    chk_enum({2'b0, _result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
+             "result_src", result_name(_result_src), result_name(exp_result_src(op)));
+    chk_enum({1'b0, _mem_size}, {1'b0, exp_mem_size(op, _instr.r.funct3.raw)}, 1'b1, who,
+             "mem_size", mem_size_name(_mem_size), mem_size_name(
+             exp_mem_size(op, _instr.r.funct3.raw)));
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -408,9 +409,12 @@ module tb_main_decoder
       // Both union views must agree about the opcode, which catches a struct
       // whose members drifted out of order.
       checks++;
-      if (instr.r.opcode !== opcode_t'(op) || instr.i.opcode !== opcode_t'(op))
+      if (_instr.r.opcode !== opcode_t'(op) || _instr.i.opcode !== opcode_t'(op))
         fail($sformatf(
-             "union views disagree: raw[6:0]=%07b r=%07b i=%07b", op, instr.r.opcode, instr.i.opcode
+             "union views disagree: raw[6:0]=%07b r=%07b i=%07b",
+             op,
+             _instr.r.opcode,
+             _instr.i.opcode
              ));
     end
 

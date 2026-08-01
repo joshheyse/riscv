@@ -29,33 +29,33 @@ module lsu
   output word_t read_data
 );
 
-  byte_t selected_byte;
-  half_t selected_half;
+  byte_t _selected_byte;
+  half_t _selected_half;
 
   always_comb begin
-    selected_byte = 8'h0;
-    selected_half = 16'h0;
+    _selected_byte = 8'h0;
+    _selected_half = 16'h0;
     read_data = 32'h0;
     write_mask = 4'b0000;
     write_mem = 32'h0;
     unique case (mem_size)
       MEM_SIZE_BYTE: begin
         unique case (addr[1:0])
-          2'b00: selected_byte = read_mem[7:0];
-          2'b01: selected_byte = read_mem[15:8];
-          2'b10: selected_byte = read_mem[23:16];
-          2'b11: selected_byte = read_mem[31:24];
+          2'b00: _selected_byte = read_mem[7:0];
+          2'b01: _selected_byte = read_mem[15:8];
+          2'b10: _selected_byte = read_mem[23:16];
+          2'b11: _selected_byte = read_mem[31:24];
         endcase
-        read_data = mem_unsigned ? {24'b0, selected_byte} : {{24{selected_byte[7]}}, selected_byte};
+        read_data = mem_unsigned ? {24'b0, _selected_byte} : {{24{_selected_byte[7]}}, _selected_byte};
       end
       MEM_SIZE_HALF: begin
         case (addr[1:0])
-          2'b00: selected_half = read_mem[15:0];
-          2'b10: selected_half = read_mem[31:16];
+          2'b00: _selected_half = read_mem[15:0];
+          2'b10: _selected_half = read_mem[31:16];
           default: begin
           end
         endcase
-        read_data = mem_unsigned ? {16'b0, selected_half} : {{16{selected_half[15]}}, selected_half};
+        read_data = mem_unsigned ? {16'b0, _selected_half} : {{16{_selected_half[15]}}, _selected_half};
       end
       MEM_SIZE_WORD: begin
         read_data = read_mem;
@@ -104,7 +104,7 @@ module lsu
     endcase
   end
 
-  logic unused_addr_bits;
-  assign unused_addr_bits = |{addr[31:2]};
+  logic _unused_addr_bits;
+  assign _unused_addr_bits = |{addr[31:2]};
 
 endmodule

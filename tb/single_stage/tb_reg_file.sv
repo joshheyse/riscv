@@ -14,32 +14,32 @@ module tb_reg_file;
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 10_000;
 
-  logic               clk;
-  logic        [ 4:0] rd_addr1;
-  logic        [ 4:0] rd_addr2;
-  logic        [ 4:0] wr_addr;
-  logic        [31:0] wr_data;
-  logic               wr_en;
-  logic        [31:0] rd_data1;
-  logic        [31:0] rd_data2;
+  logic               _clk;
+  logic        [ 4:0] _rd_addr1;
+  logic        [ 4:0] _rd_addr2;
+  logic        [ 4:0] _wr_addr;
+  logic        [31:0] _wr_data;
+  logic               _wr_en;
+  logic        [31:0] _rd_data1;
+  logic        [31:0] _rd_data2;
 
-  int unsigned        errors = 0;
-  int unsigned        checks = 0;
+  int unsigned        _errors = 0;
+  int unsigned        _checks = 0;
 
-  reg_file dut (
-    .clk(clk),
-    .rd_addr1(rd_addr1),
-    .rd_addr2(rd_addr2),
-    .wr_addr(wr_addr),
-    .wr_data(wr_data),
-    .wr_en(wr_en),
-    .rd_data1(rd_data1),
-    .rd_data2(rd_data2)
+  reg_file _dut (
+    .clk(_clk),
+    .rd_addr1(_rd_addr1),
+    .rd_addr2(_rd_addr2),
+    .wr_addr(_wr_addr),
+    .wr_data(_wr_data),
+    .wr_en(_wr_en),
+    .rd_data1(_rd_data1),
+    .rd_data2(_rd_data2)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   // ------------------------------------------------------------- helpers --
@@ -47,9 +47,9 @@ module tb_reg_file;
   // Compare one value against expectation, recording rather than aborting so a
   // single run reports every failure instead of only the first.
   task automatic expect_eq(input logic [31:0] got, input logic [31:0] exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       // $display, not $error: Verilator treats $error as $stop and aborts on
       // the first mismatch, hiding every later failure.
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
@@ -59,25 +59,25 @@ module tb_reg_file;
   // Drive a write for exactly one clock edge. Stimulus changes on the negedge
   // so inputs are stable well before the posedge that commits them.
   task automatic write_reg(input logic [4:0] a, input logic [31:0] d);
-    @(negedge clk);
-    wr_addr = a;
-    wr_data = d;
-    wr_en   = 1'b1;
-    @(negedge clk);
-    wr_en = 1'b0;
+    @(negedge _clk);
+    _wr_addr = a;
+    _wr_data = d;
+    _wr_en   = 1'b1;
+    @(negedge _clk);
+    _wr_en = 1'b0;
   endtask
 
   // Reads are combinational: drive the address, let it settle, sample.
   task automatic read1(input logic [4:0] a, input logic [31:0] exp, input string what);
-    rd_addr1 = a;
+    _rd_addr1 = a;
     #1;
-    expect_eq(rd_data1, exp, what);
+    expect_eq(_rd_data1, exp, what);
   endtask
 
   task automatic read2(input logic [4:0] a, input logic [31:0] exp, input string what);
-    rd_addr2 = a;
+    _rd_addr2 = a;
     #1;
-    expect_eq(rd_data2, exp, what);
+    expect_eq(_rd_data2, exp, what);
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -85,13 +85,13 @@ module tb_reg_file;
   initial begin
     logic [31:0] expected[32];
 
-    rd_addr1 = '0;
-    rd_addr2 = '0;
-    wr_addr  = '0;
-    wr_data  = '0;
-    wr_en    = 1'b0;
+    _rd_addr1 = '0;
+    _rd_addr2 = '0;
+    _wr_addr  = '0;
+    _wr_data  = '0;
+    _wr_en    = 1'b0;
 
-    @(negedge clk);
+    @(negedge _clk);
 
     // -- T1: x0 reads zero before anything has been written ----------------
     // The array is uninitialised here, so every other register is X. x0 must
@@ -115,33 +115,33 @@ module tb_reg_file;
     // both operands in the same cycle.
     write_reg(5'd1, 32'h1111_1111);
     write_reg(5'd2, 32'h2222_2222);
-    rd_addr1 = 5'd1;
-    rd_addr2 = 5'd2;
+    _rd_addr1 = 5'd1;
+    _rd_addr2 = 5'd2;
     #1;
-    expect_eq(rd_data1, 32'h1111_1111, "T4 port 1 sees x1");
-    expect_eq(rd_data2, 32'h2222_2222, "T4 port 2 sees x2");
+    expect_eq(_rd_data1, 32'h1111_1111, "T4 port 1 sees x1");
+    expect_eq(_rd_data2, 32'h2222_2222, "T4 port 2 sees x2");
 
     // Swap them: a stuck or crossed connection passes the test above but
     // fails this one.
-    rd_addr1 = 5'd2;
-    rd_addr2 = 5'd1;
+    _rd_addr1 = 5'd2;
+    _rd_addr2 = 5'd1;
     #1;
-    expect_eq(rd_data1, 32'h2222_2222, "T4 port 1 sees x2 after swap");
-    expect_eq(rd_data2, 32'h1111_1111, "T4 port 2 sees x1 after swap");
+    expect_eq(_rd_data1, 32'h2222_2222, "T4 port 1 sees x2 after swap");
+    expect_eq(_rd_data2, 32'h1111_1111, "T4 port 2 sees x1 after swap");
 
     // -- T5: both ports may read the same register -------------------------
-    rd_addr1 = 5'd5;
-    rd_addr2 = 5'd5;
+    _rd_addr1 = 5'd5;
+    _rd_addr2 = 5'd5;
     #1;
-    expect_eq(rd_data1, 32'hA5A5_1234, "T5 same register, port 1");
-    expect_eq(rd_data2, 32'hA5A5_1234, "T5 same register, port 2");
+    expect_eq(_rd_data1, 32'hA5A5_1234, "T5 same register, port 1");
+    expect_eq(_rd_data2, 32'hA5A5_1234, "T5 same register, port 2");
 
     // -- T6: wr_en low must block the write --------------------------------
-    @(negedge clk);
-    wr_addr = 5'd5;
-    wr_data = 32'hFFFF_FFFF;
-    wr_en   = 1'b0;
-    @(negedge clk);
+    @(negedge _clk);
+    _wr_addr = 5'd5;
+    _wr_data = 32'hFFFF_FFFF;
+    _wr_en   = 1'b0;
+    @(negedge _clk);
     read1(5'd5, 32'hA5A5_1234, "T6 x5 unchanged with wr_en low");
 
     // -- T7: a write lands at the clock edge, not before -------------------
@@ -149,11 +149,11 @@ module tb_reg_file;
     // and writes its result in the same cycle, and instruction N+1 must see
     // that result. If reads saw the write combinationally this would be a
     // loop; if the write landed a cycle late, N+1 would read stale data.
-    @(negedge clk);
-    wr_addr  = 5'd7;
-    wr_data  = 32'hCAFE_0007;
-    wr_en    = 1'b1;
-    rd_addr1 = 5'd7;
+    @(negedge _clk);
+    _wr_addr  = 5'd7;
+    _wr_data  = 32'hCAFE_0007;
+    _wr_en    = 1'b1;
+    _rd_addr1 = 5'd7;
     write_reg(5'd7, 32'hCAFE_0007);
     read1(5'd7, 32'hCAFE_0007, "T7 x7 visible in the cycle after the write");
 
@@ -178,18 +178,18 @@ module tb_reg_file;
     read1(5'd9, 32'h9999_9999, "T9 x9 overwritten");
 
     // ------------------------------------------------------------ summary --
-    if (errors == 0) begin
-      $display("tb_reg_file: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_reg_file: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_reg_file: FAIL (%0d/%0d checks failed)", errors, checks);
+      $display("tb_reg_file: FAIL (%0d/%0d checks failed)", _errors, _checks);
       $fatal(1);
     end
   end
 
   // -------------------------------------------------------------- watchdog --
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $error("[%0t] tb_reg_file: timeout after %0d cycles", $time, TimeoutCycles);
     $fatal(1);
   end

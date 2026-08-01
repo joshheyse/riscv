@@ -31,106 +31,106 @@ module top
   localparam logic [ResetCounterBits-1:0] ResetCounterMax = ResetCounterBits'(PowerOnResetCycles);
   localparam logic [ResetCounterBits-1:0] ResetCounterInc = ResetCounterBits'(1);
   /* verilator lint_off PROCASSINIT */
-  logic [ResetCounterBits-1:0] reset_counter = '0;
+  logic [ResetCounterBits-1:0] _reset_counter = '0;
   /* verilator lint_on PROCASSINIT */
 
-  logic rst;
-  logic power_on_rst;
-  pc_t pc;
-  pc_t imem_addr;
-  instr_u instr;
-  logic halted;
+  logic _rst;
+  logic _power_on_rst;
+  pc_t _pc;
+  pc_t _imem_addr;
+  instr_u _instr;
+  logic _halted;
 
-  logic imem_en;
-  dbus_if dbus ();
+  logic _imem_en;
+  dbus_if _dbus ();
 
-  logic [7:0] led;
-  logic [7:0] dip_switch;
-  logic push_button;
+  logic [7:0] _led;
+  logic [7:0] _dip_switch;
+  logic _push_button;
 
-  logic [NumGpio-1:0] gpio_in;
-  logic [NumGpio-1:0] gpio_out;
-  logic [NumGpio-1:0] gpio_oe;
+  logic [NumGpio-1:0] _gpio_in;
+  logic [NumGpio-1:0] _gpio_out;
+  logic [NumGpio-1:0] _gpio_oe;
 
-  logic i2c_sda_in;
-  logic i2c_sda_drive_low;
-  logic i2c_scl_in;
-  logic i2c_scl_drive_low;
+  logic _i2c_sda_in;
+  logic _i2c_sda_drive_low;
+  logic _i2c_scl_in;
+  logic _i2c_scl_drive_low;
 
   initial begin
     assert (PowerOnResetCycles > 0);
   end
 
-  assign power_on_rst = (reset_counter != ResetCounterMax);
-  assign rst = ~rst_n | power_on_rst;
+  assign _power_on_rst = (_reset_counter != ResetCounterMax);
+  assign _rst = ~rst_n | _power_on_rst;
 
-  assign led_n = halted ? 8'h00 : ~led;
-  assign dip_switch = ~dip_switch_n;
-  assign push_button = ~push_button_n;
-  assign gpio_in = gpio;
+  assign led_n = _halted ? 8'h00 : ~_led;
+  assign _dip_switch = ~dip_switch_n;
+  assign _push_button = ~push_button_n;
+  assign _gpio_in = gpio;
 
-  assign i2c_sda_in = i2c_sda;
-  assign i2c_scl_in = i2c_scl;
+  assign _i2c_sda_in = i2c_sda;
+  assign _i2c_scl_in = i2c_scl;
 
-  assign i2c_sda = i2c_sda_drive_low ? 1'b0 : 1'bz;
-  assign i2c_scl = i2c_scl_drive_low ? 1'b0 : 1'bz;
+  assign i2c_sda = _i2c_sda_drive_low ? 1'b0 : 1'bz;
+  assign i2c_scl = _i2c_scl_drive_low ? 1'b0 : 1'bz;
 
-  genvar i;
+  genvar _i;
   generate
-    for (i = 0; i < NumGpio; i++) begin : gen_gpio_tristate
-      assign gpio[i] = gpio_oe[i] ? gpio_out[i] : 1'bz;
+    for (_i = 0; _i < NumGpio; _i++) begin : gen_gpio_tristate
+      assign gpio[_i] = _gpio_oe[_i] ? _gpio_out[_i] : 1'bz;
     end
   endgenerate
 
   always_ff @(posedge clk_12mhz) begin
     if (!rst_n) begin
-      reset_counter <= '0;
-    end else if (power_on_rst) begin
-      reset_counter <= reset_counter + ResetCounterInc;
+      _reset_counter <= '0;
+    end else if (_power_on_rst) begin
+      _reset_counter <= _reset_counter + ResetCounterInc;
     end
   end
 
   imem #(
     .DepthWords(ImemDepthWords),
     .InitFile  (ImemInitFile)
-  ) imem_i (
+  ) _imem (
     .clk(clk_12mhz),
-    .rst(rst),
-    .en(imem_en),
-    .addr(imem_addr),
-    .instr(instr.raw)
+    .rst(_rst),
+    .en(_imem_en),
+    .addr(_imem_addr),
+    .instr(_instr.raw)
   );
 
-  board_bus bus (
+  board_bus _board_bus (
     .clk(clk_12mhz),
-    .rst(rst),
-    .led(led),
-    .dip_switch(dip_switch),
-    .push_button(push_button),
+    .rst(_rst),
+    .led(_led),
+    .dip_switch(_dip_switch),
+    .push_button(_push_button),
     .uart_tx(uart_tx),
     .spi_sck(spi_sck),
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
     .spi_cs_n(spi_cs_n),
-    .gpio_in(gpio_in),
-    .gpio_out(gpio_out),
-    .gpio_oe(gpio_oe),
-    .i2c_sda_in(i2c_sda_in),
-    .i2c_sda_drive_low(i2c_sda_drive_low),
-    .i2c_scl_in(i2c_scl_in),
-    .i2c_scl_drive_low(i2c_scl_drive_low),
-    .dbus(dbus)
+    .gpio_in(_gpio_in),
+    .gpio_out(_gpio_out),
+    .gpio_oe(_gpio_oe),
+    .i2c_sda_in(_i2c_sda_in),
+    .i2c_sda_drive_low(_i2c_sda_drive_low),
+    .i2c_scl_in(_i2c_scl_in),
+    .i2c_scl_drive_low(_i2c_scl_drive_low),
+    .dbus(_dbus)
   );
 
-  core core_i (
+  core _core (
     .clk(clk_12mhz),
-    .rst(rst),
-    .instr(instr),
-    .pc(pc),
-    .imem_addr(imem_addr),
-    .halted(halted),
-    .dbus(dbus),
-    .imem_en(imem_en)
+    .rst(_rst),
+    .instr(_instr),
+    .pc(_pc),
+    .imem_addr(_imem_addr),
+    .halted(_halted),
+    .dbus(_dbus),
+    .imem_en(_imem_en)
   );
 
 endmodule

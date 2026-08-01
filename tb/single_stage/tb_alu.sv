@@ -41,22 +41,22 @@ module tb_alu
   // regardless.
   localparam int unsigned MaxPrintedFailures = 20;
 
-  word_t       src_a;
-  word_t       src_b;
-  alu_select_t alu_select;
-  logic        sub_arith;
-  word_t       alu_result;
+  word_t       _src_a;
+  word_t       _src_b;
+  alu_select_t _alu_select;
+  logic        _sub_arith;
+  word_t       _alu_result;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
   int unsigned printed = 0;
 
-  alu dut (
-    .src_a(src_a),
-    .src_b(src_b),
-    .alu_select(alu_select),
-    .sub_arith(sub_arith),
-    .alu_result(alu_result)
+  alu _dut (
+    .src_a(_src_a),
+    .src_b(_src_b),
+    .alu_select(_alu_select),
+    .sub_arith(_sub_arith),
+    .alu_result(_alu_result)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -66,18 +66,18 @@ module tb_alu
   // call $fatal once at the end so `make sim` still exits non-zero.
   task automatic check(input alu_select_t sel, input logic sa, input word_t a, input word_t b,
                        input word_t exp, input string what);
-    alu_select = sel;
-    sub_arith  = sa;
-    src_a      = a;
-    src_b      = b;
+    _alu_select = sel;
+    _sub_arith  = sa;
+    _src_a      = a;
+    _src_b      = b;
     #1;
     checks++;
-    if (alu_result !== exp) begin
+    if (_alu_result !== exp) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display("  FAIL %-34s a=0x%08h b=0x%08h sub_arith=%b -> 0x%08h, expected 0x%08h", what, a,
-                 b, sa, alu_result, exp);
+                 b, sa, _alu_result, exp);
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

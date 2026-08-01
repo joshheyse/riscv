@@ -46,22 +46,22 @@ module tb_branch_logic
   localparam funct3_t F3Bltu = 3'b110;
   localparam funct3_t F3Bgeu = 3'b111;
 
-  logic          branch;
-  logic          jump;
-  branch_flags_t flags;
-  funct3_t       funct3;
-  pc_src_t       pc_src;
+  logic          _branch;
+  logic          _jump;
+  branch_flags_t _flags;
+  funct3_t       _funct3;
+  pc_src_t       _pc_src;
 
   int unsigned   errors = 0;
   int unsigned   checks = 0;
   int unsigned   printed = 0;
 
-  branch_logic dut (
-    .branch(branch),
-    .jump  (jump),
-    .flags (flags),
-    .funct3(funct3),
-    .pc_src(pc_src)
+  branch_logic _dut (
+    .branch(_branch),
+    .jump  (_jump),
+    .flags (_flags),
+    .funct3(_funct3),
+    .pc_src(_pc_src)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -71,19 +71,19 @@ module tb_branch_logic
   // the end so `make sim` still exits non-zero.
   task automatic check(input logic br, input logic jmp, input logic f_eq, input logic f_lt,
                        input funct3_t f3, input pc_src_t exp, input string what);
-    branch  = br;
-    jump    = jmp;
-    flags.eq = f_eq;
-    flags.lt = f_lt;
-    funct3  = f3;
+    _branch  = br;
+    _jump    = jmp;
+    _flags.eq = f_eq;
+    _flags.lt = f_lt;
+    _funct3  = f3;
     #1;
     checks++;
-    if (pc_src !== exp) begin
+    if (_pc_src !== exp) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display("  FAIL %-38s branch=%b jump=%b eq=%b lt=%b funct3=%03b -> %s, expected %s", what,
-                 br, jmp, f_eq, f_lt, f3, pc_src.name(), exp.name());
+                 br, jmp, f_eq, f_lt, f3, _pc_src.name(), exp.name());
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

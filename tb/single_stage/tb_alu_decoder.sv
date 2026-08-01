@@ -51,22 +51,22 @@ module tb_alu_decoder
   localparam logic [6:0] F7Zero = 7'b0000000;
   localparam logic [6:0] F7Alt = 7'b0100000;  // sub, sra, srai
 
-  logic        alu_op;
-  instr_u      instr;
-  alu_select_t alu_select;
-  logic        sub_arith;
-  logic        illegal_alu;
+  logic        _alu_op;
+  instr_u      _instr;
+  alu_select_t _alu_select;
+  logic        _sub_arith;
+  logic        _illegal_alu;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
   int unsigned printed = 0;
 
-  alu_decoder dut (
-    .alu_op(alu_op),
-    .instr(instr),
-    .alu_select(alu_select),
-    .sub_arith(sub_arith),
-    .illegal_alu(illegal_alu)
+  alu_decoder _dut (
+    .alu_op(_alu_op),
+    .instr(_instr),
+    .alu_select(_alu_select),
+    .sub_arith(_sub_arith),
+    .illegal_alu(_illegal_alu)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -82,18 +82,18 @@ module tb_alu_decoder
   // the end so `make sim` still exits non-zero.
   task automatic check(input logic op, input instr_t word, input alu_select_t exp_sel,
                        input logic exp_sub, input logic exp_illegal, input string what);
-    alu_op = op;
-    instr.raw = word;
+    _alu_op = op;
+    _instr.raw = word;
     #1;
     checks++;
-    if (alu_select !== exp_sel || sub_arith !== exp_sub || illegal_alu !== exp_illegal) begin
+    if (_alu_select !== exp_sel || _sub_arith !== exp_sub || _illegal_alu !== exp_illegal) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display(
             "  FAIL %-36s alu_op=%b instr=0x%08h (f7=%07b f3=%03b op=%07b) -> %s/%b illegal=%b, expected %s/%b illegal=%b",
-            what, op, word, word[31:25], word[14:12], word[6:0], alu_select.name(), sub_arith,
-            illegal_alu, exp_sel.name(), exp_sub, exp_illegal);
+            what, op, word, word[31:25], word[14:12], word[6:0], _alu_select.name(), _sub_arith,
+            _illegal_alu, exp_sel.name(), exp_sub, exp_illegal);
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

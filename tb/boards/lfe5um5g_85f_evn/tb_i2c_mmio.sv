@@ -16,17 +16,17 @@ module tb_i2c_mmio
   localparam logic [7:0] AddrByte = {I2cAddr, 1'b0};
   localparam logic [7:0] TxByte = 8'ha5;
 
-  logic clk;
-  logic rst;
-  logic mem_write_en;
-  word_t mem_addr;
-  word_t mem_write_data;
-  logic selected;
-  word_t read_data;
-  logic i2c_sda_in;
-  logic i2c_sda_drive_low;
-  logic i2c_scl_in;
-  logic i2c_scl_drive_low;
+  logic _clk;
+  logic _rst;
+  logic _mem_write_en;
+  word_t _mem_addr;
+  word_t _mem_write_data;
+  logic _selected;
+  word_t _read_data;
+  logic _i2c_sda_in;
+  logic _i2c_sda_drive_low;
+  logic _i2c_scl_in;
+  logic _i2c_scl_drive_low;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -37,23 +37,23 @@ module tb_i2c_mmio
     .StatusAddr      (StatusAddr),
     .AddressAddr     (AddressAddr),
     .ClocksPerHalfBit(ClocksPerHalfBit)
-  ) dut (
-    .clk(clk),
-    .rst(rst),
-    .mem_write_en(mem_write_en),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .selected(selected),
-    .read_data(read_data),
-    .i2c_sda_in(i2c_sda_in),
-    .i2c_sda_drive_low(i2c_sda_drive_low),
-    .i2c_scl_in(i2c_scl_in),
-    .i2c_scl_drive_low(i2c_scl_drive_low)
+  ) _dut (
+    .clk(_clk),
+    .rst(_rst),
+    .mem_write_en(_mem_write_en),
+    .mem_addr(_mem_addr),
+    .mem_write_data(_mem_write_data),
+    .selected(_selected),
+    .read_data(_read_data),
+    .i2c_sda_in(_i2c_sda_in),
+    .i2c_sda_drive_low(_i2c_sda_drive_low),
+    .i2c_scl_in(_i2c_scl_in),
+    .i2c_scl_drive_low(_i2c_scl_drive_low)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -73,66 +73,66 @@ module tb_i2c_mmio
   endtask
 
   task automatic set_read_addr(input word_t addr);
-    @(negedge clk);
-    mem_write_en = 1'b0;
-    mem_addr = addr;
+    @(negedge _clk);
+    _mem_write_en = 1'b0;
+    _mem_addr = addr;
     #1;
   endtask
 
   task automatic write_mmio(input word_t addr, input word_t data);
-    @(negedge clk);
-    mem_addr       = addr;
-    mem_write_data = data;
-    mem_write_en   = 1'b1;
-    @(posedge clk);
+    @(negedge _clk);
+    _mem_addr       = addr;
+    _mem_write_data = data;
+    _mem_write_en   = 1'b1;
+    @(posedge _clk);
     #1;
-    mem_write_en = 1'b0;
+    _mem_write_en = 1'b0;
   endtask
 
   task automatic expect_status(input logic busy, input logic ack_error, input string what);
     set_read_addr(StatusAddr);
-    expect_bit(selected, 1'b1, "status address selected");
-    expect_word(read_data, {30'b0, ack_error, busy}, what);
+    expect_bit(_selected, 1'b1, "status address selected");
+    expect_word(_read_data, {30'b0, ack_error, busy}, what);
   endtask
 
   task automatic wait_until_scl_low(input string what);
     int unsigned waited = 0;
-    while (i2c_scl_drive_low !== 1'b1 && waited < WaitLimitCycles) begin
-      @(posedge clk);
+    while (_i2c_scl_drive_low !== 1'b1 && waited < WaitLimitCycles) begin
+      @(posedge _clk);
       #1;
       waited++;
     end
-    expect_bit(i2c_scl_drive_low, 1'b1, what);
+    expect_bit(_i2c_scl_drive_low, 1'b1, what);
   endtask
 
   task automatic wait_until_scl_high(input string what);
     int unsigned waited = 0;
-    while (i2c_scl_drive_low !== 1'b0 && waited < WaitLimitCycles) begin
-      @(posedge clk);
+    while (_i2c_scl_drive_low !== 1'b0 && waited < WaitLimitCycles) begin
+      @(posedge _clk);
       #1;
       waited++;
     end
-    expect_bit(i2c_scl_drive_low, 1'b0, what);
+    expect_bit(_i2c_scl_drive_low, 1'b0, what);
   endtask
 
   task automatic expect_i2c_bit(input logic exp, input string what);
     wait_until_scl_low({what, ": scl low phase observed"});
-    expect_bit(i2c_sda_drive_low, ~exp, {what, ": sda stable while scl low"});
+    expect_bit(_i2c_sda_drive_low, ~exp, {what, ": sda stable while scl low"});
     wait_until_scl_high({what, ": scl high phase observed"});
-    expect_bit(i2c_sda_drive_low, ~exp, {what, ": sda stable while scl high"});
-    @(posedge clk);
+    expect_bit(_i2c_sda_drive_low, ~exp, {what, ": sda stable while scl high"});
+    @(posedge _clk);
     #1;
   endtask
 
   task automatic drive_ack(input string what);
     wait_until_scl_low({what, ": ack low phase observed"});
-    expect_bit(i2c_sda_drive_low, 1'b0, {what, ": master releases sda for ack"});
-    i2c_sda_in = 1'b0;
+    expect_bit(_i2c_sda_drive_low, 1'b0, {what, ": master releases sda for ack"});
+    _i2c_sda_in = 1'b0;
     wait_until_scl_high({what, ": ack high phase observed"});
-    expect_bit(i2c_sda_drive_low, 1'b0, {what, ": master still releases sda for ack"});
-    repeat (ClocksPerHalfBit) @(posedge clk);
+    expect_bit(_i2c_sda_drive_low, 1'b0, {what, ": master still releases sda for ack"});
+    repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    i2c_sda_in = 1'b1;
+    _i2c_sda_in = 1'b1;
   endtask
 
   task automatic expect_write_transaction(input logic ack_data);
@@ -147,19 +147,19 @@ module tb_i2c_mmio
     end
 
     wait_until_scl_low("data ack: ack low phase observed");
-    expect_bit(i2c_sda_drive_low, 1'b0, "data ack: master releases sda");
-    i2c_sda_in = ack_data ? 1'b0 : 1'b1;
+    expect_bit(_i2c_sda_drive_low, 1'b0, "data ack: master releases sda");
+    _i2c_sda_in = ack_data ? 1'b0 : 1'b1;
     wait_until_scl_high("data ack: ack high phase observed");
-    repeat (ClocksPerHalfBit) @(posedge clk);
+    repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    i2c_sda_in = 1'b1;
+    _i2c_sda_in = 1'b1;
 
     wait_until_scl_high("stop keeps scl released");
-    expect_bit(i2c_sda_drive_low, 1'b1, "stop first phase drives sda low");
-    repeat (ClocksPerHalfBit) @(posedge clk);
+    expect_bit(_i2c_sda_drive_low, 1'b1, "stop first phase drives sda low");
+    repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    expect_bit(i2c_scl_drive_low, 1'b0, "stop second phase keeps scl released");
-    expect_bit(i2c_sda_drive_low, 1'b0, "stop second phase releases sda");
+    expect_bit(_i2c_scl_drive_low, 1'b0, "stop second phase keeps scl released");
+    expect_bit(_i2c_sda_drive_low, 1'b0, "stop second phase releases sda");
   endtask
 
   initial begin
@@ -168,52 +168,52 @@ module tb_i2c_mmio
       $dumpvars(0, tb_i2c_mmio);
     end
 
-    rst            = 1'b1;
-    mem_write_en   = 1'b0;
-    mem_addr       = '0;
-    mem_write_data = '0;
-    i2c_sda_in     = 1'b1;
-    i2c_scl_in     = 1'b1;
+    _rst            = 1'b1;
+    _mem_write_en   = 1'b0;
+    _mem_addr       = '0;
+    _mem_write_data = '0;
+    _i2c_sda_in     = 1'b1;
+    _i2c_scl_in     = 1'b1;
 
-    repeat (2) @(posedge clk);
+    repeat (2) @(posedge _clk);
     #1;
-    expect_bit(i2c_sda_drive_low, 1'b0, "reset releases sda");
-    expect_bit(i2c_scl_drive_low, 1'b0, "reset releases scl");
-    expect_word(read_data, 32'h0000_0000, "reset unmapped read is zero");
+    expect_bit(_i2c_sda_drive_low, 1'b0, "reset releases sda");
+    expect_bit(_i2c_scl_drive_low, 1'b0, "reset releases scl");
+    expect_word(_read_data, 32'h0000_0000, "reset unmapped read is zero");
 
-    @(negedge clk);
-    rst = 1'b0;
+    @(negedge _clk);
+    _rst = 1'b0;
 
     set_read_addr(AddressAddr);
-    expect_bit(selected, 1'b1, "address register selected");
-    expect_word(read_data, 32'h0000_0000, "initial address is zero");
+    expect_bit(_selected, 1'b1, "address register selected");
+    expect_word(_read_data, 32'h0000_0000, "initial address is zero");
 
     set_read_addr(DataAddr);
-    expect_bit(selected, 1'b1, "data register selected");
-    expect_word(read_data, 32'h0000_0000, "initial data read is zero");
+    expect_bit(_selected, 1'b1, "data register selected");
+    expect_word(_read_data, 32'h0000_0000, "initial data read is zero");
 
     expect_status(1'b0, 1'b0, "initial status idle no error");
 
     write_mmio(AddressAddr, {25'h1ff_ffff, I2cAddr});
     set_read_addr(AddressAddr);
-    expect_word(read_data, {25'b0, I2cAddr}, "address write truncates to seven bits");
+    expect_word(_read_data, {25'b0, I2cAddr}, "address write truncates to seven bits");
 
     write_mmio(DataAddr, {24'hff_ffff, TxByte});
     write_mmio(ControlAddr, 32'h0000_0001);
     #1;
-    expect_bit(i2c_scl_drive_low, 1'b0, "start keeps scl released");
-    expect_bit(i2c_sda_drive_low, 1'b1, "start drives sda low");
+    expect_bit(_i2c_scl_drive_low, 1'b0, "start keeps scl released");
+    expect_bit(_i2c_sda_drive_low, 1'b1, "start drives sda low");
 
     expect_write_transaction(1'b1);
 
-    repeat (ClocksPerHalfBit + 1) @(posedge clk);
+    repeat (ClocksPerHalfBit + 1) @(posedge _clk);
     #1;
     expect_status(1'b0, 1'b0, "idle after acknowledged transaction");
 
     write_mmio(ControlAddr, 32'h0000_0001);
     expect_write_transaction(1'b0);
 
-    repeat (ClocksPerHalfBit + 1) @(posedge clk);
+    repeat (ClocksPerHalfBit + 1) @(posedge _clk);
     #1;
     expect_status(1'b0, 1'b1, "data nack latches ack_error");
 
@@ -222,8 +222,8 @@ module tb_i2c_mmio
     expect_status(1'b1, 1'b0, "new transaction clears ack_error");
 
     set_read_addr(32'h2000_0000);
-    expect_bit(selected, 1'b0, "unmapped address not selected");
-    expect_word(read_data, 32'h0000_0000, "unmapped read returns zero");
+    expect_bit(_selected, 1'b0, "unmapped address not selected");
+    expect_word(_read_data, 32'h0000_0000, "unmapped read returns zero");
 
     if (errors == 0) begin
       $display("tb_i2c_mmio: PASS (%0d checks)", checks);
@@ -235,7 +235,7 @@ module tb_i2c_mmio
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_i2c_mmio: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

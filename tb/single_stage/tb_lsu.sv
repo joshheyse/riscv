@@ -18,52 +18,52 @@ module tb_lsu
   localparam int unsigned DepthWords = 8;
   localparam string InitFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_lsu_init.mem";
 
-  logic              clk;
-  logic              rst;
-  logic              mem_valid;
-  logic              mem_write_en;
-  logic              mem_ready;
-  word_t             addr;
-  word_t             write_data;
-  word_t             read_mem;
-  word_t             write_mem;
-  word_t             read_data;
-  mem_size_t         mem_size;
-  logic              mem_unsigned;
-  logic        [3:0] write_mask;
+  logic              _clk;
+  logic              _rst;
+  logic              _mem_valid;
+  logic              _mem_write_en;
+  logic              _mem_ready;
+  word_t             _addr;
+  word_t             _write_data;
+  word_t             _read_mem;
+  word_t             _write_mem;
+  word_t             _read_data;
+  mem_size_t         _mem_size;
+  logic              _mem_unsigned;
+  logic        [3:0] _write_mask;
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
 
-  lsu dut (
-    .addr(addr),
-    .write_data(write_data),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .read_mem(read_mem),
-    .write_mem(write_mem),
-    .write_mask(write_mask),
-    .read_data(read_data)
+  lsu _dut (
+    .addr(_addr),
+    .write_data(_write_data),
+    .mem_size(_mem_size),
+    .mem_unsigned(_mem_unsigned),
+    .read_mem(_read_mem),
+    .write_mem(_write_mem),
+    .write_mask(_write_mask),
+    .read_data(_read_data)
   );
 
   dmem #(
     .DepthWords(DepthWords),
     .InitFile  (InitFile)
-  ) dmem_i (
-    .clk(clk),
-    .rst(rst),
-    .mem_valid(mem_valid),
-    .mem_write_en(mem_write_en),
-    .addr(addr),
-    .write_data(write_mem),
-    .write_mask(write_mask),
-    .mem_ready(mem_ready),
-    .read_data(read_mem)
+  ) _dmem (
+    .clk(_clk),
+    .rst(_rst),
+    .mem_valid(_mem_valid),
+    .mem_write_en(_mem_write_en),
+    .addr(_addr),
+    .write_data(_write_mem),
+    .write_mask(_write_mask),
+    .mem_ready(_mem_ready),
+    .read_data(_read_mem)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   // ------------------------------------------------------------- helpers --
@@ -78,32 +78,32 @@ module tb_lsu
 
   task automatic read_addr(input word_t a, input mem_size_t size, input logic unsgnd,
                            input word_t exp, input string what);
-    @(negedge clk);
-    mem_valid    = 1'b1;
-    mem_write_en = 1'b0;
-    addr         = a;
-    mem_size     = size;
-    mem_unsigned = unsgnd;
-    @(posedge clk);
+    @(negedge _clk);
+    _mem_valid    = 1'b1;
+    _mem_write_en = 1'b0;
+    _addr         = a;
+    _mem_size     = size;
+    _mem_unsigned = unsgnd;
+    @(posedge _clk);
     #1;
-    mem_valid = 1'b0;
-    expect_word({31'b0, mem_ready}, 32'h0000_0001, {what, " ready"});
-    expect_word(read_data, exp, what);
+    _mem_valid = 1'b0;
+    expect_word({31'b0, _mem_ready}, 32'h0000_0001, {what, " ready"});
+    expect_word(_read_data, exp, what);
   endtask
 
   task automatic write_addr(input word_t a, input word_t data, input mem_size_t size);
-    @(negedge clk);
-    mem_valid    = 1'b1;
-    addr         = a;
-    write_data   = data;
-    mem_size     = size;
-    mem_unsigned = 1'b0;
-    mem_write_en = 1'b1;
-    @(posedge clk);
+    @(negedge _clk);
+    _mem_valid    = 1'b1;
+    _addr         = a;
+    _write_data   = data;
+    _mem_size     = size;
+    _mem_unsigned = 1'b0;
+    _mem_write_en = 1'b1;
+    @(posedge _clk);
     #1;
-    expect_word({31'b0, mem_ready}, 32'h0000_0001, "write ready");
-    mem_valid = 1'b0;
-    mem_write_en = 1'b0;
+    expect_word({31'b0, _mem_ready}, 32'h0000_0001, "write ready");
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -114,17 +114,17 @@ module tb_lsu
       $dumpvars(0, tb_lsu);
     end
 
-    mem_write_en = 1'b0;
-    mem_valid    = 1'b0;
-    rst          = 1'b1;
-    addr         = '0;
-    write_data   = '0;
-    mem_size     = MEM_SIZE_WORD;
-    mem_unsigned = 1'b0;
+    _mem_write_en = 1'b0;
+    _mem_valid    = 1'b0;
+    _rst          = 1'b1;
+    _addr         = '0;
+    _write_data   = '0;
+    _mem_size     = MEM_SIZE_WORD;
+    _mem_unsigned = 1'b0;
 
-    repeat (2) @(posedge clk);
-    @(negedge clk);
-    rst = 1'b0;
+    repeat (2) @(posedge _clk);
+    @(negedge _clk);
+    _rst = 1'b0;
 
     read_addr(32'h0000_0000, MEM_SIZE_WORD, 1'b0, 32'h1111_1111, "init word at byte address 0");
     read_addr(32'h0000_0004, MEM_SIZE_WORD, 1'b0, 32'h2222_2222, "init word at byte address 4");
@@ -166,7 +166,7 @@ module tb_lsu
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_lsu: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

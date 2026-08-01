@@ -10,12 +10,12 @@ module tb_push_button_mmio
   localparam int unsigned NumPushButtons = 1;
   localparam int unsigned DebounceCycles = 3;
 
-  logic clk;
-  logic rst;
-  word_t mem_addr;
-  logic selected;
-  word_t read_data;
-  logic [NumPushButtons-1:0] push_button;
+  logic _clk;
+  logic _rst;
+  word_t _mem_addr;
+  logic _selected;
+  word_t _read_data;
+  logic [NumPushButtons-1:0] _push_button;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -24,18 +24,18 @@ module tb_push_button_mmio
     .PushButtonAddr(PushButtonAddr),
     .NumPushButtons(NumPushButtons),
     .DebounceCycles(DebounceCycles)
-  ) dut (
-    .clk        (clk),
-    .rst        (rst),
-    .mem_addr   (mem_addr),
-    .selected   (selected),
-    .read_data  (read_data),
-    .push_button(push_button)
+  ) _dut (
+    .clk(_clk),
+    .rst(_rst),
+    .mem_addr(_mem_addr),
+    .selected(_selected),
+    .read_data(_read_data),
+    .push_button(_push_button)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -55,19 +55,19 @@ module tb_push_button_mmio
   endtask
 
   task automatic set_addr(input word_t addr);
-    @(negedge clk);
-    mem_addr = addr;
+    @(negedge _clk);
+    _mem_addr = addr;
     #1;
   endtask
 
   task automatic set_button(input logic [NumPushButtons-1:0] buttons);
-    @(negedge clk);
-    push_button = buttons;
+    @(negedge _clk);
+    _push_button = buttons;
     #1;
   endtask
 
   task automatic wait_debounce;
-    repeat (DebounceCycles + 3) @(posedge clk);
+    repeat (DebounceCycles + 3) @(posedge _clk);
     #1;
   endtask
 
@@ -77,48 +77,48 @@ module tb_push_button_mmio
       $dumpvars(0, tb_push_button_mmio);
     end
 
-    rst         = 1'b1;
-    mem_addr    = '0;
-    push_button = '0;
+    _rst         = 1'b1;
+    _mem_addr    = '0;
+    _push_button = '0;
 
-    repeat (2) @(posedge clk);
+    repeat (2) @(posedge _clk);
     #1;
-    expect_bit(selected, 1'b0, "reset unmapped address not selected");
-    expect_word(read_data, '0, "reset released button reads zero");
+    expect_bit(_selected, 1'b0, "reset unmapped address not selected");
+    expect_word(_read_data, '0, "reset released button reads zero");
 
     set_addr(PushButtonAddr);
-    expect_bit(selected, 1'b1, "push-button address selected");
-    expect_word(read_data, 32'h0000_0000, "reset mapped read is zero");
+    expect_bit(_selected, 1'b1, "push-button address selected");
+    expect_word(_read_data, 32'h0000_0000, "reset mapped read is zero");
 
-    @(negedge clk);
-    rst = 1'b0;
+    @(negedge _clk);
+    _rst = 1'b0;
     #1;
 
     set_button(1'b1);
-    expect_word(read_data, 32'h0000_0000, "press is not visible before debounce");
+    expect_word(_read_data, 32'h0000_0000, "press is not visible before debounce");
     wait_debounce();
-    expect_word(read_data, 32'h0000_0001, "pressed button is visible after debounce");
+    expect_word(_read_data, 32'h0000_0001, "pressed button is visible after debounce");
 
     set_button(1'b0);
-    expect_word(read_data, 32'h0000_0001, "release is not visible before debounce");
+    expect_word(_read_data, 32'h0000_0001, "release is not visible before debounce");
     wait_debounce();
-    expect_word(read_data, 32'h0000_0000, "released button is visible after debounce");
+    expect_word(_read_data, 32'h0000_0000, "released button is visible after debounce");
 
     set_button(1'b1);
-    @(posedge clk);
+    @(posedge _clk);
     set_button(1'b0);
     wait_debounce();
-    expect_word(read_data, 32'h0000_0000, "short pulse is filtered by debounce");
+    expect_word(_read_data, 32'h0000_0000, "short pulse is filtered by debounce");
 
     set_button(1'b1);
     wait_debounce();
     set_addr(PushButtonAddr + 32'h4);
-    expect_bit(selected, 1'b0, "neighbor address not selected");
-    expect_word(read_data, 32'h0000_0001, "read data still mirrors raw button input");
+    expect_bit(_selected, 1'b0, "neighbor address not selected");
+    expect_word(_read_data, 32'h0000_0001, "read data still mirrors raw button input");
 
     set_addr(32'h2000_0000);
-    expect_bit(selected, 1'b0, "unmapped address not selected");
-    expect_word(read_data, 32'h0000_0001, "unmapped read data still mirrors debounced button");
+    expect_bit(_selected, 1'b0, "unmapped address not selected");
+    expect_word(_read_data, 32'h0000_0001, "unmapped read data still mirrors debounced button");
 
     if (errors == 0) begin
       $display("tb_push_button_mmio: PASS (%0d checks)", checks);
@@ -130,7 +130,7 @@ module tb_push_button_mmio
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_push_button_mmio: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

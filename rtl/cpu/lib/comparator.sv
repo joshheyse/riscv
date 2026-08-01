@@ -21,11 +21,11 @@ module comparator
   output logic  lt
 );
 
-  word_t af;
-  word_t bf;
-  assign af = {src_a[XLEN-1] ^ sngd, src_a[XLEN-2:0]};
-  assign bf = {src_b[XLEN-1] ^ sngd, src_b[XLEN-2:0]};
-  assign eq = (af == bf);
-  assign lt = (af < bf);
+  word_t _af;
+  word_t _bf;
+  assign _af = {src_a[XLEN-1] ^ sngd, src_a[XLEN-2:0]};
+  assign _bf = {src_b[XLEN-1] ^ sngd, src_b[XLEN-2:0]};
+  assign eq  = (_af == _bf);
+  assign lt  = (_af < _bf);
 
 endmodule

@@ -27,13 +27,13 @@ module branch_logic
   output pc_src_t pc_src
 );
 
-  logic cmp_flag;
-  logic cond_met;
-  logic encoding_valid;
+  logic _cmp_flag;
+  logic _cond_met;
+  logic _encoding_valid;
 
-  assign cmp_flag = funct3.use_lt ? flags.lt : flags.eq;
-  assign encoding_valid = funct3.use_lt | ~funct3.unsgnd;
-  assign cond_met = (cmp_flag ^ funct3.invert) & encoding_valid;
-  assign pc_src = ((cond_met & branch) | jump) ? PC_SRC_IEU_ADR : PC_SRC_INC;
+  assign _cmp_flag = funct3.use_lt ? flags.lt : flags.eq;
+  assign _encoding_valid = funct3.use_lt | ~funct3.unsgnd;
+  assign _cond_met = (_cmp_flag ^ funct3.invert) & _encoding_valid;
+  assign pc_src = ((_cond_met & branch) | jump) ? PC_SRC_IEU_ADR : PC_SRC_INC;
 
 endmodule

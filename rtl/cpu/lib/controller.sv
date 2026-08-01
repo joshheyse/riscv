@@ -5,7 +5,7 @@
 // This module is pure decode/glue:
 //   * main_decoder chooses broad datapath controls from opcode
 //   * alu_decoder refines the ALU operation from funct3/funct7
-//   * branch_logic turns branch flags + funct3 into PC select
+//   * branch_logic turns _branch flags + funct3 into PC select
 //
 // The datapath owns the comparator and supplies `branch_flags`; the controller
 // supplies `branch_sgnd` so the comparator can produce the correct `lt` flag.
@@ -31,15 +31,15 @@ module controller
   output logic illegal_instr
 );
 
-  logic branch;
-  logic jump;
-  logic alu_op;
-  logic illegal_main;
-  logic illegal_alu;
+  logic _branch;
+  logic _jump;
+  logic _alu_op;
+  logic _illegal_main;
+  logic _illegal_alu;
   assign branch_sgnd   = ~instr.r.funct3.br.unsgnd;
-  assign illegal_instr = illegal_main | illegal_alu;
+  assign illegal_instr = _illegal_main | _illegal_alu;
 
-  main_decoder md (
+  main_decoder _main_decoder (
     .instr(instr),
     .reg_write(reg_write),
     .mem_write(mem_write),
@@ -47,29 +47,29 @@ module controller
     .alu_src(alu_src),
     .alu_result_src(alu_result_src),
     .result_src(result_src),
-    .branch(branch),
-    .jump(jump),
-    .alu_op(alu_op),
+    .branch(_branch),
+    .jump(_jump),
+    .alu_op(_alu_op),
     .mem_size(mem_size),
     .mem_unsigned(mem_unsigned),
     .clear_pc_lsb(clear_pc_lsb),
-    .illegal_main(illegal_main)
+    .illegal_main(_illegal_main)
   );
 
-  branch_logic bl (
-    .branch(branch),
-    .jump  (jump),
+  branch_logic _branch_logic (
+    .branch(_branch),
+    .jump  (_jump),
     .flags (branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(pc_src)
   );
 
-  alu_decoder ad (
-    .alu_op(alu_op),
+  alu_decoder _alu_decoder (
+    .alu_op(_alu_op),
     .instr(instr),
     .alu_select(alu_select),
     .sub_arith(sub_arith),
-    .illegal_alu(illegal_alu)
+    .illegal_alu(_illegal_alu)
   );
 
 endmodule

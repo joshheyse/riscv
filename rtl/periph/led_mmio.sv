@@ -34,7 +34,7 @@ module led_mmio
     end
   end
 
-  logic unused_write_data;
-  assign unused_write_data = |mem_write_data[WordBits-1:NumLeds];
+  logic _unused_write_data;
+  assign _unused_write_data = |mem_write_data[WordBits-1:NumLeds];
 
 endmodule

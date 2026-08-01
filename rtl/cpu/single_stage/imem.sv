@@ -27,11 +27,11 @@ module imem
 );
 
   localparam int unsigned IndexBits = $clog2(DepthWords);
-  instr_t rom[DepthWords-1:0];
+  instr_t _rom[DepthWords-1:0];
 
   initial begin
     if (InitFile != "") begin
-      $readmemh(InitFile, rom);
+      $readmemh(InitFile, _rom);
     end
   end
 
@@ -40,13 +40,13 @@ module imem
       instr <= '0;
     end else begin
       if (en) begin
-        instr <= rom[addr[IndexBits+1:2]];
+        instr <= _rom[addr[IndexBits+1:2]];
       end
     end
   end
 
   // intentionally ignored for this small aligned ROM
-  logic unused_addr_bits;
-  assign unused_addr_bits = |{addr[31:IndexBits+2], addr[1:0]};
+  logic _unused_addr_bits;
+  assign _unused_addr_bits = |{addr[31:IndexBits+2], addr[1:0]};
 
 endmodule

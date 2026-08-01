@@ -30,7 +30,7 @@ module gpio_mmio
     assert (NumGpio < WordBits);
   end
 
-  logic [NumGpio-1:0] read;
+  logic [NumGpio-1:0] _read;
 
 
   assign selected = mem_addr == GpioDataInAddr || mem_addr == GpioDataOutAddr || mem_addr == GpioDirAddr ||
@@ -57,14 +57,14 @@ module gpio_mmio
     end
   end
 
-  assign read = mem_addr == GpioDataInAddr ? gpio_in :
+  assign _read = mem_addr == GpioDataInAddr ? gpio_in :
                    mem_addr == GpioDataOutAddr ? gpio_out :
                    mem_addr == GpioDirAddr ? gpio_oe :
                    8'h0;
 
-  assign read_data = {{WordBits - NumGpio{1'b0}}, read};
+  assign read_data = {{WordBits - NumGpio{1'b0}}, _read};
 
-  logic unused_write_data;
-  assign unused_write_data = |mem_write_data[WordBits-1:NumGpio];
+  logic _unused_write_data;
+  assign _unused_write_data = |mem_write_data[WordBits-1:NumGpio];
 
 endmodule

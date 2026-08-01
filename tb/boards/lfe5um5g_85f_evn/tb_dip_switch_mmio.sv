@@ -9,10 +9,10 @@ module tb_dip_switch_mmio
   localparam word_t DipSwitchAddr = 32'h1000_3000;
   localparam int unsigned NumDipSwitches = 8;
 
-  word_t mem_addr;
-  logic selected;
-  word_t read_data;
-  logic [NumDipSwitches-1:0] dip_switch;
+  word_t _mem_addr;
+  logic _selected;
+  word_t _read_data;
+  logic [NumDipSwitches-1:0] _dip_switch;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -20,11 +20,11 @@ module tb_dip_switch_mmio
   dip_switch_mmio #(
     .DipSwitchAddr (DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
-  ) dut (
-    .mem_addr  (mem_addr),
-    .selected  (selected),
-    .read_data (read_data),
-    .dip_switch(dip_switch)
+  ) _dut (
+    .mem_addr  (_mem_addr),
+    .selected  (_selected),
+    .read_data (_read_data),
+    .dip_switch(_dip_switch)
   );
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -44,8 +44,8 @@ module tb_dip_switch_mmio
   endtask
 
   task automatic set_inputs(input word_t addr, input logic [NumDipSwitches-1:0] switches);
-    mem_addr   = addr;
-    dip_switch = switches;
+    _mem_addr   = addr;
+    _dip_switch = switches;
     #Step;
   endtask
 
@@ -56,26 +56,26 @@ module tb_dip_switch_mmio
     end
 
     set_inputs('0, '0);
-    expect_bit(selected, 1'b0, "reset-like unmapped address not selected");
-    expect_word(read_data, '0, "zero switches read as zero");
+    expect_bit(_selected, 1'b0, "reset-like unmapped address not selected");
+    expect_word(_read_data, '0, "zero switches read as zero");
 
     set_inputs(DipSwitchAddr, 8'h00);
-    expect_bit(selected, 1'b1, "DIP switch address selected");
-    expect_word(read_data, 32'h0000_0000, "all switches off read zero");
+    expect_bit(_selected, 1'b1, "DIP switch address selected");
+    expect_word(_read_data, 32'h0000_0000, "all switches off read zero");
 
     set_inputs(DipSwitchAddr, 8'ha5);
-    expect_word(read_data, 32'h0000_00a5, "switch pattern is zero-extended");
+    expect_word(_read_data, 32'h0000_00a5, "switch pattern is zero-extended");
 
     set_inputs(DipSwitchAddr, 8'hff);
-    expect_word(read_data, 32'h0000_00ff, "all switches on are visible");
+    expect_word(_read_data, 32'h0000_00ff, "all switches on are visible");
 
     set_inputs(DipSwitchAddr + 32'h4, 8'h3c);
-    expect_bit(selected, 1'b0, "neighbor address not selected");
-    expect_word(read_data, 32'h0000_003c, "read data still mirrors raw switch input");
+    expect_bit(_selected, 1'b0, "neighbor address not selected");
+    expect_word(_read_data, 32'h0000_003c, "read data still mirrors raw switch input");
 
     set_inputs(32'h2000_0000, 8'hc3);
-    expect_bit(selected, 1'b0, "unmapped address not selected");
-    expect_word(read_data, 32'h0000_00c3, "unmapped read data mirrors raw switch input");
+    expect_bit(_selected, 1'b0, "unmapped address not selected");
+    expect_word(_read_data, 32'h0000_00c3, "unmapped read data mirrors raw switch input");
 
     if (errors == 0) begin
       $display("tb_dip_switch_mmio: PASS (%0d checks)", checks);

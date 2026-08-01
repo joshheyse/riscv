@@ -6,53 +6,53 @@ module tb_serial_tick_generator;
   localparam int unsigned ClocksPerTick = 4;
   localparam int unsigned TimeoutCycles = 100;
 
-  logic clk;
-  logic rst;
-  logic enable;
-  logic clear;
-  logic tick;
-  logic tick_every_cycle;
+  logic _clk;
+  logic _rst;
+  logic _enable;
+  logic _clear;
+  logic _tick;
+  logic _tick_every_cycle;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned _errors = 0;
+  int unsigned _checks = 0;
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerTick)
-  ) dut (
-    .clk(clk),
-    .rst(rst),
-    .enable(enable),
-    .clear(clear),
-    .tick(tick)
+  ) _dut (
+    .clk(_clk),
+    .rst(_rst),
+    .enable(_enable),
+    .clear(_clear),
+    .tick(_tick)
   );
 
   serial_tick_generator #(
     .ClocksPerTick(1)
-  ) dut_every_cycle (
-    .clk(clk),
-    .rst(rst),
-    .enable(enable),
-    .clear(clear),
-    .tick(tick_every_cycle)
+  ) _dut_every_cycle (
+    .clk(_clk),
+    .rst(_rst),
+    .enable(_enable),
+    .clear(_clear),
+    .tick(_tick_every_cycle)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
   task automatic step_expect(input logic exp, input string what);
-    @(posedge clk);
+    @(posedge _clk);
     #1;
-    expect_bit(tick, exp, what);
+    expect_bit(_tick, exp, what);
   endtask
 
   initial begin
@@ -61,69 +61,69 @@ module tb_serial_tick_generator;
       $dumpvars(0, tb_serial_tick_generator);
     end
 
-    rst    = 1'b1;
-    enable = 1'b0;
-    clear  = 1'b0;
+    _rst    = 1'b1;
+    _enable = 1'b0;
+    _clear  = 1'b0;
 
-    repeat (2) @(posedge clk);
+    repeat (2) @(posedge _clk);
     #1;
-    expect_bit(tick, 1'b0, "reset clears tick");
-    expect_bit(tick_every_cycle, 1'b0, "reset clears every-cycle tick");
+    expect_bit(_tick, 1'b0, "reset clears tick");
+    expect_bit(_tick_every_cycle, 1'b0, "reset clears every-cycle tick");
 
-    @(negedge clk);
-    rst    = 1'b0;
-    enable = 1'b1;
+    @(negedge _clk);
+    _rst    = 1'b0;
+    _enable = 1'b1;
 
     step_expect(1'b0, "enabled cycle 1 no tick");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 1");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 1");
     step_expect(1'b0, "enabled cycle 2 no tick");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 2");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 2");
     step_expect(1'b1, "enabled terminal-count cycle ticks");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks on terminal-count cycle");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks on terminal-count cycle");
     step_expect(1'b0, "enabled cycle after tick no tick");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks with normal generator");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks with normal generator");
     step_expect(1'b0, "tick is one cycle");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator continues ticking");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator continues ticking");
     step_expect(1'b0, "next period cycle 2 no tick");
 
-    @(negedge clk);
-    clear = 1'b1;
+    @(negedge _clk);
+    _clear = 1'b1;
     step_expect(1'b0, "clear suppresses tick");
-    expect_bit(tick_every_cycle, 1'b0, "clear suppresses every-cycle tick");
+    expect_bit(_tick_every_cycle, 1'b0, "clear suppresses every-cycle tick");
 
-    @(negedge clk);
-    clear = 1'b0;
+    @(negedge _clk);
+    _clear = 1'b0;
     step_expect(1'b0, "after clear cycle 1 no tick");
     step_expect(1'b0, "after clear cycle 2 no tick");
     step_expect(1'b1, "after clear terminal-count cycle ticks");
     step_expect(1'b0, "after clear cycle after tick no tick");
 
-    @(negedge clk);
-    enable = 1'b0;
+    @(negedge _clk);
+    _enable = 1'b0;
     step_expect(1'b0, "disabled clears tick");
-    expect_bit(tick_every_cycle, 1'b0, "disabled clears every-cycle tick");
+    expect_bit(_tick_every_cycle, 1'b0, "disabled clears every-cycle tick");
     step_expect(1'b0, "disabled holds tick low");
-    expect_bit(tick_every_cycle, 1'b0, "disabled holds every-cycle tick low");
+    expect_bit(_tick_every_cycle, 1'b0, "disabled holds every-cycle tick low");
 
-    @(negedge clk);
-    enable = 1'b1;
+    @(negedge _clk);
+    _enable = 1'b1;
     step_expect(1'b0, "re-enabled cycle 1 no tick");
-    expect_bit(tick_every_cycle, 1'b1, "every-cycle generator ticks after re-enable");
+    expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks after re-enable");
     step_expect(1'b0, "re-enabled cycle 2 no tick");
     step_expect(1'b1, "re-enabled terminal-count cycle ticks");
     step_expect(1'b0, "re-enabled cycle after tick no tick");
 
-    if (errors == 0) begin
-      $display("tb_serial_tick_generator: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_serial_tick_generator: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_serial_tick_generator: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_serial_tick_generator: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_serial_tick_generator: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

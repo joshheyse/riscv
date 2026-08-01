@@ -15,29 +15,29 @@ module top_sim
 );
   localparam realtime ClkPeriod = 10ns;
 
-  logic clk;
-  logic rst;
-  pc_t pc;
-  pc_t imem_addr;
-  instr_u instr;
-  logic [7:0] led;
-  logic [7:0] led_prev;
-  logic sim_halt_selected;
-  logic halted;
-  logic uart_tx;
-  logic core_imem_en;
-  dbus_if core_dbus ();
-  dbus_if board_dbus ();
+  logic _clk;
+  logic _rst;
+  pc_t _pc;
+  pc_t _imem_addr;
+  instr_u _instr;
+  logic [7:0] _led;
+  logic [7:0] _led_prev;
+  logic _sim_halt_selected;
+  logic _halted;
+  logic _uart_tx;
+  logic _core_imem_en;
+  dbus_if _core_dbus ();
+  dbus_if _board_dbus ();
 
-  assign sim_halt_selected = (core_dbus.addr == SimHaltAddr);
-  assign core_dbus.read_data = sim_halt_selected ? '0 : board_dbus.read_data;
-  assign core_dbus.ready = sim_halt_selected ? core_dbus.valid : board_dbus.ready;
-  assign board_dbus.valid = core_dbus.valid & !sim_halt_selected;
-  assign board_dbus.write_en = core_dbus.write_en & !sim_halt_selected;
-  assign board_dbus.addr = core_dbus.addr;
-  assign board_dbus.write_data = core_dbus.write_data;
-  assign board_dbus.size = core_dbus.size;
-  assign board_dbus.mem_unsigned = core_dbus.mem_unsigned;
+  assign _sim_halt_selected = (_core_dbus.addr == SimHaltAddr);
+  assign _core_dbus.read_data = _sim_halt_selected ? '0 : _board_dbus.read_data;
+  assign _core_dbus.ready = _sim_halt_selected ? _core_dbus.valid : _board_dbus.ready;
+  assign _board_dbus.valid = _core_dbus.valid & !_sim_halt_selected;
+  assign _board_dbus.write_en = _core_dbus.write_en & !_sim_halt_selected;
+  assign _board_dbus.addr = _core_dbus.addr;
+  assign _board_dbus.write_data = _core_dbus.write_data;
+  assign _board_dbus.size = _core_dbus.size;
+  assign _board_dbus.mem_unsigned = _core_dbus.mem_unsigned;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -46,64 +46,64 @@ module top_sim
   end
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   initial begin
-    rst = 1'b1;
-    repeat (4) @(posedge clk);
-    rst = 1'b0;
+    _rst = 1'b1;
+    repeat (4) @(posedge _clk);
+    _rst = 1'b0;
   end
 
   imem #(
     .DepthWords(ImemDepthWords),
     .InitFile  (ImemInitFile)
-  ) imem_i (
-    .clk(clk),
-    .rst(rst),
-    .en(core_imem_en),
-    .addr(imem_addr),
-    .instr(instr.raw)
+  ) _imem (
+    .clk(_clk),
+    .rst(_rst),
+    .en(_core_imem_en),
+    .addr(_imem_addr),
+    .instr(_instr.raw)
   );
 
-  core core_i (
-    .clk(clk),
-    .rst(rst),
-    .instr(instr),
-    .pc(pc),
-    .imem_addr(imem_addr),
-    .halted(halted),
-    .dbus(core_dbus),
-    .imem_en(core_imem_en)
+  core _core (
+    .clk(_clk),
+    .rst(_rst),
+    .instr(_instr),
+    .pc(_pc),
+    .imem_addr(_imem_addr),
+    .halted(_halted),
+    .dbus(_core_dbus),
+    .imem_en(_core_imem_en)
   );
 
   board_bus #(
     .DmemDepthWords(DmemDepthWords),
     .DmemInitFile  (DmemInitFile)
-  ) board_bus_i (
-    .clk(clk),
-    .rst(rst),
-    .led(led),
-    .uart_tx(uart_tx),
-    .dbus(board_dbus)
+  ) _board_bus (
+    .clk(_clk),
+    .rst(_rst),
+    .led(_led),
+    .uart_tx(_uart_tx),
+    .dbus(_board_dbus)
   );
 
   task automatic uart_getc(output byte ch);
-    @(negedge uart_tx);
+    @(negedge _uart_tx);
     #(ClkPeriod * ClocksPerBit / 2);
 
-    if (uart_tx !== 1'b0) begin
+    if (_uart_tx !== 1'b0) begin
       $error("UART start bit was not stable low");
     end
 
     #(ClkPeriod * ClocksPerBit);
     for (int i = 0; i < 8; i++) begin
-      ch[i] = uart_tx;
+      ch[i] = _uart_tx;
       #(ClkPeriod * ClocksPerBit);
     end
 
-    if (uart_tx !== 1'b1) begin
+    if (_uart_tx !== 1'b1) begin
       $error("UART stop bit was not high after byte 0x%02h", ch);
     end
   endtask
@@ -120,35 +120,35 @@ module top_sim
     end
   end
 
-  always_ff @(posedge clk) begin
-    if (rst) begin
-      led_prev <= '0;
-    end else if (led != led_prev) begin
-      $display("led: 0x%02h", led);
-      led_prev <= led;
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
+      _led_prev <= '0;
+    end else if (_led != _led_prev) begin
+      $display("_led: 0x%02h", _led);
+      _led_prev <= _led;
     end
   end
 
   initial begin
     forever begin
-      @(posedge clk);
-      if (!rst && core_dbus.valid && core_dbus.write_en && sim_halt_selected) begin
-        repeat (ClocksPerBit * 12) @(posedge clk);
+      @(posedge _clk);
+      if (!_rst && _core_dbus.valid && _core_dbus.write_en && _sim_halt_selected) begin
+        repeat (ClocksPerBit * 12) @(posedge _clk);
         $write("\n");
-        $display("top_sim: halt code 0x%08h pc=0x%08h", core_dbus.write_data, pc);
+        $display("top_sim: halt code 0x%08h _pc=0x%08h", _core_dbus.write_data, _pc);
         $finish;
       end
     end
   end
 
-  always_ff @(posedge clk) begin
-    if (!rst && halted) begin
-      $fatal(1, "top_sim: core halted before firmware wrote SIM_HALT");
+  always_ff @(posedge _clk) begin
+    if (!_rst && _halted) begin
+      $fatal(1, "top_sim: core _halted before firmware wrote SIM_HALT");
     end
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $fatal(1, "top_sim: watchdog timeout after %0d cycles", TimeoutCycles);
   end
 

@@ -10,14 +10,14 @@ module tb_uart_mmio
   localparam word_t TxDataAddr = 32'h1000_1000;
   localparam word_t StatusAddr = 32'h1000_4000;
 
-  logic clk;
-  logic rst;
-  logic mem_write_en;
-  word_t mem_addr;
-  word_t mem_write_data;
-  logic selected;
-  word_t read_data;
-  logic tx;
+  logic _clk;
+  logic _rst;
+  logic _mem_write_en;
+  word_t _mem_addr;
+  word_t _mem_write_data;
+  logic _selected;
+  word_t _read_data;
+  logic _tx;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -26,20 +26,20 @@ module tb_uart_mmio
     .ClocksPerBit(ClocksPerBit),
     .TxDataAddr  (TxDataAddr),
     .StatusAddr  (StatusAddr)
-  ) dut (
-    .clk(clk),
-    .rst(rst),
-    .mem_write_en(mem_write_en),
-    .mem_addr(mem_addr),
-    .mem_write_data(mem_write_data),
-    .selected(selected),
-    .read_data(read_data),
-    .tx(tx)
+  ) _dut (
+    .clk(_clk),
+    .rst(_rst),
+    .mem_write_en(_mem_write_en),
+    .mem_addr(_mem_addr),
+    .mem_write_data(_mem_write_data),
+    .selected(_selected),
+    .read_data(_read_data),
+    .tx(_tx)
   );
 
   initial begin
-    clk = 1'b0;
-    forever #(ClkPeriod / 2) clk = ~clk;
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -59,29 +59,29 @@ module tb_uart_mmio
   endtask
 
   task automatic write_mmio(input word_t a, input word_t data);
-    @(negedge clk);
-    mem_addr       = a;
-    mem_write_data = data;
-    mem_write_en   = 1'b1;
-    @(posedge clk);
+    @(negedge _clk);
+    _mem_addr       = a;
+    _mem_write_data = data;
+    _mem_write_en   = 1'b1;
+    @(posedge _clk);
     #1;
-    mem_write_en = 1'b0;
+    _mem_write_en = 1'b0;
   endtask
 
   task automatic expect_status_ready(input logic ready, input string what);
-    @(negedge clk);
-    mem_addr = StatusAddr;
-    mem_write_en = 1'b0;
+    @(negedge _clk);
+    _mem_addr = StatusAddr;
+    _mem_write_en = 1'b0;
     #1;
-    expect_bit(selected, 1'b1, "status address selected");
-    expect_word(read_data, {31'b0, ready}, what);
+    expect_bit(_selected, 1'b1, "status address selected");
+    expect_word(_read_data, {31'b0, ready}, what);
   endtask
 
   task automatic expect_tx_bit(input logic exp, input string what);
-    repeat (ClocksPerBit / 2) @(posedge clk);
+    repeat (ClocksPerBit / 2) @(posedge _clk);
     #1;
-    expect_bit(tx, exp, what);
-    repeat (ClocksPerBit - (ClocksPerBit / 2)) @(posedge clk);
+    expect_bit(_tx, exp, what);
+    repeat (ClocksPerBit - (ClocksPerBit / 2)) @(posedge _clk);
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -92,28 +92,28 @@ module tb_uart_mmio
       $dumpvars(0, tb_uart_mmio);
     end
 
-    rst            = 1'b1;
-    mem_write_en   = 1'b0;
-    mem_addr       = '0;
-    mem_write_data = '0;
+    _rst            = 1'b1;
+    _mem_write_en   = 1'b0;
+    _mem_addr       = '0;
+    _mem_write_data = '0;
 
-    repeat (2) @(posedge clk);
+    repeat (2) @(posedge _clk);
     #1;
-    expect_bit(tx, 1'b1, "reset drives UART idle high");
+    expect_bit(_tx, 1'b1, "reset drives UART idle high");
 
-    @(negedge clk);
-    rst = 1'b0;
+    @(negedge _clk);
+    _rst = 1'b0;
     expect_status_ready(1'b1, "idle status ready");
 
     write_mmio(TxDataAddr, 32'h0000_00a5);
     #1;
-    expect_bit(selected, 1'b1, "tx data address selected");
-    expect_word(read_data, 32'h0000_0000, "non-status read_data is zero");
+    expect_bit(_selected, 1'b1, "tx data address selected");
+    expect_word(_read_data, 32'h0000_0000, "non-status read_data is zero");
 
-    @(negedge clk);
-    mem_addr = StatusAddr;
+    @(negedge _clk);
+    _mem_addr = StatusAddr;
     #1;
-    expect_word(read_data, 32'h0000_0000, "busy status not ready");
+    expect_word(_read_data, 32'h0000_0000, "busy status not ready");
 
     // 0xa5 = 8'b1010_0101, transmitted LSB first:
     // start, 1, 0, 1, 0, 0, 1, 0, 1, stop.
@@ -128,25 +128,25 @@ module tb_uart_mmio
     expect_tx_bit(1'b1, "data bit 7");
     expect_tx_bit(1'b1, "stop bit");
 
-    repeat (1) @(posedge clk);
+    repeat (1) @(posedge _clk);
     expect_status_ready(1'b1, "ready after stop bit");
-    expect_bit(tx, 1'b1, "idle high after frame");
+    expect_bit(_tx, 1'b1, "idle high after frame");
 
-    @(negedge clk);
-    mem_addr = 32'h2000_0000;
+    @(negedge _clk);
+    _mem_addr = 32'h2000_0000;
     #1;
-    expect_bit(selected, 1'b0, "unmapped address not selected");
+    expect_bit(_selected, 1'b0, "unmapped address not selected");
 
     write_mmio(TxDataAddr, 32'h0000_003c);
     expect_tx_bit(1'b0, "second frame start");
 
-    @(negedge clk);
-    mem_addr       = TxDataAddr;
-    mem_write_data = 32'h0000_00ff;
-    mem_write_en   = 1'b1;
-    @(posedge clk);
+    @(negedge _clk);
+    _mem_addr       = TxDataAddr;
+    _mem_write_data = 32'h0000_00ff;
+    _mem_write_en   = 1'b1;
+    @(posedge _clk);
     #1;
-    mem_write_en = 1'b0;
+    _mem_write_en = 1'b0;
 
     expect_tx_bit(1'b0, "second frame data bit 0 ignores busy write");
     expect_tx_bit(1'b0, "second frame data bit 1 ignores busy write");
@@ -162,7 +162,7 @@ module tb_uart_mmio
   end
 
   initial begin
-    repeat (TimeoutCycles) @(posedge clk);
+    repeat (TimeoutCycles) @(posedge _clk);
     $display("tb_uart_mmio: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end

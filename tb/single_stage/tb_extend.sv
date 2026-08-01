@@ -24,36 +24,36 @@ module tb_extend
   // Held as a full 32-bit encoding so the vectors below match objdump output
   // verbatim; only [31:7] is wired to the DUT, so the opcode bits are unread.
   /* verilator lint_off UNUSEDSIGNAL */
-  logic        [31:0] instr;
+  logic        [31:0] _instr;
   /* verilator lint_on UNUSEDSIGNAL */
-  imm_src_t           imm_src;
-  word_t              imm_ext;
+  imm_src_t           _imm_src;
+  word_t              _imm_ext;
 
   int unsigned        errors = 0;
   int unsigned        checks = 0;
 
   // extend only takes instr[31:7]; the opcode is decoded elsewhere.
-  extend dut (
-    .imm_src(imm_src),
-    .instr  (instr[31:7]),
-    .imm_ext(imm_ext)
+  extend _dut (
+    .imm_src(_imm_src),
+    .instr  (_instr[31:7]),
+    .imm_ext(_imm_ext)
   );
 
   // ------------------------------------------------------------- helpers --
 
   task automatic check(input logic [31:0] encoding, input imm_src_t src, input logic [31:0] exp,
                        input string what);
-    instr   = encoding;
-    imm_src = src;
+    _instr   = encoding;
+    _imm_src = src;
     #1;
     checks++;
-    if (imm_ext !== exp) begin
+    if (_imm_ext !== exp) begin
       errors++;
       // $display, not $error: Verilator treats $error as $stop and aborts the
       // run on the first mismatch, which hides every later failure. Counting
       // here and calling $fatal once at the end reports the whole picture.
       $display("  FAIL %s: instr=0x%08h -> imm_ext=0x%08h, expected 0x%08h", what, encoding,
-               imm_ext, exp);
+               _imm_ext, exp);
     end
   endtask
 

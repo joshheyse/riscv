@@ -176,7 +176,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -184,6 +184,10 @@ all: sim
 ## lint: Verilator lint of the RTL, no testbench (override TOP for one module)
 lint: $(RTL_SRCS)
 	$(VERILATOR) --lint-only $(VERILATOR_FLAGS) --top-module $(TOP) $(RTL_SRCS)
+
+## style: project-specific SystemVerilog naming/style checks
+style:
+	tools/check_sv_style.py $(RTL_SRCS) $(PERIPH_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS)
 
 ## sim: build and run the testbench selected by TB
 sim: run

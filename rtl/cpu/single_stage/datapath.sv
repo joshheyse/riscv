@@ -8,20 +8,20 @@
 // happens here where the register/immediate datapath uses those fields.
 //
 // ALU operand mux:
-//   alu_src           src_a      src_b
+//   alu_src           _src_a      _src_b
 //   ----------------  ---------  --------
-//   ALU_SRC_RS1_RS2   rd_data1   rd_data2
-//   ALU_SRC_RS1_IMM   rd_data1   imm_ext
-//   ALU_SRC_PC_IMM    pc         imm_ext
+//   ALU_SRC_RS1_RS2   _rd_data1   _rd_data2
+//   ALU_SRC_RS1_IMM   _rd_data1   _imm_ext
+//   ALU_SRC_PC_IMM    pc         _imm_ext
 //
 // Writeback mux:
 //   alu_result_src     pre-memory value
 //   -----------------  ----------------
 //   ALU_RES_ALU        alu_result
 //   ALU_RES_PC_PLUS4   pc + 4
-//   ALU_RES_IMM        imm_ext
+//   ALU_RES_IMM        _imm_ext
 //
-//   result_src         regfile wr_data
+//   result_src         _regfile _wr_data
 //   ----------         ----------------
 //   RESULT_ALU         pre-memory value
 //   RESULT_MEM         read_data from LSU
@@ -50,47 +50,47 @@ module datapath
   output branch_flags_t branch_flags
 );
 
-  word_t rd_data1;
-  word_t rd_data2;
-  word_t wr_data;
-  word_t imm_ext;
-  word_t src_a;
-  word_t src_b;
-  word_t alu_result_mux;
+  word_t _rd_data1;
+  word_t _rd_data2;
+  word_t _wr_data;
+  word_t _imm_ext;
+  word_t _src_a;
+  word_t _src_b;
+  word_t _alu_result_mux;
 
-  extend ext (
+  extend _extend (
     .imm_src(imm_src),
     .instr  (instr[31:7]),
-    .imm_ext(imm_ext)
+    .imm_ext(_imm_ext)
   );
 
-  reg_file regfile (
+  reg_file _regfile (
     .clk(clk),
     .rd_addr1(instr.r.rs1),
     .rd_addr2(instr.r.rs2),
     .wr_addr(instr.r.rd),
-    .wr_data(wr_data),
+    .wr_data(_wr_data),
     .wr_en(reg_write),
-    .rd_data1(rd_data1),
-    .rd_data2(rd_data2)
+    .rd_data1(_rd_data1),
+    .rd_data2(_rd_data2)
   );
 
-  comparator c (
-    .src_a(rd_data1),
-    .src_b(rd_data2),
+  comparator _controller (
+    .src_a(_rd_data1),
+    .src_b(_rd_data2),
     .sngd(branch_sgnd),
     .eq(branch_flags.eq),
     .lt(branch_flags.lt)
   );
 
-  assign src_a = alu_src[1] ? pc : rd_data1;
-  assign src_b = alu_src[0] ? imm_ext : rd_data2;
-  assign write_data = rd_data2;
+  assign _src_a = alu_src[1] ? pc : _rd_data1;
+  assign _src_b = alu_src[0] ? _imm_ext : _rd_data2;
+  assign write_data = _rd_data2;
   assign ieu_addr = alu_result;
 
-  alu al (
-    .src_a(src_a),
-    .src_b(src_b),
+  alu _alu (
+    .src_a(_src_a),
+    .src_b(_src_b),
     .alu_select(alu_select),
     .sub_arith(sub_arith),
     .alu_result(alu_result)
@@ -98,14 +98,14 @@ module datapath
 
   always_comb begin
     unique case (alu_result_src)
-      ALU_RES_ALU: alu_result_mux = alu_result;
-      ALU_RES_PC_PLUS4: alu_result_mux = pc + pc_t'(4);
-      ALU_RES_IMM: alu_result_mux = imm_ext;
+      ALU_RES_ALU: _alu_result_mux = alu_result;
+      ALU_RES_PC_PLUS4: _alu_result_mux = pc + pc_t'(4);
+      ALU_RES_IMM: _alu_result_mux = _imm_ext;
     endcase
 
     unique case (result_src)
-      RESULT_ALU: wr_data = alu_result_mux;
-      RESULT_MEM: wr_data = read_data;
+      RESULT_ALU: _wr_data = _alu_result_mux;
+      RESULT_MEM: _wr_data = read_data;
     endcase
   end
 

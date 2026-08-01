@@ -24,14 +24,14 @@ module reg_file
   output word_t rd_data2
 );
 
-  logic [31:0] regs[31:0];
+  logic [31:0] _regs[31:0];
 
-  assign rd_data1 = rd_addr1 == '0 ? '0 : regs[rd_addr1];
-  assign rd_data2 = rd_addr2 == '0 ? '0 : regs[rd_addr2];
+  assign rd_data1 = rd_addr1 == '0 ? '0 : _regs[rd_addr1];
+  assign rd_data2 = rd_addr2 == '0 ? '0 : _regs[rd_addr2];
 
   always_ff @(posedge clk) begin
     if (wr_en) begin
-      regs[wr_addr] <= wr_data;
+      _regs[wr_addr] <= wr_data;
     end
   end
 

@@ -21,6 +21,10 @@ smoke:
 lint top="core":
     make lint DESIGN={{design}} TOP={{top}}
 
+# Check project-specific SystemVerilog style rules.
+style:
+    make style DESIGN={{design}}
+
 # Build and run a testbench: just sim reg_file
 sim tb="core":
     make sim DESIGN={{design}} TB={{tb}}
@@ -73,6 +77,7 @@ flash target=board app=default_app:
 
 # Run every testbench in the design and report a pass/fail summary.
 test:
+    make style DESIGN={{design}}
     @fail=0; \
     for f in tb/{{design}}/tb_*.sv; do \
         [ -e "$f" ] || continue; \
