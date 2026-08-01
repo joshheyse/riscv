@@ -147,11 +147,15 @@ module top_sim #(
     end
   end
 
-  always_ff @(posedge clk) begin
-    if (!rst && core_dbus_valid && core_dbus_write && sim_halt_selected) begin
-      $write("\n");
-      $display("top_sim: halt code 0x%08h pc=0x%08h", core_dbus_write_data, pc);
-      $finish;
+  initial begin
+    forever begin
+      @(posedge clk);
+      if (!rst && core_dbus_valid && core_dbus_write && sim_halt_selected) begin
+        repeat (ClocksPerBit * 12) @(posedge clk);
+        $write("\n");
+        $display("top_sim: halt code 0x%08h pc=0x%08h", core_dbus_write_data, pc);
+        $finish;
+      end
     end
   end
 
