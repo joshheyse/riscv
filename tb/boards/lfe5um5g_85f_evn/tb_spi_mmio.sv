@@ -16,7 +16,7 @@ module tb_spi_mmio
 
   logic clk;
   logic rst;
-  logic mem_write;
+  logic mem_write_en;
   word_t mem_addr;
   word_t mem_write_data;
   logic selected;
@@ -37,7 +37,7 @@ module tb_spi_mmio
   ) dut (
     .clk(clk),
     .rst(rst),
-    .mem_write(mem_write),
+    .mem_write_en(mem_write_en),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(selected),
@@ -71,8 +71,8 @@ module tb_spi_mmio
 
   task automatic set_read_addr(input word_t addr);
     @(negedge clk);
-    mem_write = 1'b0;
-    mem_addr  = addr;
+    mem_write_en = 1'b0;
+    mem_addr = addr;
     #1;
   endtask
 
@@ -80,10 +80,10 @@ module tb_spi_mmio
     @(negedge clk);
     mem_addr       = addr;
     mem_write_data = data;
-    mem_write      = 1'b1;
+    mem_write_en   = 1'b1;
     @(posedge clk);
     #1;
-    mem_write = 1'b0;
+    mem_write_en = 1'b0;
   endtask
 
   task automatic expect_idle(input string what);
@@ -145,7 +145,7 @@ module tb_spi_mmio
     end
 
     rst            = 1'b1;
-    mem_write      = 1'b0;
+    mem_write_en   = 1'b0;
     mem_addr       = '0;
     mem_write_data = '0;
     spi_miso       = 1'b0;

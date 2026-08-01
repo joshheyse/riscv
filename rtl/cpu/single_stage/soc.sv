@@ -21,7 +21,7 @@ module soc #(
   output logic halted
 );
 
-  logic dbus_write;
+  logic dbus_write_en;
   logic dbus_valid;
   logic dbus_ready;
   logic imem_en;
@@ -53,7 +53,7 @@ module soc #(
     .imem_addr(imem_addr),
     .halted(halted),
     .dbus_valid(dbus_valid),
-    .dbus_write(dbus_write),
+    .dbus_write_en(dbus_write_en),
     .dbus_addr(dbus_addr),
     .dbus_write_data(dbus_write_data),
     .dbus_read_data(dbus_read_data),
@@ -81,7 +81,7 @@ module soc #(
     .clk(clk),
     .rst(rst),
     .mem_valid(dbus_valid),
-    .mem_write(dbus_write),
+    .mem_write_en(dbus_write_en),
     .addr(dbus_addr),
     .write_data(write_mem),
     .read_data(read_mem),

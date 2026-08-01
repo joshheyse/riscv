@@ -26,7 +26,7 @@ module tb_board_bus
   logic [board_constants_pkg::NumGpio-1:0] gpio_out;
   logic [board_constants_pkg::NumGpio-1:0] gpio_oe;
   logic dbus_valid;
-  logic dbus_write;
+  logic dbus_write_en;
   logic dbus_ready;
   word_t dbus_addr;
   word_t dbus_write_data;
@@ -58,7 +58,7 @@ module tb_board_bus
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe),
     .dbus_valid(dbus_valid),
-    .dbus_write(dbus_write),
+    .dbus_write_en(dbus_write_en),
     .dbus_addr(dbus_addr),
     .dbus_write_data(dbus_write_data),
     .dbus_read_data(dbus_read_data),
@@ -99,8 +99,8 @@ module tb_board_bus
   task automatic set_read_addr(input word_t addr);
     @(negedge clk);
     dbus_valid = 1'b1;
-    dbus_write = 1'b0;
-    dbus_addr  = addr;
+    dbus_write_en = 1'b0;
+    dbus_addr = addr;
     @(posedge clk);
     #1;
     expect_bit(dbus_ready, 1'b1, "read ready");
@@ -112,12 +112,12 @@ module tb_board_bus
     dbus_valid      = 1'b1;
     dbus_addr       = addr;
     dbus_write_data = data;
-    dbus_write      = 1'b1;
+    dbus_write_en   = 1'b1;
     @(posedge clk);
     #1;
     expect_bit(dbus_ready, 1'b1, "write ready");
     dbus_valid = 1'b0;
-    dbus_write = 1'b0;
+    dbus_write_en = 1'b0;
   endtask
 
   initial begin
@@ -128,7 +128,7 @@ module tb_board_bus
 
     rst             = 1'b1;
     dbus_valid      = 1'b0;
-    dbus_write      = 1'b0;
+    dbus_write_en   = 1'b0;
     dbus_addr       = '0;
     dbus_write_data = '0;
     dbus_size       = MEM_SIZE_WORD;

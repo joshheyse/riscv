@@ -34,7 +34,7 @@ module board_bus #(
   output logic i2c_scl_drive_low,
 
   input  logic                 dbus_valid,
-  input  logic                 dbus_write,
+  input  logic                 dbus_write_en,
   input  riscv_pkg::word_t     dbus_addr,
   input  riscv_pkg::word_t     dbus_write_data,
   output riscv_pkg::word_t     dbus_read_data,
@@ -74,15 +74,15 @@ module board_bus #(
   assign selected[DmemIdx] = ((dbus_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign mmio_selected = |selected[NumSources-1:1];
   assign dbus_ready = selected[DmemIdx] ? dmem_ready : dbus_valid;
-  assign write_enabled[DmemIdx] = dbus_valid & dbus_write & selected[DmemIdx] & !mmio_selected;
-  assign write_enabled[LedIdx] = dbus_valid & dbus_write & selected[LedIdx];
+  assign write_enabled[DmemIdx] = dbus_valid & dbus_write_en & selected[DmemIdx] & !mmio_selected;
+  assign write_enabled[LedIdx] = dbus_valid & dbus_write_en & selected[LedIdx];
   assign write_enabled[DipSwitchIdx] = 1'b0;
   assign write_enabled[PushButtonIdx] = 1'b0;
-  assign write_enabled[GpioIdx] = dbus_valid & dbus_write & selected[GpioIdx];
-  assign write_enabled[UartIdx] = dbus_valid & dbus_write & selected[UartIdx];
+  assign write_enabled[GpioIdx] = dbus_valid & dbus_write_en & selected[GpioIdx];
+  assign write_enabled[UartIdx] = dbus_valid & dbus_write_en & selected[UartIdx];
   assign write_enabled[TimerIdx] = 1'b0;
-  assign write_enabled[SpiIdx] = dbus_valid & dbus_write & selected[SpiIdx];
-  assign write_enabled[I2cIdx] = dbus_valid & dbus_write & selected[I2cIdx];
+  assign write_enabled[SpiIdx] = dbus_valid & dbus_write_en & selected[SpiIdx];
+  assign write_enabled[I2cIdx] = dbus_valid & dbus_write_en & selected[I2cIdx];
 
   onehot_mux #(
     .Width(WordBits),
@@ -99,7 +99,7 @@ module board_bus #(
   ) lm_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(write_enabled[LedIdx]),
+    .mem_write_en(write_enabled[LedIdx]),
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[LedIdx]),
@@ -140,7 +140,7 @@ module board_bus #(
   ) gm_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(write_enabled[GpioIdx]),
+    .mem_write_en(write_enabled[GpioIdx]),
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[GpioIdx]),
@@ -168,7 +168,7 @@ module board_bus #(
   ) um_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(write_enabled[UartIdx]),
+    .mem_write_en(write_enabled[UartIdx]),
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[UartIdx]),
@@ -184,7 +184,7 @@ module board_bus #(
   ) sm_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(write_enabled[SpiIdx]),
+    .mem_write_en(write_enabled[SpiIdx]),
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[SpiIdx]),
@@ -204,7 +204,7 @@ module board_bus #(
   ) im_i (
     .clk(clk),
     .rst(rst),
-    .mem_write(write_enabled[I2cIdx]),
+    .mem_write_en(write_enabled[I2cIdx]),
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[I2cIdx]),
@@ -233,7 +233,7 @@ module board_bus #(
     .clk(clk),
     .rst(rst),
     .mem_valid(dbus_valid & selected[DmemIdx] & !mmio_selected),
-    .mem_write(write_enabled[DmemIdx]),
+    .mem_write_en(write_enabled[DmemIdx]),
     .addr(dbus_addr),
     .write_data(dmem_write_data),
     .write_mask(dmem_write_mask),

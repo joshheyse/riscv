@@ -23,7 +23,7 @@ module core (
   output riscv_pkg::pc_t imem_addr,
   output logic halted,
   output logic dbus_valid,
-  output logic dbus_write,
+  output logic dbus_write_en,
   output riscv_pkg::word_t dbus_addr,
   output riscv_pkg::word_t dbus_write_data,
   input riscv_pkg::word_t dbus_read_data,
@@ -69,7 +69,7 @@ module core (
   assign pc_en = !halt_now && !dbus_wait;
   assign imem_en = pc_en;
   assign reg_write = reg_write_raw && instr_valid && !halt_now && (!load_instr || load_complete);
-  assign dbus_write = mem_write_raw && instr_valid && !halt_now;
+  assign dbus_write_en = mem_write_raw && instr_valid && !halt_now;
 
   assign ifu_pc_src = instr_valid ? pc_src : riscv_pkg::PC_SRC_INC;
 

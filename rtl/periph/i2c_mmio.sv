@@ -27,7 +27,7 @@ module i2c_mmio #(
 ) (
   input logic clk,
   input logic rst,
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t mem_addr,
   input riscv_pkg::word_t mem_write_data,
   output logic selected,
@@ -89,7 +89,7 @@ module i2c_mmio #(
       phase <= I2C_PHASE_LOW;
       byte_type <= I2C_BYTE_ADDR;
     end else begin
-      if (mem_write) begin
+      if (mem_write_en) begin
         if (data_selected) begin
           tx_data <= mem_write_data[7:0];
         end else if (address_selected) begin
@@ -98,7 +98,7 @@ module i2c_mmio #(
       end
       case (state)
         I2C_IDLE: begin
-          if (mem_write && control_selected) begin
+          if (mem_write_en && control_selected) begin
             state <= I2C_START;
             phase <= I2C_PHASE_LOW;
             ack_error <= 1'b0;

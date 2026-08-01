@@ -21,7 +21,7 @@ module tb_lsu
   logic              clk;
   logic              rst;
   logic              mem_valid;
-  logic              mem_write;
+  logic              mem_write_en;
   logic              mem_ready;
   word_t             addr;
   word_t             write_data;
@@ -53,7 +53,7 @@ module tb_lsu
     .clk(clk),
     .rst(rst),
     .mem_valid(mem_valid),
-    .mem_write(mem_write),
+    .mem_write_en(mem_write_en),
     .addr(addr),
     .write_data(write_mem),
     .write_mask(write_mask),
@@ -80,7 +80,7 @@ module tb_lsu
                            input word_t exp, input string what);
     @(negedge clk);
     mem_valid    = 1'b1;
-    mem_write    = 1'b0;
+    mem_write_en = 1'b0;
     addr         = a;
     mem_size     = size;
     mem_unsigned = unsgnd;
@@ -98,12 +98,12 @@ module tb_lsu
     write_data   = data;
     mem_size     = size;
     mem_unsigned = 1'b0;
-    mem_write    = 1'b1;
+    mem_write_en = 1'b1;
     @(posedge clk);
     #1;
     expect_word({31'b0, mem_ready}, 32'h0000_0001, "write ready");
     mem_valid = 1'b0;
-    mem_write = 1'b0;
+    mem_write_en = 1'b0;
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -114,7 +114,7 @@ module tb_lsu
       $dumpvars(0, tb_lsu);
     end
 
-    mem_write    = 1'b0;
+    mem_write_en = 1'b0;
     mem_valid    = 1'b0;
     rst          = 1'b1;
     addr         = '0;

@@ -8,7 +8,7 @@ module uart_mmio #(
   input logic clk,
   input logic rst,
 
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t mem_addr,
   input riscv_pkg::word_t mem_write_data,
   output logic selected,
@@ -50,7 +50,7 @@ module uart_mmio #(
       tx_busy <= 1'b0;
       tx_data <= 8'h0;
       bit_idx <= '0;
-    end else if (mem_write && (mem_addr == TxDataAddr) && !tx_busy) begin
+    end else if (mem_write_en && (mem_addr == TxDataAddr) && !tx_busy) begin
       tx_busy <= 1'b1;
       tx_data <= mem_write_data[7:0];
       bit_idx <= 0;

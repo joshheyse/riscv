@@ -7,7 +7,7 @@ module dmem #(
   input logic clk,
   input logic rst,
   input logic mem_valid,
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t addr,
   input riscv_pkg::word_t write_data,
   input logic [3:0] write_mask,
@@ -34,7 +34,7 @@ module dmem #(
       if (mem_valid) begin
         read_data <= memory[word_index];
       end
-      if (mem_valid && mem_write) begin
+      if (mem_valid && mem_write_en) begin
         if (write_mask[0]) memory[word_index][7:0] <= write_data[7:0];
         if (write_mask[1]) memory[word_index][15:8] <= write_data[15:8];
         if (write_mask[2]) memory[word_index][23:16] <= write_data[23:16];

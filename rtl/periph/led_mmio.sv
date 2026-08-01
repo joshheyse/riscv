@@ -7,7 +7,7 @@ module led_mmio #(
   input logic clk,
   input logic rst,
 
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t mem_addr,
   input riscv_pkg::word_t mem_write_data,
   output logic selected,
@@ -27,7 +27,7 @@ module led_mmio #(
   always_ff @(posedge clk) begin
     if (rst) begin
       led <= '0;
-    end else if (mem_write && selected) begin
+    end else if (mem_write_en && selected) begin
       led <= mem_write_data[NumLeds-1:0];
     end
   end

@@ -40,7 +40,7 @@ module top #(
   logic halted;
 
   logic dbus_valid;
-  logic dbus_write;
+  logic dbus_write_en;
   logic dbus_ready;
   logic imem_en;
   riscv_pkg::word_t dbus_addr;
@@ -125,7 +125,7 @@ module top #(
     .i2c_scl_in(i2c_scl_in),
     .i2c_scl_drive_low(i2c_scl_drive_low),
     .dbus_valid(dbus_valid),
-    .dbus_write(dbus_write),
+    .dbus_write_en(dbus_write_en),
     .dbus_addr(dbus_addr),
     .dbus_write_data(dbus_write_data),
     .dbus_read_data(dbus_read_data),
@@ -142,7 +142,7 @@ module top #(
     .imem_addr(imem_addr),
     .halted(halted),
     .dbus_valid(dbus_valid),
-    .dbus_write(dbus_write),
+    .dbus_write_en(dbus_write_en),
     .dbus_addr(dbus_addr),
     .dbus_write_data(dbus_write_data),
     .dbus_read_data(dbus_read_data),

@@ -12,7 +12,7 @@ module tb_uart_mmio
 
   logic clk;
   logic rst;
-  logic mem_write;
+  logic mem_write_en;
   word_t mem_addr;
   word_t mem_write_data;
   logic selected;
@@ -29,7 +29,7 @@ module tb_uart_mmio
   ) dut (
     .clk(clk),
     .rst(rst),
-    .mem_write(mem_write),
+    .mem_write_en(mem_write_en),
     .mem_addr(mem_addr),
     .mem_write_data(mem_write_data),
     .selected(selected),
@@ -62,16 +62,16 @@ module tb_uart_mmio
     @(negedge clk);
     mem_addr       = a;
     mem_write_data = data;
-    mem_write      = 1'b1;
+    mem_write_en   = 1'b1;
     @(posedge clk);
     #1;
-    mem_write = 1'b0;
+    mem_write_en = 1'b0;
   endtask
 
   task automatic expect_status_ready(input logic ready, input string what);
     @(negedge clk);
-    mem_addr  = StatusAddr;
-    mem_write = 1'b0;
+    mem_addr = StatusAddr;
+    mem_write_en = 1'b0;
     #1;
     expect_bit(selected, 1'b1, "status address selected");
     expect_word(read_data, {31'b0, ready}, what);
@@ -93,7 +93,7 @@ module tb_uart_mmio
     end
 
     rst            = 1'b1;
-    mem_write      = 1'b0;
+    mem_write_en   = 1'b0;
     mem_addr       = '0;
     mem_write_data = '0;
 
@@ -143,10 +143,10 @@ module tb_uart_mmio
     @(negedge clk);
     mem_addr       = TxDataAddr;
     mem_write_data = 32'h0000_00ff;
-    mem_write      = 1'b1;
+    mem_write_en   = 1'b1;
     @(posedge clk);
     #1;
-    mem_write = 1'b0;
+    mem_write_en = 1'b0;
 
     expect_tx_bit(1'b0, "second frame data bit 0 ignores busy write");
     expect_tx_bit(1'b0, "second frame data bit 1 ignores busy write");

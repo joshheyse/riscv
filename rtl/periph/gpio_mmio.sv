@@ -12,7 +12,7 @@ module gpio_mmio #(
   input logic clk,
   input logic rst,
 
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t mem_addr,
   input riscv_pkg::word_t mem_write_data,
   output logic selected,
@@ -39,7 +39,7 @@ module gpio_mmio #(
       gpio_out <= 0;
       gpio_oe  <= 0;
     end else begin
-      if (mem_write && selected) begin
+      if (mem_write_en && selected) begin
         if (mem_addr == GpioDataOutAddr) begin
           gpio_out <= mem_write_data[NumGpio-1:0];
         end else if (mem_addr == GpioDirAddr) begin

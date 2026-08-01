@@ -24,7 +24,7 @@ module top_sim #(
   logic halted;
   logic core_dbus_valid;
   logic uart_tx;
-  logic core_dbus_write;
+  logic core_dbus_write_en;
   logic core_dbus_ready;
   riscv_pkg::word_t core_dbus_addr;
   riscv_pkg::word_t core_dbus_write_data;
@@ -33,7 +33,7 @@ module top_sim #(
   logic core_dbus_unsigned;
   logic core_imem_en;
   logic board_dbus_valid;
-  logic board_dbus_write;
+  logic board_dbus_write_en;
   logic board_dbus_ready;
   riscv_pkg::word_t board_dbus_read_data;
 
@@ -41,7 +41,7 @@ module top_sim #(
   assign core_dbus_read_data = sim_halt_selected ? '0 : board_dbus_read_data;
   assign core_dbus_ready = sim_halt_selected ? core_dbus_valid : board_dbus_ready;
   assign board_dbus_valid = core_dbus_valid & !sim_halt_selected;
-  assign board_dbus_write = core_dbus_write & !sim_halt_selected;
+  assign board_dbus_write_en = core_dbus_write_en & !sim_halt_selected;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -79,7 +79,7 @@ module top_sim #(
     .imem_addr(imem_addr),
     .halted(halted),
     .dbus_valid(core_dbus_valid),
-    .dbus_write(core_dbus_write),
+    .dbus_write_en(core_dbus_write_en),
     .dbus_addr(core_dbus_addr),
     .dbus_write_data(core_dbus_write_data),
     .dbus_read_data(core_dbus_read_data),
@@ -98,7 +98,7 @@ module top_sim #(
     .led(led),
     .uart_tx(uart_tx),
     .dbus_valid(board_dbus_valid),
-    .dbus_write(board_dbus_write),
+    .dbus_write_en(board_dbus_write_en),
     .dbus_addr(core_dbus_addr),
     .dbus_write_data(core_dbus_write_data),
     .dbus_read_data(board_dbus_read_data),
@@ -150,7 +150,7 @@ module top_sim #(
   initial begin
     forever begin
       @(posedge clk);
-      if (!rst && core_dbus_valid && core_dbus_write && sim_halt_selected) begin
+      if (!rst && core_dbus_valid && core_dbus_write_en && sim_halt_selected) begin
         repeat (ClocksPerBit * 12) @(posedge clk);
         $write("\n");
         $display("top_sim: halt code 0x%08h pc=0x%08h", core_dbus_write_data, pc);

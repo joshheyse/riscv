@@ -17,7 +17,7 @@ module spi_mmio #(
   input logic clk,
   input logic rst,
 
-  input logic mem_write,
+  input logic mem_write_en,
   input riscv_pkg::word_t mem_addr,
   input riscv_pkg::word_t mem_write_data,
   output logic selected,
@@ -67,12 +67,12 @@ module spi_mmio #(
       rx_data <= 0;
       bit_index <= 0;
     end else begin
-      if (mem_write && data_selected) begin
+      if (mem_write_en && data_selected) begin
         tx_data <= mem_write_data[7:0];
       end
       unique case (state)
         SPI_IDLE: begin
-          if (mem_write && control_selected && mem_write_data[0]) begin
+          if (mem_write_en && control_selected && mem_write_data[0]) begin
             bit_index <= 3'b111;
             rx_data <= 0;
             state <= SPI_SETUP;
