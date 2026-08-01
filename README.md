@@ -27,28 +27,121 @@ nix develop
 Not covered by the flake: the book also uses commercial tools (Questa,
 Synopsys DC) for some chapters — Verilator substitutes for simulation.
 
+## Current State
+
+The project is a learning implementation of a single-cycle RV32I SoC. The
+current design has:
+
+- a portable `single_stage` CPU core with IFU, controller, datapath, ALU,
+  branch logic, register file, and a valid/ready data bus
+- an LSU that handles RV32I byte/half/word load and store formatting, currently
+  instantiated by the SoC wrapper between the core data bus and data memory
+- synchronous instruction and data memories
+- board-level memory-mapped peripherals for LEDs, timer, UART, buttons,
+  switches, SPI, GPIO, and an I2C placeholder/state-machine path
+- generated board constants shared between RTL and firmware headers
+- a small RV32I SDK and example bare-metal apps
+- Verilator lint and self-checking SystemVerilog testbenches for core modules,
+  peripherals, board bus routing, and end-to-end RV32I behavior
+
+The next architectural cleanup should probably happen before pipelining: move
+the LSU semantics into the core so the SoC boundary is a simple byte-enable data
+bus instead of carrying RISC-V load/store interpretation outside the CPU.
+
 ## Layout
 
 ```
-rtl/<design>/   processor / SoC RTL (SystemVerilog)
-tb/<design>/    testbenches
-sw/             bare-metal test programs (sw/smoke = toolchain sanity check)
-tests/          riscof compliance configuration
-docs/           notes
+rtl/cpu/lib/          reusable CPU RTL: decode, ALU, reg file, ISA package
+rtl/cpu/single_stage/ single-stage core, SoC wrapper, memories, LSU, IFU
+rtl/periph/           memory-mapped peripheral RTL
+rtl/lib/              shared non-CPU RTL helpers
+boards/<board>/       board constants, top-level RTL, pins, board headers
+tb/single_stage/      CPU and single-stage SoC testbenches
+tb/boards/<board>/    board/peripheral testbenches
+sdk/riscv32/          RV32I bare-metal startup, linker script, headers
+examples/apps/        RV32I example firmware
+sw/smoke/             toolchain sanity check; not software for this core
+docs/                 diagrams and vendor references
+tools/                generated constants / tooling helpers
 ```
 
-`<design>` is a core variant — `single_stage` today, later `multicycle`,
-`pipelined`, … The `Makefile` is parameterised by `DESIGN` (default
-`single_stage`), so a new variant is just a new `rtl/<design>` + `tb/<design>`
-pair with no build changes.
+`DESIGN` is the CPU variant. It defaults to `single_stage`; future variants can
+grow as new `rtl/cpu/<design>` + `tb/<design>` pairs.
+
+## Milestones
+
+### 1. Development Environment
+
+- Added a Nix shell with the RISC-V cross toolchain, Spike, Sail, QEMU,
+  Verilator, GTKWave, Verible, and RISCOF.
+- Added editor support for assembly and generated compile/file lists.
+- Established the `make`/`just` workflow for lint, simulation, formatting,
+  firmware builds, board simulation, and board bitstream generation.
+
+Key commits: `ce304e2`, `649e3ee`, `3017eef`, `1135cac`.
+
+### 2. First RV32I Single-Stage Core
+
+- Added the initial RV32I CPU modules and module-level testbenches.
+- Integrated controller, datapath, instruction fetch, instruction memory, and
+  SoC wrapper.
+- Documented the single-stage structure.
+
+Key commits: `eb6d315`, `12c8267`, `d7efcc8`, `f9b25ac`, `89f1fa8`,
+`578c6e4`.
+
+### 3. ISA Coverage and Firmware Path
+
+- Added RV32I memory and halt coverage in assembly-driven tests.
+- Added a small firmware SDK, board simulator path, and example apps.
+- Made the core build firmware for `rv32i`/`ilp32`; `sw/smoke` remains a
+  separate RV64 toolchain sanity check.
+
+Key commits: `c1f340f`, `5d91cf0`, `0067b56`.
+
+### 4. Board and MMIO Bring-Up
+
+- Added the ECP5 board flow.
+- Added generated board memory maps/constants shared by RTL and C headers.
+- Added board bus routing and MMIO peripherals: timer, UART timing constants,
+  switches/buttons, SPI, GPIO, and I2C support work.
+- Added focused board/peripheral testbenches.
+
+Key commits: `ab6f83a`, `5a2558e`, `9446631`, `06d58e1`, `b05bd34`,
+`30253c7`, `dc22edb`, `f899ca8`, `f19355f`, `5730417`, `850811e`,
+`d842e28`, `42223f0`, `65711ec`, `f7aefdb`, `c9840b4`, `63a6662`,
+`54ca65c`, `a1e016b`, `133ce60`.
+
+### 5. Memory Timing and Bus Cleanup
+
+- Split simulator and physical board constants.
+- Added shared muxing helpers for board/sim bus reads.
+- Moved instruction and data memory toward synchronous behavior.
+- Split data memory from the LSU.
+- Added a data-memory ready handshake.
+- Renamed data-bus signals for clarity.
+
+Key commits: `1ab1e5f`, `8f01413`, `00a2236`, `16f08d1`, `b5f2151`,
+`f7c1fa7`, `6c2f870`, `e74ddb3`, `7719849`.
+
+## Near-Term Roadmap
+
+1. Add or repair the focused load/store SoC test target so
+   `make sim TB=core_load_store` runs from the existing
+   `tb/single_stage/tb_core_load_store.S` program.
+2. Move the LSU into the core boundary, leaving the SoC/data-memory interface
+   with address, write data, read data, valid/ready, write/read, and byte
+   enables.
+3. Re-run core lint and RV32I/load-store simulations.
+4. Start the pipelined variant once the memory boundary is clean.
 
 ## Quick check
 
 ```sh
 nix develop
 just smoke   # cross-compile sw/smoke, run it on spike and sail
-just lint    # Verilator lint of rtl/single_stage
-just sim     # build + run tb/single_stage
+just lint    # Verilator lint of rtl/cpu/single_stage
+just sim     # build + run the default tb/single_stage testbench
 just wave    # same, with a VCD, opened in GTKWave
 ```
 
@@ -56,8 +149,9 @@ The `just` recipes are thin wrappers over `make`; use `make` directly to pick
 a design or turn on tracing:
 
 ```sh
-make sim DESIGN=single_stage
-make run TRACE=1
+make lint TOP=core
+make sim TB=rv32i
+make sim TB=core TRACE=1
 ```
 
 ## References
