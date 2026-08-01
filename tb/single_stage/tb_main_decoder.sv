@@ -37,9 +37,9 @@ module tb_main_decoder
   localparam int unsigned NoiseVectors = 8;
 
   instr_u          _instr;
-  logic            _reg_write;
+  logic            _reg_write_en;
   imm_src_t        _imm_src;
-  logic            _mem_write;
+  logic            _mem_write_en;
   alu_src_t        _alu_src;
   alu_result_src_t _alu_result_src;
   result_src_t     _result_src;
@@ -57,9 +57,9 @@ module tb_main_decoder
 
   main_decoder _dut (
     .instr(_instr),
-    .reg_write(_reg_write),
+    .reg_write_en(_reg_write_en),
     .imm_src(_imm_src),
-    .mem_write(_mem_write),
+    .mem_write_en(_mem_write_en),
     .alu_src(_alu_src),
     .alu_result_src(_alu_result_src),
     .result_src(_result_src),
@@ -76,7 +76,7 @@ module tb_main_decoder
   //
   // The RV32I decode table. Each function below is one column of it.
   //
-  //   category op      branch jump alu_src imm_src alu_result_src result_src alu_op reg_write mem_write
+  //   category op      branch jump alu_src imm_src alu_result_src result_src alu_op reg_write_en mem_write_en
   //   R-type   0110011 0      0    RS1_RS2 x       ALU            ALU        1      1         0
   //   I-ALU    0010011 0      0    RS1_IMM IMM_I   ALU            ALU        1      1         0
   //   load     0000011 0      0    RS1_IMM IMM_I   x              MEM        0      1         0
@@ -90,7 +90,7 @@ module tb_main_decoder
   // Every RV32I opcode that writes a destination register. Stores and branches
   // have no rd field at all, and an illegal opcode must be inert rather than
   // corrupting state -- so this is checked strictly for all 128 values.
-  function automatic logic exp_reg_write(input logic [6:0] op);
+  function automatic logic exp_reg_write_en(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011, 7'b0000011, 7'b1100111, 7'b1101111, 7'b0110111, 7'b0010111:
       return 1'b1;
@@ -100,7 +100,7 @@ module tb_main_decoder
 
   // Memory write enable. No don't-care: a spurious write corrupts state, so
   // illegal opcodes are checked as strictly as legal ones.
-  function automatic logic exp_mem_write(input logic [6:0] op);
+  function automatic logic exp_mem_write_en(input logic [6:0] op);
     return (op == 7'b0100011);  // store
   endfunction
 
@@ -205,7 +205,7 @@ module tb_main_decoder
 
   // Stores and branches don't write rd, so nothing observes this.
   function automatic logic result_src_matters(input logic [6:0] op);
-    return exp_reg_write(op);
+    return exp_reg_write_en(op);
   endfunction
 
   // 0 = "just add" (addresses, jump targets), 1 = "decode the operation from
@@ -359,8 +359,8 @@ module tb_main_decoder
     #1;
     who = $sformatf("%s %07b (%0s)", tag, op, opcode_name(op));
 
-    chk_bit(_reg_write, exp_reg_write(op), 1'b1, who, "reg_write");
-    chk_bit(_mem_write, exp_mem_write(op), 1'b1, who, "mem_write");
+    chk_bit(_reg_write_en, exp_reg_write_en(op), 1'b1, who, "reg_write_en");
+    chk_bit(_mem_write_en, exp_mem_write_en(op), 1'b1, who, "mem_write_en");
     chk_bit(_branch, exp_branch(op), 1'b1, who, "branch");
     chk_bit(_jump, exp_jump(op), 1'b1, who, "jump");
     chk_bit(_alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");

@@ -45,19 +45,19 @@ module spi_mmio
   assign _status_selected = mem_addr == StatusAddr;
   assign selected = _data_selected || _control_selected || _status_selected;
 
-  logic _stg_enabled;
+  logic _stg_en;
   logic _stg_clear;
   logic _stg_tick;
 
-  assign _stg_enabled = (_state == SPI_SCK_HIGH || _state == SPI_SCK_LOW);
-  assign _stg_clear   = !_stg_enabled;
+  assign _stg_en = (_state == SPI_SCK_HIGH || _state == SPI_SCK_LOW);
+  assign _stg_clear = !_stg_en;
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerHalfBit)
   ) _tick_generator (
     .clk(clk),
     .rst(rst),
-    .enable(_stg_enabled),
+    .en(_stg_en),
     .clear(_stg_clear),
     .tick(_stg_tick)
   );

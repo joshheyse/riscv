@@ -32,7 +32,7 @@ module board_bus
   localparam int unsigned WordBits = XLEN;
 
   logic  [NumSources-1:0] _selected;
-  logic  [NumSources-1:0] _write_enabled;
+  logic  [NumSources-1:0] _write_en;
   logic  [  WordBits-1:0] _read_data       [NumSources];
   word_t                  _dmem_read_data;
   word_t                  _dmem_write_data;
@@ -42,10 +42,10 @@ module board_bus
   assign _selected[DmemIdx] = ((dbus.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
   assign dbus.ready = _selected[DmemIdx] ? _dmem_ready : dbus.valid;
-  assign _write_enabled[TimerIdx] = 1'b0;
-  assign _write_enabled[DmemIdx] = dbus.valid & dbus.write_en & _selected[DmemIdx] & !_mmio_selected;
-  assign _write_enabled[LedIdx] = dbus.valid & dbus.write_en & _selected[LedIdx];
-  assign _write_enabled[UartIdx] = dbus.valid & dbus.write_en & _selected[UartIdx];
+  assign _write_en[TimerIdx] = 1'b0;
+  assign _write_en[DmemIdx] = dbus.valid & dbus.write_en & _selected[DmemIdx] & !_mmio_selected;
+  assign _write_en[LedIdx] = dbus.valid & dbus.write_en & _selected[LedIdx];
+  assign _write_en[UartIdx] = dbus.valid & dbus.write_en & _selected[UartIdx];
 
   onehot_mux #(
     .Width(WordBits),
@@ -62,7 +62,7 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_write_en(_write_enabled[LedIdx]),
+    .mem_write_en(_write_en[LedIdx]),
     .mem_addr(dbus.addr),
     .mem_write_data(dbus.write_data),
     .selected(_selected[LedIdx]),
@@ -88,7 +88,7 @@ module board_bus
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_write_en(_write_enabled[UartIdx]),
+    .mem_write_en(_write_en[UartIdx]),
     .mem_addr(dbus.addr),
     .mem_write_data(dbus.write_data),
     .selected(_selected[UartIdx]),
@@ -101,8 +101,8 @@ module board_bus
     .write_data(dbus.write_data),
     .mem_size(dbus.size),
     .mem_unsigned(dbus.mem_unsigned),
-    .read_mem(_dmem_read_data),
-    .write_mem(_dmem_write_data),
+    .mem_read_data(_dmem_read_data),
+    .mem_write_data(_dmem_write_data),
     .write_mask(_dmem_write_mask),
     .read_data(_read_data[DmemIdx])
   );
@@ -114,7 +114,7 @@ module board_bus
     .clk(clk),
     .rst(rst),
     .mem_valid(dbus.valid & _selected[DmemIdx] & !_mmio_selected),
-    .mem_write_en(_write_enabled[DmemIdx]),
+    .mem_write_en(_write_en[DmemIdx]),
     .addr(dbus.addr),
     .write_data(_dmem_write_data),
     .write_mask(_dmem_write_mask),

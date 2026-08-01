@@ -28,7 +28,7 @@ module core
          dbus_if.master dbus
 );
 
-  logic            _reg_write;
+  logic            _reg_write_en;
   imm_src_t        _imm_src;
   alu_src_t        _alu_src;
   alu_result_src_t _alu_result_src;
@@ -44,8 +44,8 @@ module core
   logic            _halt_now;
   logic            _illegal_instr;
   logic            _pc_en;
-  logic            _reg_write_raw;
-  logic            _mem_write_raw;
+  logic            _raw_reg_write_en;
+  logic            _raw_mem_write_en;
   logic            _instr_valid;
   pc_src_t         _ifu_pc_src;
 
@@ -58,13 +58,13 @@ module core
   assign _ifu_ieu_addr = _clear_pc_lsb ? {_raw_ieu_addr[31:1], 1'b0} : _raw_ieu_addr;
 
   assign _halt_now = halted || (_illegal_instr && _instr_valid);
-  assign _dbus_instr = _load_instr || _mem_write_raw;
+  assign _dbus_instr = _load_instr || _raw_mem_write_en;
   assign dbus.valid = _instr_valid && _dbus_instr && !_halt_now && !_dbus_pending;
   assign _dbus_wait = _instr_valid && _dbus_instr && !_halt_now && !dbus.ready;
   assign _pc_en = !_halt_now && !_dbus_wait;
   assign imem_en = _pc_en;
-  assign _reg_write = _reg_write_raw && _instr_valid && !_halt_now && (!_load_instr || _load_complete);
-  assign dbus.write_en = _mem_write_raw && _instr_valid && !_halt_now;
+  assign _reg_write_en = _raw_reg_write_en && _instr_valid && !_halt_now && (!_load_instr || _load_complete);
+  assign dbus.write_en = _raw_mem_write_en && _instr_valid && !_halt_now;
 
   assign _ifu_pc_src = _instr_valid ? _pc_src : PC_SRC_INC;
 
@@ -100,8 +100,8 @@ module core
   controller _controller (
     .instr(instr),
     .branch_flags(_branch_flags),
-    .reg_write(_reg_write_raw),
-    .mem_write(_mem_write_raw),
+    .reg_write_en(_raw_reg_write_en),
+    .mem_write_en(_raw_mem_write_en),
     .imm_src(_imm_src),
     .alu_src(_alu_src),
     .alu_result_src(_alu_result_src),
@@ -120,7 +120,7 @@ module core
     .clk(clk),
     .instr(instr),
     .pc(pc),
-    .reg_write(_reg_write),
+    .reg_write_en(_reg_write_en),
     .imm_src(_imm_src),
     .alu_src(_alu_src),
     .alu_result_src(_alu_result_src),

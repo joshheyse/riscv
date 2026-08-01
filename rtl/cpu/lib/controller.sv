@@ -15,8 +15,8 @@ module controller
 (
   input  instr_u          instr,
   input  branch_flags_t   branch_flags,
-  output logic            reg_write,
-  output logic            mem_write,
+  output logic            reg_write_en,
+  output logic            mem_write_en,
   output imm_src_t        imm_src,
   output alu_src_t        alu_src,
   output alu_result_src_t alu_result_src,
@@ -41,8 +41,8 @@ module controller
 
   main_decoder _main_decoder (
     .instr(instr),
-    .reg_write(reg_write),
-    .mem_write(mem_write),
+    .reg_write_en(reg_write_en),
+    .mem_write_en(mem_write_en),
     .imm_src(imm_src),
     .alu_src(alu_src),
     .alu_result_src(alu_result_src),

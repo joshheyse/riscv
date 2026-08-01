@@ -8,7 +8,7 @@ module tb_serial_tick_generator;
 
   logic        _clk;
   logic        _rst;
-  logic        _enable;
+  logic        _en;
   logic        _clear;
   logic        _tick;
   logic        _tick_every_cycle;
@@ -21,7 +21,7 @@ module tb_serial_tick_generator;
   ) _dut (
     .clk(_clk),
     .rst(_rst),
-    .enable(_enable),
+    .en(_en),
     .clear(_clear),
     .tick(_tick)
   );
@@ -31,7 +31,7 @@ module tb_serial_tick_generator;
   ) _dut_every_cycle (
     .clk(_clk),
     .rst(_rst),
-    .enable(_enable),
+    .en(_en),
     .clear(_clear),
     .tick(_tick_every_cycle)
   );
@@ -62,7 +62,7 @@ module tb_serial_tick_generator;
     end
 
     _rst    = 1'b1;
-    _enable = 1'b0;
+    _en = 1'b0;
     _clear  = 1'b0;
 
     repeat (2) @(posedge _clk);
@@ -71,8 +71,8 @@ module tb_serial_tick_generator;
     expect_bit(_tick_every_cycle, 1'b0, "reset clears every-cycle tick");
 
     @(negedge _clk);
-    _rst    = 1'b0;
-    _enable = 1'b1;
+    _rst = 1'b0;
+    _en  = 1'b1;
 
     step_expect(1'b0, "enabled cycle 1 no tick");
     expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks on enabled cycle 1");
@@ -99,14 +99,14 @@ module tb_serial_tick_generator;
     step_expect(1'b0, "after clear cycle after tick no tick");
 
     @(negedge _clk);
-    _enable = 1'b0;
+    _en = 1'b0;
     step_expect(1'b0, "disabled clears tick");
     expect_bit(_tick_every_cycle, 1'b0, "disabled clears every-cycle tick");
     step_expect(1'b0, "disabled holds tick low");
     expect_bit(_tick_every_cycle, 1'b0, "disabled holds every-cycle tick low");
 
     @(negedge _clk);
-    _enable = 1'b1;
+    _en = 1'b1;
     step_expect(1'b0, "re-enabled cycle 1 no tick");
     expect_bit(_tick_every_cycle, 1'b1, "every-cycle generator ticks after re-enable");
     step_expect(1'b0, "re-enabled cycle 2 no tick");

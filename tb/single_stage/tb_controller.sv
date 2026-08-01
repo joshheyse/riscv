@@ -17,8 +17,8 @@ module tb_controller
 
   instr_u          _instr;
   branch_flags_t   _branch_flags;
-  logic            _reg_write;
-  logic            _mem_write;
+  logic            _reg_write_en;
+  logic            _mem_write_en;
   imm_src_t        _imm_src;
   alu_src_t        _alu_src;
   alu_result_src_t _alu_result_src;
@@ -39,8 +39,8 @@ module tb_controller
   controller _dut (
     .instr(_instr),
     .branch_flags(_branch_flags),
-    .reg_write(_reg_write),
-    .mem_write(_mem_write),
+    .reg_write_en(_reg_write_en),
+    .mem_write_en(_mem_write_en),
     .imm_src(_imm_src),
     .alu_src(_alu_src),
     .alu_result_src(_alu_result_src),
@@ -80,14 +80,14 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic logic exp_reg_write(input logic [6:0] op);
+  function automatic logic exp_reg_write_en(input logic [6:0] op);
     case (op)
       OP_R, OP_I_ALU, OP_LOAD, OP_JALR, OP_JAL, OP_LUI, OP_AUIPC: return 1'b1;
       default: return 1'b0;
     endcase
   endfunction
 
-  function automatic logic exp_mem_write(input logic [6:0] op);
+  function automatic logic exp_mem_write_en(input logic [6:0] op);
     return op == OP_STORE;
   endfunction
 
@@ -254,9 +254,9 @@ module tb_controller
     checks++;
     mem_unsigned_bad = mem_unsigned_matters(op) && (_mem_unsigned !== exp_mem_unsigned(op, funct3));
 
-    if (_reg_write !== exp_reg_write(
+    if (_reg_write_en !== exp_reg_write_en(
             op
-        ) || _mem_write !== exp_mem_write(
+        ) || _mem_write_en !== exp_mem_write_en(
             op
         ) || _imm_src !== exp_imm_src(
             op
@@ -288,16 +288,17 @@ module tb_controller
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
             "       got reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
-            _reg_write, _mem_write, _imm_src.name(), _alu_src.name(), _alu_result_src.name(),
+            _reg_write_en, _mem_write_en, _imm_src.name(), _alu_src.name(), _alu_result_src.name(),
             _alu_select.name(), _result_src.name(), _sub_arith, _pc_src.name(), _branch_sgnd,
             _mem_size.name(), _mem_unsigned, _clear_pc_lsb, _illegal_instr);
         $display(
             "       exp reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
-            exp_reg_write(op), exp_mem_write(op), exp_imm_src(op).name(), exp_alu_src(op).name(),
-            exp_alu_result_src(op).name(), exp_alu_select(op, funct3).name(), exp_result_src(op
-            ).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(),
-            exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(
-            op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3, funct7));
+            exp_reg_write_en(op), exp_mem_write_en(op), exp_imm_src(op).name(), exp_alu_src(op
+            ).name(), exp_alu_result_src(op).name(), exp_alu_select(op, funct3).name(),
+            exp_result_src(op).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(
+            op, eq, lt, funct3).name(), exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3
+            ).name(), exp_mem_unsigned(op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(
+            op, funct3, funct7));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

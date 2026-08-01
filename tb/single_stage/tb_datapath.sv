@@ -20,7 +20,7 @@ module tb_datapath
   logic            _clk;
   instr_u          _instr;
   pc_t             _pc;
-  logic            _reg_write;
+  logic            _reg_write_en;
   imm_src_t        _imm_src;
   alu_src_t        _alu_src;
   alu_result_src_t _alu_result_src;
@@ -42,7 +42,7 @@ module tb_datapath
     .clk(_clk),
     .instr(_instr),
     .pc(_pc),
-    .reg_write(_reg_write),
+    .reg_write_en(_reg_write_en),
     .imm_src(_imm_src),
     .alu_src(_alu_src),
     .alu_result_src(_alu_result_src),
@@ -124,7 +124,7 @@ module tb_datapath
   task automatic set_defaults;
     _instr.raw      = r_instr(7'b0000000, 5'd0, 5'd0, 3'b000, 5'd0, OP_R);
     _pc             = 32'h0000_0000;
-    _reg_write      = 1'b0;
+    _reg_write_en   = 1'b0;
     _imm_src        = IMM_I;
     _alu_src        = ALU_SRC_RS1_RS2;
     _alu_result_src = ALU_RES_ALU;
@@ -138,26 +138,26 @@ module tb_datapath
   task automatic write_lui(input regaddr_t rd, input logic [19:0] imm20, input string what);
     @(negedge _clk);
     _instr.raw      = u_instr(imm20, rd, OP_LUI);
-    _reg_write      = 1'b1;
+    _reg_write_en   = 1'b1;
     _imm_src        = IMM_U;
     _alu_src        = ALU_SRC_RS1_RS2;
     _alu_result_src = ALU_RES_IMM;
     _result_src     = RESULT_ALU;
     commit();
-    _reg_write = 1'b0;
+    _reg_write_en = 1'b0;
     $display("tb_datapath: wrote %s", what);
   endtask
 
-  task automatic write_mem(input regaddr_t rd, input word_t data, input string what);
+  task automatic write_mem_result(input regaddr_t rd, input word_t data, input string what);
     @(negedge _clk);
     _instr.raw      = i_instr(12'h000, 5'd0, 3'b010, rd, OP_LOAD);
     _read_data      = data;
-    _reg_write      = 1'b1;
+    _reg_write_en   = 1'b1;
     _imm_src        = IMM_I;
     _alu_result_src = ALU_RES_ALU;
     _result_src     = RESULT_MEM;
     commit();
-    _reg_write = 1'b0;
+    _reg_write_en = 1'b0;
     $display("tb_datapath: wrote %s", what);
   endtask
 
@@ -174,12 +174,12 @@ module tb_datapath
 
     // Seed a few registers through the datapath writeback muxes.
     write_lui(5'd1, 20'h12345, "x1 = 0x12345000 via LUI/immediate writeback");
-    write_mem(5'd2, 32'h0000_0010, "x2 = 0x00000010 via memory writeback");
+    write_mem_result(5'd2, 32'h0000_0010, "x2 = 0x00000010 via memory writeback");
 
     // R-type ALU path: x1 + x2.
     @(negedge _clk);
     _instr.raw      = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd3, OP_R);
-    _reg_write      = 1'b1;
+    _reg_write_en   = 1'b1;
     _alu_src        = ALU_SRC_RS1_RS2;
     _alu_select     = ALU_ADDSUB;
     _sub_arith      = 1'b0;
@@ -192,10 +192,10 @@ module tb_datapath
 
     // Read x3 back by using it as rs1 in an add-immediate operation.
     @(negedge _clk);
-    _reg_write = 1'b0;
+    _reg_write_en = 1'b0;
     _instr.raw = i_instr(12'h001, 5'd3, 3'b000, 5'd0, OP_I_ALU);
-    _imm_src   = IMM_I;
-    _alu_src   = ALU_SRC_RS1_IMM;
+    _imm_src = IMM_I;
+    _alu_src = ALU_SRC_RS1_IMM;
     settle();
     expect_word(_alu_result, 32'h1234_5011, "x3 writeback visible on rs1");
 
@@ -221,11 +221,11 @@ module tb_datapath
     _alu_src        = ALU_SRC_RS1_IMM;
     _alu_result_src = ALU_RES_PC_PLUS4;
     _result_src     = RESULT_ALU;
-    _reg_write      = 1'b1;
+    _reg_write_en   = 1'b1;
     commit();
 
     @(negedge _clk);
-    _reg_write      = 1'b0;
+    _reg_write_en   = 1'b0;
     _instr.raw      = i_instr(12'h000, 5'd4, 3'b000, 5'd0, OP_I_ALU);
     _imm_src        = IMM_I;
     _alu_src        = ALU_SRC_RS1_IMM;
@@ -235,12 +235,12 @@ module tb_datapath
     expect_word(_alu_result, 32'h0000_0204, "PC+4 writeback visible in x4");
 
     // Comparator signedness reaches branch_flags.lt.
-    write_mem(5'd6, 32'hffff_ffff, "x6 = -1/unsigned max");
-    write_mem(5'd7, 32'h0000_0001, "x7 = 1");
+    write_mem_result(5'd6, 32'hffff_ffff, "x6 = -1/unsigned max");
+    write_mem_result(5'd7, 32'h0000_0001, "x7 = 1");
 
     @(negedge _clk);
-    _reg_write   = 1'b0;
-    _instr.raw   = r_instr(7'b0000000, 5'd7, 5'd6, 3'b000, 5'd0, OP_BRANCH);
+    _reg_write_en = 1'b0;
+    _instr.raw = r_instr(7'b0000000, 5'd7, 5'd6, 3'b000, 5'd0, OP_BRANCH);
     _branch_sgnd = 1'b1;
     settle();
     expect_bit(_branch_flags.eq, 1'b0, "comparator eq for -1 vs 1");

@@ -84,6 +84,10 @@ HEADER_END_RE = re.compile(r"^\s*\)\s*;")
 SUBROUTINE_RE = re.compile(r"^\s*(task|function)\b")
 ENDSUBROUTINE_RE = re.compile(r"^\s*end(task|function)\b")
 PADDED_NAMED_PORT_RE = re.compile(r"\.[A-Za-z_][A-Za-z0-9_$]*\s+\(")
+BAD_ENABLE_NAME_RE = re.compile(r"(^|_)(enable|enabled|disable|disabled)($|_)")
+BAD_ENABLE_NAMED_ACTUAL_RE = re.compile(r"\.(enable|disable)\(")
+BAD_WRITE_CONTROL_NAMES = {"reg_write", "mem_write"}
+BAD_MEMORY_DATA_NAMES = {"read_mem", "write_mem"}
 
 
 def strip_comment(line: str) -> str:
@@ -111,6 +115,28 @@ def instance_name(rest: str) -> str | None:
         return None
     match = re.search(r"([A-Za-z_][A-Za-z0-9_$]*)\s*$", prefix)
     return match.group(1) if match else None
+
+
+def port_name(line: str) -> str | None:
+    stripped = line.strip().rstrip(",")
+    if not re.match(r"^(input|output|inout)\b", stripped):
+        return None
+    stripped = re.sub(r"^(input|output|inout)\b", " ", stripped)
+    stripped = re.sub(r"\b(wire|logic|tri|tri1|signed|unsigned)\b", " ", stripped)
+    stripped = re.sub(r"\[[^\]]+\]", " ", stripped)
+    match = re.search(r"([A-Za-z_][A-Za-z0-9_$]*)\s*$", stripped)
+    return match.group(1) if match else None
+
+
+def check_enable_name(path: Path, lineno: int, name: str) -> str | None:
+    if BAD_ENABLE_NAME_RE.search(name):
+        return f"{path}:{lineno}: enable signal `{name}` should use `_en`/`en` naming"
+    private_name = name.removeprefix("_")
+    if private_name in BAD_WRITE_CONTROL_NAMES:
+        return f"{path}:{lineno}: write control `{name}` should use `_en` naming"
+    if private_name in BAD_MEMORY_DATA_NAMES:
+        return f"{path}:{lineno}: memory data signal `{name}` should use `mem_*_data` naming"
+    return None
 
 
 def check_file(path: Path) -> list[str]:
@@ -145,6 +171,14 @@ def check_file(path: Path) -> list[str]:
             in_header = False
             continue
 
+        if in_module and in_header:
+            name = port_name(line)
+            if name:
+                error = check_enable_name(path, lineno, name)
+                if error:
+                    errors.append(error)
+            continue
+
         if in_module and SUBROUTINE_RE.search(line):
             in_subroutine = True
             continue
@@ -157,6 +191,10 @@ def check_file(path: Path) -> list[str]:
 
         if PADDED_NAMED_PORT_RE.search(line):
             errors.append(f"{path}:{lineno}: named port connection should use `.port(expr)`")
+        if BAD_ENABLE_NAMED_ACTUAL_RE.search(line):
+            errors.append(f"{path}:{lineno}: enable port connection should use `.en(expr)`")
+        if re.search(r"\.(read_mem|write_mem)\(", line):
+            errors.append(f"{path}:{lineno}: memory data port should use `.mem_*_data(expr)`")
 
         if not raw.startswith("  ") or raw.startswith("    "):
             continue
@@ -175,6 +213,9 @@ def check_file(path: Path) -> list[str]:
             for name in names_from_decl(decl.group("rest")):
                 if name in {"signed", "unsigned"}:
                     continue
+                error = check_enable_name(path, lineno, name)
+                if error:
+                    errors.append(error)
                 if not name.startswith("_"):
                     errors.append(f"{path}:{lineno}: internal declaration `{name}` should start with `_`")
             continue

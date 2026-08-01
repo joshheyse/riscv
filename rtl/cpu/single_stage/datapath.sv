@@ -33,7 +33,7 @@ module datapath
   input instr_u instr,
   input pc_t    pc,
 
-  input logic            reg_write,
+  input logic            reg_write_en,
   input imm_src_t        imm_src,
   input alu_src_t        alu_src,
   input alu_result_src_t alu_result_src,
@@ -70,7 +70,7 @@ module datapath
     .rd_addr2(instr.r.rs2),
     .wr_addr(instr.r.rd),
     .wr_data(_wr_data),
-    .wr_en(reg_write),
+    .wr_en(reg_write_en),
     .rd_data1(_rd_data1),
     .rd_data2(_rd_data2)
   );

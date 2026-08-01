@@ -30,19 +30,19 @@ module uart_mmio
   assign read_data = (mem_addr == StatusAddr) ? {31'b0, _tx_ready} : 32'h0;
   assign _data_bit_idx = _bit_idx[2:0] - 3'd1;
 
-  logic _stg_enabled;
+  logic _stg_en;
   logic _stg_clear;
   logic _stg_tick;
 
-  assign _stg_enabled = _tx_busy;
-  assign _stg_clear   = !_stg_enabled;
+  assign _stg_en = _tx_busy;
+  assign _stg_clear = !_stg_en;
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerBit)
   ) _tick_generator (
     .clk(clk),
     .rst(rst),
-    .enable(_stg_enabled),
+    .en(_stg_en),
     .clear(_stg_clear),
     .tick(_stg_tick)
   );

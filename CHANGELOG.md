@@ -54,7 +54,9 @@ Key commits: `ab6f83a`, `5a2558e`, `9446631`, `06d58e1`, `b05bd34`,
 - Split data memory from the LSU.
 - Added a data-memory ready handshake.
 - Renamed data-bus signals for clarity.
+- Documented and enforced the SystemVerilog naming conventions used before
+  pipeline work, including private `_` names, instance names, compact
+  connections, `_en` enable names, and explicit memory data-bus names.
 
 Key commits: `1ab1e5f`, `8f01413`, `00a2236`, `16f08d1`, `b5f2151`,
 `f7c1fa7`, `6c2f870`, `e74ddb3`, `7719849`.
-

@@ -5,7 +5,7 @@ module serial_tick_generator #(
 ) (
   input  logic clk,
   input  logic rst,
-  input  logic enable,
+  input  logic en,
   input  logic clear,
   output logic tick
 );
@@ -14,12 +14,12 @@ module serial_tick_generator #(
   localparam logic [CounterBits-1:0] TerminalCount = CounterBits'(ClocksPerTick - 1);
   logic [CounterBits-1:0] _counter;
 
-  assign tick = enable && !clear && (_counter == TerminalCount);
+  assign tick = en && !clear && (_counter == TerminalCount);
 
   always_ff @(posedge clk) begin
     if (rst) begin
       _counter <= 0;
-    end else if (clear || !enable) begin
+    end else if (clear || !en) begin
       _counter <= 0;
     end else if (_counter == TerminalCount) begin
       _counter <= 0;

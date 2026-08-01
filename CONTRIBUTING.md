@@ -84,6 +84,26 @@ input logic rst_n;
 logic _reset_n;
 ```
 
+Use `_en` for enable signals. Public enable ports use `en` when the context is
+already clear, or a descriptive `_en` suffix when it is not. Avoid spelling out
+`enable` or using `_enabled` for signal names.
+
+```systemverilog
+input logic en;
+input logic pc_en;
+input logic mem_write_en;
+
+logic _stg_en;
+logic _write_en;
+```
+
+`oe` is allowed as the conventional hardware abbreviation for output enable
+pins:
+
+```systemverilog
+output logic [NumGpio-1:0] gpio_oe;
+```
+
 Unused input accounting also uses the private-name convention:
 
 ```systemverilog

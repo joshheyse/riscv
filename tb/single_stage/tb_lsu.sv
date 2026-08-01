@@ -25,8 +25,8 @@ module tb_lsu
   logic              _mem_ready;
   word_t             _addr;
   word_t             _write_data;
-  word_t             _read_mem;
-  word_t             _write_mem;
+  word_t             _dmem_read_data;
+  word_t             _dmem_write_data;
   word_t             _read_data;
   mem_size_t         _mem_size;
   logic              _mem_unsigned;
@@ -40,8 +40,8 @@ module tb_lsu
     .write_data(_write_data),
     .mem_size(_mem_size),
     .mem_unsigned(_mem_unsigned),
-    .read_mem(_read_mem),
-    .write_mem(_write_mem),
+    .mem_read_data(_dmem_read_data),
+    .mem_write_data(_dmem_write_data),
     .write_mask(_write_mask),
     .read_data(_read_data)
   );
@@ -55,10 +55,10 @@ module tb_lsu
     .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
     .addr(_addr),
-    .write_data(_write_mem),
+    .write_data(_dmem_write_data),
     .write_mask(_write_mask),
     .mem_ready(_mem_ready),
-    .read_data(_read_mem)
+    .read_data(_dmem_read_data)
   );
 
   initial begin
