@@ -66,17 +66,17 @@ module core
 
   assign _halt_now = halted || (_illegal_instr && _instr_valid);
   assign _dbus_instr = _load_instr || _raw_mem_write_en;
-  assign dbus.valid = _instr_valid && _dbus_instr && !_halt_now && !_dbus_pending;
-  assign _dbus_wait = _instr_valid && _dbus_instr && !_halt_now && !dbus.ready;
+  assign dbus.req.valid = _instr_valid && _dbus_instr && !_halt_now && !_dbus_pending;
+  assign _dbus_wait = _instr_valid && _dbus_instr && !_halt_now && !dbus.rsp.ready;
   assign _pc_en = !_halt_now && !_dbus_wait;
   assign imem_en = _pc_en;
   assign _reg_write_en = _raw_reg_write_en && _instr_valid && !_halt_now && (!_load_instr || _load_complete);
-  assign dbus.write_en = _raw_mem_write_en && _instr_valid && !_halt_now;
+  assign dbus.req.write_en = _raw_mem_write_en && _instr_valid && !_halt_now;
 
   assign _ifu_pc_src = _instr_valid ? _pc_src : PC_SRC_INC;
 
   assign _load_instr = _result_src == RESULT_MEM;
-  assign _load_complete = _instr_valid && _load_instr && dbus.ready;
+  assign _load_complete = _instr_valid && _load_instr && dbus.rsp.ready;
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -86,9 +86,9 @@ module core
     end
     if (rst || _halt_now) begin
       _dbus_pending <= 1'b0;
-    end else if (dbus.valid && !dbus.ready) begin
+    end else if (dbus.req.valid && !dbus.rsp.ready) begin
       _dbus_pending <= 1'b1;
-    end else if (_dbus_pending && dbus.ready) begin
+    end else if (_dbus_pending && dbus.rsp.ready) begin
       _dbus_pending <= 1'b0;
     end
   end
@@ -105,14 +105,14 @@ module core
   );
 
   lsu _lsu (
-    .addr(dbus.addr),
+    .addr(dbus.req.addr),
     .write_data(_write_data),
     .mem_size(_mem_size),
     .mem_unsigned(_mem_unsigned),
     .read_data(_read_data),
-    .mem_write_data(dbus.write_data),
-    .mem_read_data(dbus.read_data),
-    .write_mask(dbus.write_mask)
+    .mem_write_data(dbus.req.write_data),
+    .mem_read_data(dbus.rsp.read_data),
+    .write_mask(dbus.req.write_mask)
   );
 
   controller _controller (
@@ -148,7 +148,7 @@ module core
     .branch_sgnd(_branch_sgnd),
     .read_data(_read_data),
     .ieu_addr(_raw_ieu_addr),
-    .alu_result(dbus.addr),
+    .alu_result(dbus.req.addr),
     .write_data(_write_data),
     .branch_flags(_branch_flags)
   );

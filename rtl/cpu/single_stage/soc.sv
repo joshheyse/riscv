@@ -57,13 +57,13 @@ module soc
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem_valid(_dbus.valid),
-    .mem_write_en(_dbus.write_en),
-    .mem_addr(_dbus.addr),
-    .mem_write_data(_dbus.write_data),
-    .mem_read_data(_dbus.read_data),
-    .mem_ready(_dbus.ready),
-    .mem_write_mask(_dbus.write_mask)
+    .mem_valid(_dbus.req.valid),
+    .mem_write_en(_dbus.req.write_en),
+    .mem_addr(_dbus.req.addr),
+    .mem_write_data(_dbus.req.write_data),
+    .mem_read_data(_dbus.rsp.read_data),
+    .mem_ready(_dbus.rsp.ready),
+    .mem_write_mask(_dbus.req.write_mask)
   );
 
 endmodule

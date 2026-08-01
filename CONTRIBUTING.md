@@ -134,22 +134,30 @@ redundant prefixes inside the interface itself.
 interface dbus_if
   import riscv_pkg::*;
 ();
-  logic      valid;
-  logic      ready;
-  logic      write_en;
-  word_t     addr;
-  word_t     write_data;
-  word_t     read_data;
-  mem_size_t size;
-  logic      mem_unsigned;
+
+  typedef struct packed {
+    logic            valid;
+    logic            write_en;
+    word_t           addr;
+    word_t           write_data;
+    mem_write_mask_t write_mask;
+  } req_t;
+
+  typedef struct packed {
+    logic  ready;
+    word_t read_data;
+  } rsp_t;
+
+  req_t req;
+  rsp_t rsp;
 endinterface
 ```
 
 Usage at module boundaries remains clean:
 
 ```systemverilog
-assign dbus.valid = _load_instr;
-assign _stall = dbus.valid && !dbus.ready;
+assign dbus.req.valid = _load_instr;
+assign _stall = dbus.req.valid && !dbus.rsp.ready;
 ```
 
 ### Module Organization

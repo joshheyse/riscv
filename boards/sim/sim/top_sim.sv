@@ -29,14 +29,14 @@ module top_sim
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
-  assign _sim_halt_selected = (_core_dbus.addr == SimHaltAddr);
-  assign _core_dbus.read_data = _sim_halt_selected ? '0 : _board_dbus.read_data;
-  assign _core_dbus.ready = _sim_halt_selected ? _core_dbus.valid : _board_dbus.ready;
-  assign _board_dbus.valid = _core_dbus.valid & !_sim_halt_selected;
-  assign _board_dbus.write_en = _core_dbus.write_en & !_sim_halt_selected;
-  assign _board_dbus.addr = _core_dbus.addr;
-  assign _board_dbus.write_data = _core_dbus.write_data;
-  assign _board_dbus.write_mask = _core_dbus.write_mask;
+  assign _sim_halt_selected = (_core_dbus.req.addr == SimHaltAddr);
+  assign _core_dbus.rsp.read_data = _sim_halt_selected ? '0 : _board_dbus.rsp.read_data;
+  assign _core_dbus.rsp.ready = _sim_halt_selected ? _core_dbus.req.valid : _board_dbus.rsp.ready;
+  assign _board_dbus.req.valid = _core_dbus.req.valid & !_sim_halt_selected;
+  assign _board_dbus.req.write_en = _core_dbus.req.write_en & !_sim_halt_selected;
+  assign _board_dbus.req.addr = _core_dbus.req.addr;
+  assign _board_dbus.req.write_data = _core_dbus.req.write_data;
+  assign _board_dbus.req.write_mask = _core_dbus.req.write_mask;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -131,10 +131,10 @@ module top_sim
   initial begin
     forever begin
       @(posedge _clk);
-      if (!_rst && _core_dbus.valid && _core_dbus.write_en && _sim_halt_selected) begin
+      if (!_rst && _core_dbus.req.valid && _core_dbus.req.write_en && _sim_halt_selected) begin
         repeat (ClocksPerBit * 12) @(posedge _clk);
         $write("\n");
-        $display("top_sim: halt code 0x%08h _pc=0x%08h", _core_dbus.write_data, _pc);
+        $display("top_sim: halt code 0x%08h _pc=0x%08h", _core_dbus.req.write_data, _pc);
         $finish;
       end
     end

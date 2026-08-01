@@ -61,18 +61,18 @@ module board_bus
   logic [NumSources-1:0] _ready;
   logic [  WordBits-1:0] _read_data[NumSources];
 
-  assign _selected[DmemIdx] = ((dbus.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
+  assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
-  assign _write_en[DmemIdx] = dbus.valid & dbus.write_en & _selected[DmemIdx] & !_mmio_selected;
-  assign _write_en[LedIdx] = dbus.valid & dbus.write_en & _selected[LedIdx];
+  assign _write_en[DmemIdx] = dbus.req.valid & dbus.req.write_en & _selected[DmemIdx] & !_mmio_selected;
+  assign _write_en[LedIdx] = dbus.req.valid & dbus.req.write_en & _selected[LedIdx];
   assign _write_en[DipSwitchIdx] = 1'b0;
   assign _write_en[PushButtonIdx] = 1'b0;
-  assign _write_en[GpioIdx] = dbus.valid & dbus.write_en & _selected[GpioIdx];
-  assign _write_en[UartIdx] = dbus.valid & dbus.write_en & _selected[UartIdx];
+  assign _write_en[GpioIdx] = dbus.req.valid & dbus.req.write_en & _selected[GpioIdx];
+  assign _write_en[UartIdx] = dbus.req.valid & dbus.req.write_en & _selected[UartIdx];
   assign _write_en[TimerIdx] = 1'b0;
-  assign _write_en[SpiIdx] = dbus.valid & dbus.write_en & _selected[SpiIdx];
-  assign _write_en[I2cIdx] = dbus.valid & dbus.write_en & _selected[I2cIdx];
-  assign dbus.ready = (|_selected) ? |(_selected & _ready) : dbus.valid;
+  assign _write_en[SpiIdx] = dbus.req.valid & dbus.req.write_en & _selected[SpiIdx];
+  assign _write_en[I2cIdx] = dbus.req.valid & dbus.req.write_en & _selected[I2cIdx];
+  assign dbus.rsp.ready = (|_selected) ? |(_selected & _ready) : dbus.req.valid;
 
   onehot_mux #(
     .Width(WordBits),
@@ -80,7 +80,7 @@ module board_bus
   ) _onehot_mux (
     .selected(_selected),
     .data_in(_read_data),
-    .data_out(dbus.read_data)
+    .data_out(dbus.rsp.read_data)
   );
 
   led_mmio #(
@@ -89,11 +89,11 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[LedIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[LedIdx]),
     .mem_ready(_ready[LedIdx]),
     .mem_read_data(_read_data[LedIdx]),
@@ -104,11 +104,11 @@ module board_bus
     .DipSwitchAddr(board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dip_switch_mmio (
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[DipSwitchIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[DipSwitchIdx]),
     .mem_ready(_ready[DipSwitchIdx]),
     .mem_read_data(_read_data[DipSwitchIdx]),
@@ -121,11 +121,11 @@ module board_bus
   ) _push_button_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[PushButtonIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[PushButtonIdx]),
     .mem_ready(_ready[PushButtonIdx]),
     .mem_read_data(_read_data[PushButtonIdx]),
@@ -143,11 +143,11 @@ module board_bus
   ) _gpio_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[GpioIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[GpioIdx]),
     .mem_ready(_ready[GpioIdx]),
     .mem_read_data(_read_data[GpioIdx]),
@@ -162,11 +162,11 @@ module board_bus
   ) _timer_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[TimerIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[TimerIdx]),
     .mem_ready(_ready[TimerIdx]),
     .mem_read_data(_read_data[TimerIdx])
@@ -179,11 +179,11 @@ module board_bus
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[UartIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[UartIdx]),
     .mem_ready(_ready[UartIdx]),
     .mem_read_data(_read_data[UartIdx]),
@@ -198,11 +198,11 @@ module board_bus
   ) _spi_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[SpiIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[SpiIdx]),
     .mem_ready(_ready[SpiIdx]),
     .mem_read_data(_read_data[SpiIdx]),
@@ -221,11 +221,11 @@ module board_bus
   ) _i2c_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid),
+    .mem_valid(dbus.req.valid),
     .mem_write_en(_write_en[I2cIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .selected(_selected[I2cIdx]),
     .mem_ready(_ready[I2cIdx]),
     .mem_read_data(_read_data[I2cIdx]),
@@ -241,11 +241,11 @@ module board_bus
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.valid & _selected[DmemIdx] & !_mmio_selected),
+    .mem_valid(dbus.req.valid & _selected[DmemIdx] & !_mmio_selected),
     .mem_write_en(_write_en[DmemIdx]),
-    .mem_addr(dbus.addr),
-    .mem_write_data(dbus.write_data),
-    .mem_write_mask(dbus.write_mask),
+    .mem_addr(dbus.req.addr),
+    .mem_write_data(dbus.req.write_data),
+    .mem_write_mask(dbus.req.write_mask),
     .mem_ready(_ready[DmemIdx]),
     .mem_read_data(_read_data[DmemIdx])
   );
