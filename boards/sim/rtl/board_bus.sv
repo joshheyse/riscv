@@ -40,13 +40,11 @@ module board_bus
 
   logic [NumSources-1:0] selected;
   logic [NumSources-1:0] write_enabled;
-  logic [(NumSources*WordBits)-1:0] read_data;
+  logic [WordBits-1:0] read_data[NumSources];
   word_t dmem_read_data;
   word_t dmem_write_data;
   logic [3:0] dmem_write_mask;
   logic dmem_ready;
-
-  `define READ_DATA(idx) read_data[(idx)*WordBits+:WordBits]
 
   assign selected[DmemIdx] = ((dbus_addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign mmio_selected = |selected[NumSources-1:1];
@@ -75,7 +73,7 @@ module board_bus
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[LedIdx]),
-    .read_data(`READ_DATA(LedIdx)),
+    .read_data(read_data[LedIdx]),
     .led(led)
   );
 
@@ -87,7 +85,7 @@ module board_bus
     .rst(rst),
     .mem_addr(dbus_addr),
     .selected(selected[TimerIdx]),
-    .read_data(`READ_DATA(TimerIdx))
+    .read_data(read_data[TimerIdx])
   );
 
   uart_mmio #(
@@ -101,7 +99,7 @@ module board_bus
     .mem_addr(dbus_addr),
     .mem_write_data(dbus_write_data),
     .selected(selected[UartIdx]),
-    .read_data(`READ_DATA(UartIdx)),
+    .read_data(read_data[UartIdx]),
     .tx(uart_tx)
   );
 
@@ -113,7 +111,7 @@ module board_bus
     .read_mem(dmem_read_data),
     .write_mem(dmem_write_data),
     .write_mask(dmem_write_mask),
-    .read_data(`READ_DATA(DmemIdx))
+    .read_data(read_data[DmemIdx])
   );
 
   dmem #(
@@ -130,7 +128,5 @@ module board_bus
     .mem_ready(dmem_ready),
     .read_data(dmem_read_data)
   );
-
-  `undef READ_DATA
 
 endmodule

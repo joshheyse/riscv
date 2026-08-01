@@ -5,7 +5,7 @@ module onehot_mux #(
   parameter int unsigned NumInputs = 1
 ) (
   input logic [NumInputs - 1:0] selected,
-  input logic [(NumInputs*Width)-1:0] data_in,
+  input logic [Width-1:0] data_in[NumInputs],
   output logic [Width-1:0] data_out
 );
 
@@ -14,7 +14,7 @@ module onehot_mux #(
     data_out = '0;
     for (int unsigned i = 0; i < NumInputs; i++) begin
       if (selected[i]) begin
-        data_out = data_in[i*Width+:Width];
+        data_out = data_in[i];
       end
     end
   end
