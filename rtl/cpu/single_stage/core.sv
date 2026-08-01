@@ -51,7 +51,6 @@ module core
     logic            illegal_instr;
   } control_t;
 
-  instr_u        _instr;
   logic          _reg_write_en;
   branch_flags_t _branch_flags;
   pc_t           _raw_ieu_addr;
@@ -85,7 +84,6 @@ module core
   assign _ifu_en = _fetch_en || _redirect_en;
 
   assign _ifu_ieu_addr = _ctrl.clear_pc_lsb ? {_raw_ieu_addr[31:1], 1'b0} : _raw_ieu_addr;
-  assign _instr = _current.instr;
   assign _instr_valid = _current.valid;
   assign ibus.req.valid = _fetch_en;
   assign _can_retire = _current.valid && (!_dbus_instr || dbus.rsp.ready);
@@ -163,7 +161,7 @@ module core
   );
 
   controller _controller (
-    .instr(_instr),
+    .instr(_current.instr),
     .branch_flags(_branch_flags),
     .reg_write_en(_ctrl.reg_write_en),
     .mem_write_en(_ctrl.mem_write_en),
@@ -183,7 +181,7 @@ module core
 
   datapath _datapath (
     .clk(clk),
-    .instr(_instr),
+    .instr(_current.instr),
     .pc(_current.pc),
     .reg_write_en(_reg_write_en),
     .imm_src(_ctrl.imm_src),
