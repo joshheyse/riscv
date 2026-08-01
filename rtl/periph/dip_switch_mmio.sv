@@ -1,12 +1,14 @@
 `timescale 1ns / 1ps
 
-module dip_switch_mmio #(
-  parameter riscv_pkg::word_t DipSwitchAddr = '0,
+module dip_switch_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t DipSwitchAddr = '0,
   parameter int unsigned NumDipSwitches = 1
 ) (
-  input riscv_pkg::word_t mem_addr,
+  input word_t mem_addr,
   output logic selected,
-  output riscv_pkg::word_t read_data,
+  output word_t read_data,
   input logic [NumDipSwitches-1:0] dip_switch
 );
 

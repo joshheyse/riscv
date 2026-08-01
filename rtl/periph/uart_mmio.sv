@@ -1,22 +1,24 @@
 `timescale 1ns / 1ps
 
-module uart_mmio #(
-  parameter int unsigned      ClocksPerBit = 1,
-  parameter riscv_pkg::word_t TxDataAddr   = '0,
-  parameter riscv_pkg::word_t StatusAddr   = '0
+module uart_mmio
+  import riscv_pkg::*;
+#(
+  parameter int unsigned ClocksPerBit = 1,
+  parameter word_t       TxDataAddr   = '0,
+  parameter word_t       StatusAddr   = '0
 ) (
   input logic clk,
   input logic rst,
 
-  input logic mem_write_en,
-  input riscv_pkg::word_t mem_addr,
-  input riscv_pkg::word_t mem_write_data,
-  output logic selected,
-  output riscv_pkg::word_t read_data,
-  output logic tx
+  input  logic  mem_write_en,
+  input  word_t mem_addr,
+  input  word_t mem_write_data,
+  output logic  selected,
+  output word_t read_data,
+  output logic  tx
 );
 
-  riscv_pkg::byte_t tx_data;
+  byte_t tx_data;
   logic [3:0] bit_idx;
   logic [2:0] data_bit_idx;
   logic tx_busy;

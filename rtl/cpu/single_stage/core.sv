@@ -15,44 +15,46 @@
 // The `pc` output is both the instruction-memory byte address and a useful
 // debug/visibility signal for testbenches and early board bring-up.
 //
-module core (
+module core
+  import riscv_pkg::*;
+(
   input logic clk,
   input logic rst,
-  input riscv_pkg::instr_u instr,
-  output riscv_pkg::pc_t pc,
-  output riscv_pkg::pc_t imem_addr,
+  input instr_u instr,
+  output pc_t pc,
+  output pc_t imem_addr,
   output logic halted,
   output logic dbus_valid,
   output logic dbus_write_en,
-  output riscv_pkg::word_t dbus_addr,
-  output riscv_pkg::word_t dbus_write_data,
-  input riscv_pkg::word_t dbus_read_data,
+  output word_t dbus_addr,
+  output word_t dbus_write_data,
+  input word_t dbus_read_data,
   input logic dbus_ready,
-  output riscv_pkg::mem_size_t dbus_size,
+  output mem_size_t dbus_size,
   output logic dbus_unsigned,
   output logic imem_en
 );
 
   logic reg_write;
-  riscv_pkg::imm_src_t imm_src;
-  riscv_pkg::alu_src_t alu_src;
-  riscv_pkg::alu_result_src_t alu_result_src;
-  riscv_pkg::alu_select_t alu_select;
-  riscv_pkg::result_src_t result_src;
+  imm_src_t imm_src;
+  alu_src_t alu_src;
+  alu_result_src_t alu_result_src;
+  alu_select_t alu_select;
+  result_src_t result_src;
   logic sub_arith;
-  riscv_pkg::pc_src_t pc_src;
+  pc_src_t pc_src;
   logic branch_sgnd;
-  riscv_pkg::branch_flags_t branch_flags;
+  branch_flags_t branch_flags;
   logic clear_pc_lsb;
-  riscv_pkg::pc_t raw_ieu_addr;
-  riscv_pkg::pc_t ifu_ieu_addr;
+  pc_t raw_ieu_addr;
+  pc_t ifu_ieu_addr;
   logic halt_now;
   logic illegal_instr;
   logic pc_en;
   logic reg_write_raw;
   logic mem_write_raw;
   logic instr_valid;
-  riscv_pkg::pc_src_t ifu_pc_src;
+  pc_src_t ifu_pc_src;
 
   logic dbus_pending;
   logic dbus_instr;
@@ -71,9 +73,9 @@ module core (
   assign reg_write = reg_write_raw && instr_valid && !halt_now && (!load_instr || load_complete);
   assign dbus_write_en = mem_write_raw && instr_valid && !halt_now;
 
-  assign ifu_pc_src = instr_valid ? pc_src : riscv_pkg::PC_SRC_INC;
+  assign ifu_pc_src = instr_valid ? pc_src : PC_SRC_INC;
 
-  assign load_instr = result_src == riscv_pkg::RESULT_MEM;
+  assign load_instr = result_src == RESULT_MEM;
   assign load_complete = instr_valid && load_instr && dbus_ready;
 
   always_ff @(posedge clk) begin

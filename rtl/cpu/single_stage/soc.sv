@@ -6,7 +6,9 @@
 // while keeping memory outside the CPU core. Board-specific wrappers can extend
 // this layer with memory-mapped peripherals without changing the processor.
 //
-module soc #(
+module soc
+  import riscv_pkg::*;
+#(
   parameter int unsigned ImemDepthWords = 512,
   parameter ImemInitFile = "",
   parameter int unsigned DmemDepthWords = 512,
@@ -15,9 +17,9 @@ module soc #(
   input logic clk,
   input logic rst,
 
-  output riscv_pkg::pc_t    pc,
-  output riscv_pkg::pc_t    imem_addr,
-  output riscv_pkg::instr_u instr,
+  output pc_t    pc,
+  output pc_t    imem_addr,
+  output instr_u instr,
   output logic halted
 );
 
@@ -25,12 +27,12 @@ module soc #(
   logic dbus_valid;
   logic dbus_ready;
   logic imem_en;
-  riscv_pkg::word_t dbus_addr;
-  riscv_pkg::word_t dbus_write_data;
-  riscv_pkg::word_t dbus_read_data;
-  riscv_pkg::mem_size_t dbus_size;
-  riscv_pkg::word_t read_mem;
-  riscv_pkg::word_t write_mem;
+  word_t dbus_addr;
+  word_t dbus_write_data;
+  word_t dbus_read_data;
+  mem_size_t dbus_size;
+  word_t read_mem;
+  word_t write_mem;
   logic dbus_unsigned;
   logic [3:0] write_mask;
 

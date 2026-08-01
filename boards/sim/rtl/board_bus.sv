@@ -5,7 +5,9 @@
 // This is intentionally smaller than a physical board bus. The simulated
 // platform currently models only data memory plus devices that the host harness
 // observes directly: LEDs, UART TX, and a free-running timer.
-module board_bus #(
+module board_bus
+  import riscv_pkg::*;
+#(
   parameter int unsigned DmemDepthWords = 512,
   parameter DmemInitFile = "",
   parameter int unsigned NumLeds = board_constants_pkg::NumLeds
@@ -15,14 +17,14 @@ module board_bus #(
   output logic [NumLeds-1:0] led,
   output logic               uart_tx,
 
-  input  logic                 dbus_valid,
-  input  logic                 dbus_write_en,
-  input  riscv_pkg::word_t     dbus_addr,
-  input  riscv_pkg::word_t     dbus_write_data,
-  output riscv_pkg::word_t     dbus_read_data,
-  output logic                 dbus_ready,
-  input  riscv_pkg::mem_size_t dbus_size,
-  input  logic                 dbus_unsigned
+  input  logic      dbus_valid,
+  input  logic      dbus_write_en,
+  input  word_t     dbus_addr,
+  input  word_t     dbus_write_data,
+  output word_t     dbus_read_data,
+  output logic      dbus_ready,
+  input  mem_size_t dbus_size,
+  input  logic      dbus_unsigned
 );
 
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
@@ -34,13 +36,13 @@ module board_bus #(
   localparam int unsigned UartIdx = 2;
   localparam int unsigned TimerIdx = 3;
   localparam int unsigned NumSources = 4;
-  localparam int unsigned WordBits = riscv_pkg::XLEN;
+  localparam int unsigned WordBits = XLEN;
 
   logic [NumSources-1:0] selected;
   logic [NumSources-1:0] write_enabled;
   logic [(NumSources*WordBits)-1:0] read_data;
-  riscv_pkg::word_t dmem_read_data;
-  riscv_pkg::word_t dmem_write_data;
+  word_t dmem_read_data;
+  word_t dmem_write_data;
   logic [3:0] dmem_write_mask;
   logic dmem_ready;
 

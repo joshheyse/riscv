@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module gpio_mmio #(
+module gpio_mmio
+  import riscv_pkg::*;
+#(
   parameter logic [31:0] GpioDataInAddr = '0,
   parameter logic [31:0] GpioDataOutAddr = '0,
   parameter logic [31:0] GpioDirAddr = '0,
@@ -12,11 +14,11 @@ module gpio_mmio #(
   input logic clk,
   input logic rst,
 
-  input logic mem_write_en,
-  input riscv_pkg::word_t mem_addr,
-  input riscv_pkg::word_t mem_write_data,
-  output logic selected,
-  output riscv_pkg::word_t read_data,
+  input  logic  mem_write_en,
+  input  word_t mem_addr,
+  input  word_t mem_write_data,
+  output logic  selected,
+  output word_t read_data,
 
   input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,

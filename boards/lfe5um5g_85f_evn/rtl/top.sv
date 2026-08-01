@@ -4,7 +4,9 @@
 //
 // Board-specific shell around the portable single-stage core: clock/reset pins,
 // active-low LEDs, instruction memory, data memory, and LED MMIO live here.
-module top #(
+module top
+  import riscv_pkg::*;
+#(
   parameter int unsigned ImemDepthWords = 512,
   parameter ImemInitFile = "",
   parameter int unsigned PowerOnResetCycles = 16,
@@ -34,19 +36,19 @@ module top #(
 
   logic rst;
   logic power_on_rst;
-  riscv_pkg::pc_t pc;
-  riscv_pkg::pc_t imem_addr;
-  riscv_pkg::instr_u instr;
+  pc_t pc;
+  pc_t imem_addr;
+  instr_u instr;
   logic halted;
 
   logic dbus_valid;
   logic dbus_write_en;
   logic dbus_ready;
   logic imem_en;
-  riscv_pkg::word_t dbus_addr;
-  riscv_pkg::word_t dbus_write_data;
-  riscv_pkg::word_t dbus_read_data;
-  riscv_pkg::mem_size_t dbus_size;
+  word_t dbus_addr;
+  word_t dbus_write_data;
+  word_t dbus_read_data;
+  mem_size_t dbus_size;
   logic dbus_unsigned;
 
   logic [7:0] led;

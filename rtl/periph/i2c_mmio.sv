@@ -18,24 +18,26 @@ typedef enum logic {
   I2C_BYTE_DATA = 1'b1
 } i2c_byte_t;
 
-module i2c_mmio #(
-  parameter riscv_pkg::word_t DataAddr = '0,
-  parameter riscv_pkg::word_t ControlAddr = '0,
-  parameter riscv_pkg::word_t StatusAddr = '0,
-  parameter riscv_pkg::word_t AddressAddr = '0,
+module i2c_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t DataAddr = '0,
+  parameter word_t ControlAddr = '0,
+  parameter word_t StatusAddr = '0,
+  parameter word_t AddressAddr = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
-  input logic clk,
-  input logic rst,
-  input logic mem_write_en,
-  input riscv_pkg::word_t mem_addr,
-  input riscv_pkg::word_t mem_write_data,
-  output logic selected,
-  output riscv_pkg::word_t read_data,
-  input logic i2c_sda_in,
-  output logic i2c_sda_drive_low,
-  input logic i2c_scl_in,
-  output logic i2c_scl_drive_low
+  input  logic  clk,
+  input  logic  rst,
+  input  logic  mem_write_en,
+  input  word_t mem_addr,
+  input  word_t mem_write_data,
+  output logic  selected,
+  output word_t read_data,
+  input  logic  i2c_sda_in,
+  output logic  i2c_sda_drive_low,
+  input  logic  i2c_scl_in,
+  output logic  i2c_scl_drive_low
 );
 
   i2c_state_t state;
@@ -48,10 +50,10 @@ module i2c_mmio #(
 
   logic busy;
   logic ack_error;
-  riscv_pkg::byte_t tx_data;
-  riscv_pkg::byte_t rx_data;
+  byte_t tx_data;
+  byte_t rx_data;
   logic [6:0] i2c_addr;
-  riscv_pkg::byte_t i2c_byte;
+  byte_t i2c_byte;
   logic [2:0] bit_index;
 
   assign data_selected = mem_addr == DataAddr;

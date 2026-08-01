@@ -7,19 +7,21 @@
 //   rst     pc_src          next pc
 //   ---     -------------   ----------------
 //   1       x               0
-//   0       riscv_pkg::PC_SRC_INC      pc + 4
-//   0       riscv_pkg::PC_SRC_IEU_ADR  ieu_addr
+//   0       PC_SRC_INC      pc + 4
+//   0       PC_SRC_IEU_ADR  ieu_addr
 //
 // `ieu_addr` is computed by the datapath ALU for branches, JAL, and JALR.
 //
-module ifu (
+module ifu
+  import riscv_pkg::*;
+(
   input logic clk,
   input logic rst,
-  input riscv_pkg::pc_src_t pc_src,
+  input pc_src_t pc_src,
   input logic pc_en,
-  input riscv_pkg::pc_t ieu_addr,
-  output riscv_pkg::pc_t pc,
-  output riscv_pkg::pc_t imem_addr,
+  input pc_t ieu_addr,
+  output pc_t pc,
+  output pc_t imem_addr,
   output logic instr_valid
 );
 
@@ -31,8 +33,8 @@ module ifu (
     end else begin
       if (pc_en) begin
         pc <= imem_addr;
-        imem_addr <= pc_src == riscv_pkg::PC_SRC_INC ? imem_addr + riscv_pkg::pc_t'(4) : ieu_addr;
-        instr_valid <= pc_src == riscv_pkg::PC_SRC_INC;
+        imem_addr <= pc_src == PC_SRC_INC ? imem_addr + pc_t'(4) : ieu_addr;
+        instr_valid <= pc_src == PC_SRC_INC;
       end
     end
   end

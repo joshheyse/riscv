@@ -1,17 +1,19 @@
 `timescale 1ns / 1ps
 
-module timer_mmio #(
-  parameter riscv_pkg::word_t TimerLoAddr = '0,
-  parameter riscv_pkg::word_t TimerHiAddr = '0
+module timer_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t TimerLoAddr = '0,
+  parameter word_t TimerHiAddr = '0
 ) (
-  input logic clk,
-  input logic rst,
-  input riscv_pkg::word_t mem_addr,
-  output logic selected,
-  output riscv_pkg::word_t read_data
+  input  logic  clk,
+  input  logic  rst,
+  input  word_t mem_addr,
+  output logic  selected,
+  output word_t read_data
 );
 
-  riscv_pkg::dword_t counter;
+  dword_t counter;
   assign selected  = mem_addr == TimerLoAddr || mem_addr == TimerHiAddr;
   assign read_data = !selected ? '0 : (mem_addr == TimerLoAddr) ? counter[31:0] : counter[63:32];
 

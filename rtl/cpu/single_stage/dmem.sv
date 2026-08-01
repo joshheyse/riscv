@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module dmem #(
+module dmem
+  import riscv_pkg::*;
+#(
   parameter int unsigned DepthWords = 512,
   parameter InitFile = ""
 ) (
@@ -8,13 +10,13 @@ module dmem #(
   input logic rst,
   input logic mem_valid,
   input logic mem_write_en,
-  input riscv_pkg::word_t addr,
-  input riscv_pkg::word_t write_data,
+  input word_t addr,
+  input word_t write_data,
   input logic [3:0] write_mask,
   output logic mem_ready,
-  output riscv_pkg::word_t read_data
+  output word_t read_data
 );
-  riscv_pkg::word_t memory[0:DepthWords-1];
+  word_t memory[0:DepthWords-1];
   initial begin
     if (InitFile != "") begin
       $readmemh(InitFile, memory);

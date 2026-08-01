@@ -1,17 +1,19 @@
 `timescale 1ns / 1ps
 
-module led_mmio #(
-  parameter riscv_pkg::word_t LedAddr = '0,
+module led_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t LedAddr = '0,
   parameter int unsigned NumLeds = 1
 ) (
   input logic clk,
   input logic rst,
 
   input logic mem_write_en,
-  input riscv_pkg::word_t mem_addr,
-  input riscv_pkg::word_t mem_write_data,
+  input word_t mem_addr,
+  input word_t mem_write_data,
   output logic selected,
-  output riscv_pkg::word_t read_data,
+  output word_t read_data,
   output logic [NumLeds-1:0] led
 );
 

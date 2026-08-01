@@ -17,39 +17,41 @@
 //   OR          bitwise or        same
 //   AND         bitwise and       same
 //
-module alu (
-  input riscv_pkg::word_t src_a,
-  input riscv_pkg::word_t src_b,
-  input riscv_pkg::alu_select_t alu_select,
+module alu
+  import riscv_pkg::*;
+(
+  input word_t src_a,
+  input word_t src_b,
+  input alu_select_t alu_select,
   input wire sub_arith,
-  output riscv_pkg::word_t alu_result
+  output word_t alu_result
 );
 
-  riscv_pkg::word_t _add;
-  riscv_pkg::word_t _sub;
-  riscv_pkg::word_t _and;
-  riscv_pkg::word_t _or;
-  riscv_pkg::word_t _xor;
+  word_t _add;
+  word_t _sub;
+  word_t _and;
+  word_t _or;
+  word_t _xor;
   assign _add = src_a + src_b;
   assign _sub = src_a - src_b;
   assign _and = src_a & src_b;
   assign _or  = src_a | src_b;
   assign _xor = src_a ^ src_b;
 
-  riscv_pkg::word_t _arith;
+  word_t _arith;
   assign _arith = $unsigned($signed(src_a) >>> src_b[4:0]);
 
 
   always_comb begin
     unique case (alu_select)
-      riscv_pkg::ALU_ADDSUB:  alu_result = sub_arith == 'b0 ? _add : _sub;
-      riscv_pkg::ALU_SLL:     alu_result = src_a << src_b[4:0];
-      riscv_pkg::ALU_SLT:     alu_result = ($signed(src_a) < $signed(src_b)) ? 32'b1 : 32'b0;
-      riscv_pkg::ALU_SLTU:    alu_result = (src_a < src_b) ? 32'b1 : 32'b0;
-      riscv_pkg::ALU_XOR:     alu_result = _xor;
-      riscv_pkg::ALU_SRL_SRA: alu_result = sub_arith ? _arith : (src_a >> src_b[4:0]);
-      riscv_pkg::ALU_OR:      alu_result = _or;
-      riscv_pkg::ALU_AND:     alu_result = _and;
+      ALU_ADDSUB:  alu_result = sub_arith == 'b0 ? _add : _sub;
+      ALU_SLL:     alu_result = src_a << src_b[4:0];
+      ALU_SLT:     alu_result = ($signed(src_a) < $signed(src_b)) ? 32'b1 : 32'b0;
+      ALU_SLTU:    alu_result = (src_a < src_b) ? 32'b1 : 32'b0;
+      ALU_XOR:     alu_result = _xor;
+      ALU_SRL_SRA: alu_result = sub_arith ? _arith : (src_a >> src_b[4:0]);
+      ALU_OR:      alu_result = _or;
+      ALU_AND:     alu_result = _and;
     endcase
   end
 

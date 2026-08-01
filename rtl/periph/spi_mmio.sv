@@ -8,20 +8,22 @@ typedef enum logic [2:0] {
   SPI_DONE     = 3'b101
 } spi_state_t;
 
-module spi_mmio #(
-  parameter riscv_pkg::word_t DataAddr = '0,
-  parameter riscv_pkg::word_t ControlAddr = '0,
-  parameter riscv_pkg::word_t StatusAddr = '0,
+module spi_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t DataAddr = '0,
+  parameter word_t ControlAddr = '0,
+  parameter word_t StatusAddr = '0,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
   input logic clk,
   input logic rst,
 
-  input logic mem_write_en,
-  input riscv_pkg::word_t mem_addr,
-  input riscv_pkg::word_t mem_write_data,
-  output logic selected,
-  output riscv_pkg::word_t read_data,
+  input  logic  mem_write_en,
+  input  word_t mem_addr,
+  input  word_t mem_write_data,
+  output logic  selected,
+  output word_t read_data,
 
   output logic spi_sck,
   output logic spi_mosi,
@@ -34,8 +36,8 @@ module spi_mmio #(
   logic data_selected;
   logic control_selected;
   logic status_selected;
-  riscv_pkg::byte_t tx_data;
-  riscv_pkg::byte_t rx_data;
+  byte_t tx_data;
+  byte_t rx_data;
   logic [2:0] bit_index;
 
   assign data_selected = mem_addr == DataAddr;

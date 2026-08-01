@@ -16,19 +16,21 @@
 // As with imem, low alignment bits and high unmapped bits are intentionally
 // ignored for this tiny word-addressed memory.
 //
-module lsu (
-  input riscv_pkg::word_t addr,
-  input riscv_pkg::word_t write_data,
-  input riscv_pkg::mem_size_t mem_size,
+module lsu
+  import riscv_pkg::*;
+(
+  input word_t addr,
+  input word_t write_data,
+  input mem_size_t mem_size,
   input logic mem_unsigned,
-  input riscv_pkg::word_t read_mem,
-  output riscv_pkg::word_t write_mem,
+  input word_t read_mem,
+  output word_t write_mem,
   output logic [3:0] write_mask,
-  output riscv_pkg::word_t read_data
+  output word_t read_data
 );
 
-  riscv_pkg::byte_t selected_byte;
-  riscv_pkg::half_t selected_half;
+  byte_t selected_byte;
+  half_t selected_half;
 
   always_comb begin
     selected_byte = 8'h0;
@@ -37,7 +39,7 @@ module lsu (
     write_mask = 4'b0000;
     write_mem = 32'h0;
     unique case (mem_size)
-      riscv_pkg::MEM_SIZE_BYTE: begin
+      MEM_SIZE_BYTE: begin
         unique case (addr[1:0])
           2'b00: selected_byte = read_mem[7:0];
           2'b01: selected_byte = read_mem[15:8];
@@ -46,7 +48,7 @@ module lsu (
         endcase
         read_data = mem_unsigned ? {24'b0, selected_byte} : {{24{selected_byte[7]}}, selected_byte};
       end
-      riscv_pkg::MEM_SIZE_HALF: begin
+      MEM_SIZE_HALF: begin
         case (addr[1:0])
           2'b00: selected_half = read_mem[15:0];
           2'b10: selected_half = read_mem[31:16];
@@ -55,13 +57,13 @@ module lsu (
         endcase
         read_data = mem_unsigned ? {16'b0, selected_half} : {{16{selected_half[15]}}, selected_half};
       end
-      riscv_pkg::MEM_SIZE_WORD: begin
+      MEM_SIZE_WORD: begin
         read_data = read_mem;
       end
     endcase
 
     unique case (mem_size)
-      riscv_pkg::MEM_SIZE_BYTE: begin
+      MEM_SIZE_BYTE: begin
         unique case (addr[1:0])
           2'b00: begin
             write_mem  = {24'b0, write_data[7:0]};
@@ -81,7 +83,7 @@ module lsu (
           end
         endcase
       end
-      riscv_pkg::MEM_SIZE_HALF: begin
+      MEM_SIZE_HALF: begin
         case (addr[1:0])
           2'b00: begin
             write_mem  = {16'b0, write_data[15:0]};
@@ -95,7 +97,7 @@ module lsu (
           end
         endcase
       end
-      riscv_pkg::MEM_SIZE_WORD: begin
+      MEM_SIZE_WORD: begin
         write_mem  = write_data;
         write_mask = 4'b1111;
       end

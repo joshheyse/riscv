@@ -2,7 +2,7 @@
 
 // Instruction memory.
 //
-// The core presents byte addresses (`riscv_pkg::pc_t`), while the ROM is word-indexed by
+// The core presents byte addresses (`pc_t`), while the ROM is word-indexed by
 // 32-bit instruction. Address bits [1:0] are ignored for this word-only memory;
 // high bits above the configured depth intentionally alias for now.
 //
@@ -13,19 +13,21 @@
 // `InitFile`, when non-empty, is a `$readmemh` file with one 32-bit instruction
 // word per line.
 //
-module imem #(
+module imem
+  import riscv_pkg::*;
+#(
   parameter int unsigned DepthWords = 512,
   parameter InitFile = ""
 ) (
   input logic clk,
   input logic rst,
   input logic en,
-  input  riscv_pkg::pc_t    addr,
-  output riscv_pkg::instr_t instr
+  input  pc_t    addr,
+  output instr_t instr
 );
 
   localparam int unsigned IndexBits = $clog2(DepthWords);
-  riscv_pkg::instr_t rom[DepthWords-1:0];
+  instr_t rom[DepthWords-1:0];
 
   initial begin
     if (InitFile != "") begin

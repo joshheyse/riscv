@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module top_sim #(
+module top_sim
+  import riscv_pkg::*;
+#(
   parameter string ImemInitFile = "",
   parameter int unsigned ImemDepthWords = 512,
   parameter int unsigned DmemDepthWords = 512,
@@ -8,16 +10,16 @@ module top_sim #(
   parameter int unsigned ClockHz = board_constants_pkg::ClockHz,
   parameter int unsigned UartBaud = board_constants_pkg::UartBaud,
   parameter int unsigned ClocksPerBit = ClockHz / UartBaud,
-  parameter riscv_pkg::word_t SimHaltAddr = board_constants_pkg::SimHaltAddr,
+  parameter word_t SimHaltAddr = board_constants_pkg::SimHaltAddr,
   parameter int unsigned TimeoutCycles = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;
 
   logic clk;
   logic rst;
-  riscv_pkg::pc_t pc;
-  riscv_pkg::pc_t imem_addr;
-  riscv_pkg::instr_u instr;
+  pc_t pc;
+  pc_t imem_addr;
+  instr_u instr;
   logic [7:0] led;
   logic [7:0] led_prev;
   logic sim_halt_selected;
@@ -26,16 +28,16 @@ module top_sim #(
   logic uart_tx;
   logic core_dbus_write_en;
   logic core_dbus_ready;
-  riscv_pkg::word_t core_dbus_addr;
-  riscv_pkg::word_t core_dbus_write_data;
-  riscv_pkg::word_t core_dbus_read_data;
-  riscv_pkg::mem_size_t core_dbus_size;
+  word_t core_dbus_addr;
+  word_t core_dbus_write_data;
+  word_t core_dbus_read_data;
+  mem_size_t core_dbus_size;
   logic core_dbus_unsigned;
   logic core_imem_en;
   logic board_dbus_valid;
   logic board_dbus_write_en;
   logic board_dbus_ready;
-  riscv_pkg::word_t board_dbus_read_data;
+  word_t board_dbus_read_data;
 
   assign sim_halt_selected = (core_dbus_addr == SimHaltAddr);
   assign core_dbus_read_data = sim_halt_selected ? '0 : board_dbus_read_data;

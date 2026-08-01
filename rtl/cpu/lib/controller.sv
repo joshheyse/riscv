@@ -10,20 +10,22 @@
 // The datapath owns the comparator and supplies `branch_flags`; the controller
 // supplies `branch_sgnd` so the comparator can produce the correct `lt` flag.
 //
-module controller (
-  input riscv_pkg::instr_u instr,
-  input riscv_pkg::branch_flags_t branch_flags,
+module controller
+  import riscv_pkg::*;
+(
+  input instr_u instr,
+  input branch_flags_t branch_flags,
   output logic reg_write,
   output logic mem_write,
-  output riscv_pkg::imm_src_t imm_src,
-  output riscv_pkg::alu_src_t alu_src,
-  output riscv_pkg::alu_result_src_t alu_result_src,
-  output riscv_pkg::alu_select_t alu_select,
-  output riscv_pkg::result_src_t result_src,
+  output imm_src_t imm_src,
+  output alu_src_t alu_src,
+  output alu_result_src_t alu_result_src,
+  output alu_select_t alu_select,
+  output result_src_t result_src,
   output logic sub_arith,
-  output riscv_pkg::pc_src_t pc_src,
+  output pc_src_t pc_src,
   output logic branch_sgnd,
-  output riscv_pkg::mem_size_t mem_size,
+  output mem_size_t mem_size,
   output logic mem_unsigned,
   output logic clear_pc_lsb,
   output logic illegal_instr

@@ -1,15 +1,17 @@
 `timescale 1ns / 1ps
 
-module push_button_mmio #(
-  parameter riscv_pkg::word_t PushButtonAddr = '0,
+module push_button_mmio
+  import riscv_pkg::*;
+#(
+  parameter word_t PushButtonAddr = '0,
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
   input logic clk,
   input logic rst,
-  input riscv_pkg::word_t mem_addr,
+  input word_t mem_addr,
   output logic selected,
-  output riscv_pkg::word_t read_data,
+  output word_t read_data,
   input logic [NumPushButtons-1:0] push_button
 );
 

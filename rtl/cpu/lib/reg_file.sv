@@ -11,15 +11,17 @@
 // Reads are combinational and x0 is hard-wired to zero on both read ports.
 // Writes occur on the rising clock edge when `wr_en` is asserted.
 //
-module reg_file (
+module reg_file
+  import riscv_pkg::*;
+(
   input logic clk,
-  input riscv_pkg::regaddr_t rd_addr1,
-  input riscv_pkg::regaddr_t rd_addr2,
-  input riscv_pkg::regaddr_t wr_addr,
-  input riscv_pkg::word_t wr_data,
+  input regaddr_t rd_addr1,
+  input regaddr_t rd_addr2,
+  input regaddr_t wr_addr,
+  input word_t wr_data,
   input logic wr_en,
-  output riscv_pkg::word_t rd_data1,
-  output riscv_pkg::word_t rd_data2
+  output word_t rd_data1,
+  output word_t rd_data2
 );
 
   logic [31:0] regs[31:0];
