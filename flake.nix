@@ -39,8 +39,47 @@
         # FPGA synthesis, place-and-route, bitstream packing, and programming.
         # ECP5 uses yosys + nextpnr-ecp5 + Project Trellis/ecppack.
         # iCE40 uses yosys + nextpnr-ice40 + IceStorm/icepack.
+        svElab = pkgs.stdenv.mkDerivation rec {
+          pname = "sv-elab";
+          version = "unstable-2026-07-14";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "povik";
+            repo = "sv-elab";
+            rev = "3dddccd478618d68f8a5e160fb4b5783c4da35d4";
+            fetchSubmodules = true;
+            hash = "sha256-ori7RYPvn1Ghnl1hAlPpIqlAU2nPUV628gktUXWegT0=";
+          };
+
+          nativeBuildInputs = [
+            pkgs.cmake
+            pkgs.git
+            pkgs.ninja
+            pkgs.python3
+          ];
+
+          buildInputs = [
+            pkgs.boost
+            pkgs.tomlplusplus
+            pkgs.yosys
+          ];
+
+          cmakeFlags = [
+            "-DSLANG_USE_SYSTEM_BOOST=ON"
+            "-DSLANG_USE_SYSTEM_TOMLPLUSPLUS=ON"
+            "-DYOSYS_CONFIG=${pkgs.yosys}/bin/yosys-config"
+          ];
+
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 slang.so $out/share/yosys/plugins/slang.so
+            runHook postInstall
+          '';
+        };
+
         fpga = [
           pkgs.yosys
+          svElab
           pkgs.nextpnr
           pkgs.trellis
           pkgs.icestorm
@@ -62,12 +101,15 @@
         ];
       in
       {
+        packages.sv-elab = svElab;
+
         devShells.default = pkgs.mkShell {
           name = "riscv-soc";
           packages = toolchain ++ isaSim ++ rtlSim ++ fpga ++ misc;
 
           # Cross-compile prefix, used by the justfile and riscof configs.
           CROSS_COMPILE = "riscv64-none-elf-";
+          YOSYS_PLUGIN_PATH = "${svElab}/share/yosys/plugins";
 
           shellHook = ''
             echo "riscv-soc dev shell"
@@ -77,6 +119,7 @@
             echo "  qemu       $(qemu-system-riscv64 --version | head -n1)"
             echo "  verilator  $(verilator --version)"
             echo "  yosys      $(yosys -V)"
+            echo "  sv-elab    $(yosys -m slang -Q -p 'help read_slang' >/dev/null && echo read_slang)"
             echo "  nextpnr    $(nextpnr-ecp5 --version 2>&1 | head -n1)"
             echo "  loader     $(openFPGALoader --Version 2>&1 | head -n1)"
             echo "  riscof     $(riscof --version 2>/dev/null | head -n1)"
