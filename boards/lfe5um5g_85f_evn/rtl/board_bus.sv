@@ -8,11 +8,11 @@ module board_bus
   import riscv_pkg::*;
 #(
   parameter int unsigned DmemDepthWords = 512,
-  parameter DmemInitFile = "",
-  parameter int unsigned NumLeds = board_constants_pkg::NumLeds,
+  parameter              DmemInitFile   = "",
+  parameter int unsigned NumLeds        = board_constants_pkg::NumLeds,
   parameter int unsigned NumDipSwitches = board_constants_pkg::NumDipSwitches,
   parameter int unsigned NumPushButtons = board_constants_pkg::NumPushButtons,
-  parameter int unsigned NumGpio = board_constants_pkg::NumGpio
+  parameter int unsigned NumGpio        = board_constants_pkg::NumGpio
 ) (
   input  logic                      clk,
   input  logic                      rst,
@@ -56,13 +56,13 @@ module board_bus
   localparam int unsigned NumSources = 9;
   localparam int unsigned WordBits = XLEN;
 
-  logic [NumSources-1:0] _selected;
-  logic [NumSources-1:0] _write_enabled;
-  logic [WordBits-1:0] _read_data[NumSources];
-  word_t _dmem_read_data;
-  word_t _dmem_write_data;
-  logic [3:0] _dmem_write_mask;
-  logic _dmem_ready;
+  logic  [NumSources-1:0] _selected;
+  logic  [NumSources-1:0] _write_enabled;
+  logic  [  WordBits-1:0] _read_data       [NumSources];
+  word_t                  _dmem_read_data;
+  word_t                  _dmem_write_data;
+  logic  [           3:0] _dmem_write_mask;
+  logic                   _dmem_ready;
 
   assign _selected[DmemIdx] = ((dbus.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
@@ -82,7 +82,7 @@ module board_bus
     .NumInputs(NumSources)
   ) _onehot_mux (
     .selected(_selected),
-    .data_in (_read_data),
+    .data_in(_read_data),
     .data_out(dbus.read_data)
   );
 
@@ -101,12 +101,12 @@ module board_bus
   );
 
   dip_switch_mmio #(
-    .DipSwitchAddr (board_constants_pkg::DipSwitchAddr),
+    .DipSwitchAddr(board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dip_switch_mmio (
-    .mem_addr  (dbus.addr),
-    .selected  (_selected[DipSwitchIdx]),
-    .read_data (_read_data[DipSwitchIdx]),
+    .mem_addr(dbus.addr),
+    .selected(_selected[DipSwitchIdx]),
+    .read_data(_read_data[DipSwitchIdx]),
     .dip_switch(dip_switch)
   );
 
@@ -156,8 +156,8 @@ module board_bus
 
   uart_mmio #(
     .ClocksPerBit(UartClocksPerBit),
-    .TxDataAddr  (board_constants_pkg::UartTxAddr),
-    .StatusAddr  (board_constants_pkg::UartStatusAddr)
+    .TxDataAddr(board_constants_pkg::UartTxAddr),
+    .StatusAddr(board_constants_pkg::UartStatusAddr)
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
@@ -170,9 +170,9 @@ module board_bus
   );
 
   spi_mmio #(
-    .DataAddr        (board_constants_pkg::SpiDataAddr),
-    .ControlAddr     (board_constants_pkg::SpiControlAddr),
-    .StatusAddr      (board_constants_pkg::SpiStatusAddr),
+    .DataAddr(board_constants_pkg::SpiDataAddr),
+    .ControlAddr(board_constants_pkg::SpiControlAddr),
+    .StatusAddr(board_constants_pkg::SpiStatusAddr),
     .ClocksPerHalfBit(SpiClocksPerHalfBit)
   ) _spi_mmio (
     .clk(clk),
@@ -189,9 +189,9 @@ module board_bus
   );
 
   i2c_mmio #(
-    .DataAddr   (board_constants_pkg::I2cDataAddr),
+    .DataAddr(board_constants_pkg::I2cDataAddr),
     .ControlAddr(board_constants_pkg::I2cControlAddr),
-    .StatusAddr (board_constants_pkg::I2cStatusAddr),
+    .StatusAddr(board_constants_pkg::I2cStatusAddr),
     .AddressAddr(board_constants_pkg::I2cAddressAddr),
     .ClocksPerHalfBit(I2cClocksPerHalfBit)
   ) _i2c_mmio (
@@ -221,7 +221,7 @@ module board_bus
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
+    .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),

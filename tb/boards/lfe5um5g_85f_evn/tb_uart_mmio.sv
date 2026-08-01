@@ -10,22 +10,22 @@ module tb_uart_mmio
   localparam word_t TxDataAddr = 32'h1000_1000;
   localparam word_t StatusAddr = 32'h1000_4000;
 
-  logic _clk;
-  logic _rst;
-  logic _mem_write_en;
-  word_t _mem_addr;
-  word_t _mem_write_data;
-  logic _selected;
-  word_t _read_data;
-  logic _tx;
+  logic        _clk;
+  logic        _rst;
+  logic        _mem_write_en;
+  word_t       _mem_addr;
+  word_t       _mem_write_data;
+  logic        _selected;
+  word_t       _read_data;
+  logic        _tx;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
 
   uart_mmio #(
     .ClocksPerBit(ClocksPerBit),
-    .TxDataAddr  (TxDataAddr),
-    .StatusAddr  (StatusAddr)
+    .TxDataAddr(TxDataAddr),
+    .StatusAddr(StatusAddr)
   ) _dut (
     .clk(_clk),
     .rst(_rst),

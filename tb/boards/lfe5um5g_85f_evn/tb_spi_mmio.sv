@@ -14,25 +14,25 @@ module tb_spi_mmio
   localparam logic [7:0] TxByte = 8'ha5;
   localparam logic [7:0] RxByte = 8'h3c;
 
-  logic _clk;
-  logic _rst;
-  logic _mem_write_en;
-  word_t _mem_addr;
-  word_t _mem_write_data;
-  logic _selected;
-  word_t _read_data;
-  logic _spi_sck;
-  logic _spi_mosi;
-  logic _spi_miso;
-  logic _spi_cs_n;
+  logic        _clk;
+  logic        _rst;
+  logic        _mem_write_en;
+  word_t       _mem_addr;
+  word_t       _mem_write_data;
+  logic        _selected;
+  word_t       _read_data;
+  logic        _spi_sck;
+  logic        _spi_mosi;
+  logic        _spi_miso;
+  logic        _spi_cs_n;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
 
   spi_mmio #(
-    .DataAddr        (DataAddr),
-    .ControlAddr     (ControlAddr),
-    .StatusAddr      (StatusAddr),
+    .DataAddr(DataAddr),
+    .ControlAddr(ControlAddr),
+    .StatusAddr(StatusAddr),
     .ClocksPerHalfBit(ClocksPerHalfBit)
   ) _dut (
     .clk(_clk),

@@ -11,9 +11,9 @@ typedef enum logic [2:0] {
 module spi_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t DataAddr = '0,
-  parameter word_t ControlAddr = '0,
-  parameter word_t StatusAddr = '0,
+  parameter word_t       DataAddr         = '0,
+  parameter word_t       ControlAddr      = '0,
+  parameter word_t       StatusAddr       = '0,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
   input logic clk,
@@ -31,14 +31,14 @@ module spi_mmio
   output logic spi_cs_n
 );
 
-  spi_state_t _state;
-  logic _busy;
-  logic _data_selected;
-  logic _control_selected;
-  logic _status_selected;
-  byte_t _tx_data;
-  byte_t _rx_data;
-  logic [2:0] _bit_index;
+  spi_state_t       _state;
+  logic             _busy;
+  logic             _data_selected;
+  logic             _control_selected;
+  logic             _status_selected;
+  byte_t            _tx_data;
+  byte_t            _rx_data;
+  logic       [2:0] _bit_index;
 
   assign _data_selected = mem_addr == DataAddr;
   assign _control_selected = mem_addr == ControlAddr;

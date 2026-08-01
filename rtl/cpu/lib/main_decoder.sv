@@ -24,20 +24,20 @@
 module main_decoder
   import riscv_pkg::*;
 (
-  input instr_u instr,
-  output logic reg_write,
-  output logic mem_write,
-  output imm_src_t imm_src,
-  output alu_src_t alu_src,
+  input  instr_u          instr,
+  output logic            reg_write,
+  output logic            mem_write,
+  output imm_src_t        imm_src,
+  output alu_src_t        alu_src,
   output alu_result_src_t alu_result_src,
-  output result_src_t result_src,
-  output logic branch,
-  output logic jump,
-  output logic alu_op,
-  output mem_size_t mem_size,
-  output logic mem_unsigned,
-  output logic clear_pc_lsb,
-  output logic illegal_main
+  output result_src_t     result_src,
+  output logic            branch,
+  output logic            jump,
+  output logic            alu_op,
+  output mem_size_t       mem_size,
+  output logic            mem_unsigned,
+  output logic            clear_pc_lsb,
+  output logic            illegal_main
 );
 
   always_comb begin

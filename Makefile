@@ -214,9 +214,14 @@ wave:
 # connections, which indents continuation lines by 4 spaces. This design
 # indents them by one level like everything else, so set each family to "indent".
 FMT_FLAGS := --port_declarations_indentation=indent \
+             --port_declarations_alignment=align \
              --formal_parameters_indentation=indent \
+             --formal_parameters_alignment=align \
              --named_port_indentation=indent \
-             --named_parameter_indentation=indent
+             --named_port_alignment=preserve \
+             --named_parameter_indentation=indent \
+             --named_parameter_alignment=preserve \
+             --module_net_variable_alignment=align
 
 fmt:
 	verible-verilog-format --inplace $(FMT_FLAGS) $(RTL_SRCS) $(PERIPH_SRCS) $(ALL_TB_SRCS) $(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS)

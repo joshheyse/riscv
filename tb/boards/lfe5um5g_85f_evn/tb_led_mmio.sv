@@ -9,17 +9,17 @@ module tb_led_mmio
   localparam word_t LedAddr = 32'h1000_0000;
   localparam int unsigned NumLeds = 8;
 
-  logic _clk;
-  logic _rst;
-  logic _mem_write_en;
-  word_t _mem_addr;
-  word_t _mem_write_data;
-  logic _selected;
-  word_t _read_data;
-  logic [NumLeds-1:0] _led;
+  logic                      _clk;
+  logic                      _rst;
+  logic                      _mem_write_en;
+  word_t                     _mem_addr;
+  word_t                     _mem_write_data;
+  logic                      _selected;
+  word_t                     _read_data;
+  logic        [NumLeds-1:0] _led;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned               errors = 0;
+  int unsigned               checks = 0;
 
   led_mmio #(
     .LedAddr(LedAddr),

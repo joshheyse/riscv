@@ -20,11 +20,11 @@
 module alu
   import riscv_pkg::*;
 (
-  input word_t src_a,
-  input word_t src_b,
-  input alu_select_t alu_select,
-  input wire sub_arith,
-  output word_t alu_result
+  input  word_t       src_a,
+  input  word_t       src_b,
+  input  alu_select_t alu_select,
+  input  wire         sub_arith,
+  output word_t       alu_result
 );
 
   word_t _add;

@@ -18,42 +18,42 @@
 module core
   import riscv_pkg::*;
 (
-  input logic clk,
-  input logic rst,
-  input instr_u instr,
-  output pc_t pc,
-  output pc_t imem_addr,
-  output logic halted,
-  dbus_if.master dbus,
-  output logic imem_en
+  input  logic          clk,
+  input  logic          rst,
+  input  instr_u        instr,
+  output pc_t           pc,
+  output pc_t           imem_addr,
+  output logic          halted,
+  output logic          imem_en,
+         dbus_if.master dbus
 );
 
-  logic _reg_write;
-  imm_src_t _imm_src;
-  alu_src_t _alu_src;
+  logic            _reg_write;
+  imm_src_t        _imm_src;
+  alu_src_t        _alu_src;
   alu_result_src_t _alu_result_src;
-  alu_select_t _alu_select;
-  result_src_t _result_src;
-  logic _sub_arith;
-  pc_src_t _pc_src;
-  logic _branch_sgnd;
-  branch_flags_t _branch_flags;
-  logic _clear_pc_lsb;
-  pc_t _raw_ieu_addr;
-  pc_t _ifu_ieu_addr;
-  logic _halt_now;
-  logic _illegal_instr;
-  logic _pc_en;
-  logic _reg_write_raw;
-  logic _mem_write_raw;
-  logic _instr_valid;
-  pc_src_t _ifu_pc_src;
+  alu_select_t     _alu_select;
+  result_src_t     _result_src;
+  logic            _sub_arith;
+  pc_src_t         _pc_src;
+  logic            _branch_sgnd;
+  branch_flags_t   _branch_flags;
+  logic            _clear_pc_lsb;
+  pc_t             _raw_ieu_addr;
+  pc_t             _ifu_ieu_addr;
+  logic            _halt_now;
+  logic            _illegal_instr;
+  logic            _pc_en;
+  logic            _reg_write_raw;
+  logic            _mem_write_raw;
+  logic            _instr_valid;
+  pc_src_t         _ifu_pc_src;
 
-  logic _dbus_pending;
-  logic _dbus_instr;
-  logic _dbus_wait;
-  logic _load_complete;
-  logic _load_instr;
+  logic            _dbus_pending;
+  logic            _dbus_instr;
+  logic            _dbus_wait;
+  logic            _load_complete;
+  logic            _load_instr;
 
   assign _ifu_ieu_addr = _clear_pc_lsb ? {_raw_ieu_addr[31:1], 1'b0} : _raw_ieu_addr;
 

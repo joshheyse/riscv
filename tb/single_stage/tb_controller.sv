@@ -317,9 +317,9 @@ module tb_controller
     // branch flag combination. Other instruction fields are irrelevant to the
     // controller and are held at recognizable constants.
     begin
-      instr_t word;
-      funct3_t funct3;
-      logic [6:0] funct7;
+      instr_t        word;
+      funct3_t       funct3;
+      logic    [6:0] funct7;
 
       for (int unsigned op = 0; op < 128; op++) begin
         for (int unsigned f = 0; f < 8; f++) begin

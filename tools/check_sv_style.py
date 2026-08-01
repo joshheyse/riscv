@@ -83,6 +83,7 @@ ENDINTERFACE_RE = re.compile(r"^\s*endinterface\b")
 HEADER_END_RE = re.compile(r"^\s*\)\s*;")
 SUBROUTINE_RE = re.compile(r"^\s*(task|function)\b")
 ENDSUBROUTINE_RE = re.compile(r"^\s*end(task|function)\b")
+PADDED_NAMED_PORT_RE = re.compile(r"\.[A-Za-z_][A-Za-z0-9_$]*\s+\(")
 
 
 def strip_comment(line: str) -> str:
@@ -153,6 +154,9 @@ def check_file(path: Path) -> list[str]:
 
         if not in_module or in_header or in_interface or in_subroutine:
             continue
+
+        if PADDED_NAMED_PORT_RE.search(line):
+            errors.append(f"{path}:{lineno}: named port connection should use `.port(expr)`")
 
         if not raw.startswith("  ") or raw.startswith("    "):
             continue

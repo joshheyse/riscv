@@ -161,10 +161,10 @@ module tb_alu_decoder
   initial begin
     // ---- exhaustive sweep, with randomized don't-care bits ----------------
     begin
-      instr_t word;
-      funct3_t f3;
-      logic [6:0] f7;
-      logic [6:0] opc;
+      instr_t        word;
+      funct3_t       f3;
+      logic    [6:0] f7;
+      logic    [6:0] opc;
 
       void'($urandom(RandomSeed));
 

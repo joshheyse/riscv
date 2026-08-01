@@ -7,10 +7,10 @@
 module top
   import riscv_pkg::*;
 #(
-  parameter int unsigned ImemDepthWords = 512,
-  parameter ImemInitFile = "",
+  parameter int unsigned ImemDepthWords     = 512,
+  parameter              ImemInitFile       = "",
   parameter int unsigned PowerOnResetCycles = 16,
-  parameter int unsigned NumGpio = board_constants_pkg::NumGpio
+  parameter int unsigned NumGpio            = board_constants_pkg::NumGpio
 ) (
   input  logic               clk_12mhz,
   input  logic               rst_n,
@@ -31,31 +31,31 @@ module top
   localparam logic [ResetCounterBits-1:0] ResetCounterMax = ResetCounterBits'(PowerOnResetCycles);
   localparam logic [ResetCounterBits-1:0] ResetCounterInc = ResetCounterBits'(1);
   /* verilator lint_off PROCASSINIT */
-  logic [ResetCounterBits-1:0] _reset_counter = '0;
+  logic   [ResetCounterBits-1:0] _reset_counter = '0;
   /* verilator lint_on PROCASSINIT */
 
-  logic _rst;
-  logic _power_on_rst;
-  pc_t _pc;
-  pc_t _imem_addr;
-  instr_u _instr;
-  logic _halted;
+  logic                          _rst;
+  logic                          _power_on_rst;
+  pc_t                           _pc;
+  pc_t                           _imem_addr;
+  instr_u                        _instr;
+  logic                          _halted;
 
-  logic _imem_en;
+  logic                          _imem_en;
   dbus_if _dbus ();
 
-  logic [7:0] _led;
-  logic [7:0] _dip_switch;
-  logic _push_button;
+  logic [        7:0] _led;
+  logic [        7:0] _dip_switch;
+  logic               _push_button;
 
   logic [NumGpio-1:0] _gpio_in;
   logic [NumGpio-1:0] _gpio_out;
   logic [NumGpio-1:0] _gpio_oe;
 
-  logic _i2c_sda_in;
-  logic _i2c_sda_drive_low;
-  logic _i2c_scl_in;
-  logic _i2c_scl_drive_low;
+  logic               _i2c_sda_in;
+  logic               _i2c_sda_drive_low;
+  logic               _i2c_scl_in;
+  logic               _i2c_scl_drive_low;
 
   initial begin
     assert (PowerOnResetCycles > 0);
@@ -92,7 +92,7 @@ module top
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
     .clk(clk_12mhz),
     .rst(_rst),

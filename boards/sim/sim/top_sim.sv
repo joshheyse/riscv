@@ -3,29 +3,29 @@
 module top_sim
   import riscv_pkg::*;
 #(
-  parameter string ImemInitFile = "",
+  parameter string       ImemInitFile   = "",
   parameter int unsigned ImemDepthWords = 512,
   parameter int unsigned DmemDepthWords = 512,
-  parameter string DmemInitFile = "",
-  parameter int unsigned ClockHz = board_constants_pkg::ClockHz,
-  parameter int unsigned UartBaud = board_constants_pkg::UartBaud,
-  parameter int unsigned ClocksPerBit = ClockHz / UartBaud,
-  parameter word_t SimHaltAddr = board_constants_pkg::SimHaltAddr,
-  parameter int unsigned TimeoutCycles = 1_000_000
+  parameter string       DmemInitFile   = "",
+  parameter int unsigned ClockHz        = board_constants_pkg::ClockHz,
+  parameter int unsigned UartBaud       = board_constants_pkg::UartBaud,
+  parameter int unsigned ClocksPerBit   = ClockHz / UartBaud,
+  parameter word_t       SimHaltAddr    = board_constants_pkg::SimHaltAddr,
+  parameter int unsigned TimeoutCycles  = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;
 
-  logic _clk;
-  logic _rst;
-  pc_t _pc;
-  pc_t _imem_addr;
-  instr_u _instr;
-  logic [7:0] _led;
-  logic [7:0] _led_prev;
-  logic _sim_halt_selected;
-  logic _halted;
-  logic _uart_tx;
-  logic _core_imem_en;
+  logic         _clk;
+  logic         _rst;
+  pc_t          _pc;
+  pc_t          _imem_addr;
+  instr_u       _instr;
+  logic   [7:0] _led;
+  logic   [7:0] _led_prev;
+  logic         _sim_halt_selected;
+  logic         _halted;
+  logic         _uart_tx;
+  logic         _core_imem_en;
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
@@ -58,7 +58,7 @@ module top_sim
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
     .clk(_clk),
     .rst(_rst),
@@ -80,7 +80,7 @@ module top_sim
 
   board_bus #(
     .DmemDepthWords(DmemDepthWords),
-    .DmemInitFile  (DmemInitFile)
+    .DmemInitFile(DmemInitFile)
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),

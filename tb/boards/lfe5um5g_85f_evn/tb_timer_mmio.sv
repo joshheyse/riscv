@@ -9,11 +9,11 @@ module tb_timer_mmio
   localparam word_t TimerLoAddr = 32'h1000_2000;
   localparam word_t TimerHiAddr = 32'h1000_2004;
 
-  logic _clk;
-  logic _rst;
-  word_t _mem_addr;
-  logic _selected;
-  word_t _read_data;
+  logic        _clk;
+  logic        _rst;
+  word_t       _mem_addr;
+  logic        _selected;
+  word_t       _read_data;
 
   int unsigned errors = 0;
   int unsigned checks = 0;

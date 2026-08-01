@@ -4,18 +4,22 @@ module dmem
   import riscv_pkg::*;
 #(
   parameter int unsigned DepthWords = 512,
-  parameter InitFile = ""
+  parameter              InitFile   = ""
 ) (
-  input logic clk,
-  input logic rst,
-  input logic mem_valid,
-  input logic mem_write_en,
-  input word_t addr,
-  input word_t write_data,
-  input logic [3:0] write_mask,
-  output logic mem_ready,
-  output word_t read_data
+  input  logic        clk,
+  input  logic        rst,
+  input  logic        mem_valid,
+  input  logic        mem_write_en,
+  input  word_t       addr,
+  input  word_t       write_data,
+  input  logic  [3:0] write_mask,
+  output logic        mem_ready,
+  output word_t       read_data
 );
+
+  localparam int unsigned IndexBits = $clog2(DepthWords);
+
+
   word_t _memory[0:DepthWords-1];
   initial begin
     if (InitFile != "") begin
@@ -23,7 +27,6 @@ module dmem
     end
   end
 
-  localparam int unsigned IndexBits = $clog2(DepthWords);
   logic [IndexBits-1:0] _word_index;
   assign _word_index = addr[IndexBits+1:2];
 

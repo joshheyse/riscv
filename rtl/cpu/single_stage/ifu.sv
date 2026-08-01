@@ -15,14 +15,14 @@
 module ifu
   import riscv_pkg::*;
 (
-  input logic clk,
-  input logic rst,
-  input pc_src_t pc_src,
-  input logic pc_en,
-  input pc_t ieu_addr,
-  output pc_t pc,
-  output pc_t imem_addr,
-  output logic instr_valid
+  input  logic    clk,
+  input  logic    rst,
+  input  pc_src_t pc_src,
+  input  logic    pc_en,
+  input  pc_t     ieu_addr,
+  output pc_t     pc,
+  output pc_t     imem_addr,
+  output logic    instr_valid
 );
 
   always_ff @(posedge clk) begin

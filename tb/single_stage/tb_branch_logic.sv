@@ -58,8 +58,8 @@ module tb_branch_logic
 
   branch_logic _dut (
     .branch(_branch),
-    .jump  (_jump),
-    .flags (_flags),
+    .jump(_jump),
+    .flags(_flags),
     .funct3(_funct3),
     .pc_src(_pc_src)
   );

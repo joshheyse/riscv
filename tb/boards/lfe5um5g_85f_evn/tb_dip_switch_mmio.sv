@@ -9,21 +9,21 @@ module tb_dip_switch_mmio
   localparam word_t DipSwitchAddr = 32'h1000_3000;
   localparam int unsigned NumDipSwitches = 8;
 
-  word_t _mem_addr;
-  logic _selected;
-  word_t _read_data;
-  logic [NumDipSwitches-1:0] _dip_switch;
+  word_t                            _mem_addr;
+  logic                             _selected;
+  word_t                            _read_data;
+  logic        [NumDipSwitches-1:0] _dip_switch;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned                      errors = 0;
+  int unsigned                      checks = 0;
 
   dip_switch_mmio #(
-    .DipSwitchAddr (DipSwitchAddr),
+    .DipSwitchAddr(DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dut (
-    .mem_addr  (_mem_addr),
-    .selected  (_selected),
-    .read_data (_read_data),
+    .mem_addr(_mem_addr),
+    .selected(_selected),
+    .read_data(_read_data),
     .dip_switch(_dip_switch)
   );
 

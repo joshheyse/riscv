@@ -6,12 +6,12 @@ module tb_serial_tick_generator;
   localparam int unsigned ClocksPerTick = 4;
   localparam int unsigned TimeoutCycles = 100;
 
-  logic _clk;
-  logic _rst;
-  logic _enable;
-  logic _clear;
-  logic _tick;
-  logic _tick_every_cycle;
+  logic        _clk;
+  logic        _rst;
+  logic        _enable;
+  logic        _clear;
+  logic        _tick;
+  logic        _tick_every_cycle;
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;

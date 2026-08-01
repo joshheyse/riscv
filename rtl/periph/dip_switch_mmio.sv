@@ -3,13 +3,13 @@
 module dip_switch_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t DipSwitchAddr = '0,
+  parameter word_t       DipSwitchAddr  = '0,
   parameter int unsigned NumDipSwitches = 1
 ) (
-  input word_t mem_addr,
-  output logic selected,
-  output word_t read_data,
-  input logic [NumDipSwitches-1:0] dip_switch
+  input  word_t                      mem_addr,
+  output logic                       selected,
+  output word_t                      read_data,
+  input  logic  [NumDipSwitches-1:0] dip_switch
 );
 
   localparam int unsigned WordBits = $bits(mem_addr);

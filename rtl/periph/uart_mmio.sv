@@ -18,11 +18,11 @@ module uart_mmio
   output logic  tx
 );
 
-  byte_t _tx_data;
-  logic [3:0] _bit_idx;
-  logic [2:0] _data_bit_idx;
-  logic _tx_busy;
-  logic _tx_ready;
+  byte_t       _tx_data;
+  logic  [3:0] _bit_idx;
+  logic  [2:0] _data_bit_idx;
+  logic        _tx_busy;
+  logic        _tx_ready;
 
   assign selected = (mem_addr == TxDataAddr | mem_addr == StatusAddr);
 

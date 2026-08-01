@@ -16,26 +16,26 @@ module tb_i2c_mmio
   localparam logic [7:0] AddrByte = {I2cAddr, 1'b0};
   localparam logic [7:0] TxByte = 8'ha5;
 
-  logic _clk;
-  logic _rst;
-  logic _mem_write_en;
-  word_t _mem_addr;
-  word_t _mem_write_data;
-  logic _selected;
-  word_t _read_data;
-  logic _i2c_sda_in;
-  logic _i2c_sda_drive_low;
-  logic _i2c_scl_in;
-  logic _i2c_scl_drive_low;
+  logic        _clk;
+  logic        _rst;
+  logic        _mem_write_en;
+  word_t       _mem_addr;
+  word_t       _mem_write_data;
+  logic        _selected;
+  word_t       _read_data;
+  logic        _i2c_sda_in;
+  logic        _i2c_sda_drive_low;
+  logic        _i2c_scl_in;
+  logic        _i2c_scl_drive_low;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
 
   i2c_mmio #(
-    .DataAddr        (DataAddr),
-    .ControlAddr     (ControlAddr),
-    .StatusAddr      (StatusAddr),
-    .AddressAddr     (AddressAddr),
+    .DataAddr(DataAddr),
+    .ControlAddr(ControlAddr),
+    .StatusAddr(StatusAddr),
+    .AddressAddr(AddressAddr),
     .ClocksPerHalfBit(ClocksPerHalfBit)
   ) _dut (
     .clk(_clk),

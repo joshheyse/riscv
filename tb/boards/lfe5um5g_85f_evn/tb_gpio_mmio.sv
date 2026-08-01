@@ -14,28 +14,28 @@ module tb_gpio_mmio
   localparam word_t ClearAddr = 32'h1000_6010;
   localparam word_t ToggleAddr = 32'h1000_6014;
 
-  logic _clk;
-  logic _rst;
-  logic _mem_write_en;
-  word_t _mem_addr;
-  word_t _mem_write_data;
-  logic _selected;
-  word_t _read_data;
-  logic [NumGpio-1:0] _gpio_in;
-  logic [NumGpio-1:0] _gpio_out;
-  logic [NumGpio-1:0] _gpio_oe;
+  logic                      _clk;
+  logic                      _rst;
+  logic                      _mem_write_en;
+  word_t                     _mem_addr;
+  word_t                     _mem_write_data;
+  logic                      _selected;
+  word_t                     _read_data;
+  logic        [NumGpio-1:0] _gpio_in;
+  logic        [NumGpio-1:0] _gpio_out;
+  logic        [NumGpio-1:0] _gpio_oe;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned               errors = 0;
+  int unsigned               checks = 0;
 
   gpio_mmio #(
-    .GpioDataInAddr (DataInAddr),
+    .GpioDataInAddr(DataInAddr),
     .GpioDataOutAddr(DataOutAddr),
-    .GpioDirAddr    (DirAddr),
-    .GpioSetAddr    (SetAddr),
-    .GpioClearAddr  (ClearAddr),
-    .GpioToggleAddr (ToggleAddr),
-    .NumGpio        (NumGpio)
+    .GpioDirAddr(DirAddr),
+    .GpioSetAddr(SetAddr),
+    .GpioClearAddr(ClearAddr),
+    .GpioToggleAddr(ToggleAddr),
+    .NumGpio(NumGpio)
   ) _dut (
     .clk(_clk),
     .rst(_rst),

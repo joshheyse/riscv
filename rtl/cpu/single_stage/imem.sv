@@ -17,11 +17,11 @@ module imem
   import riscv_pkg::*;
 #(
   parameter int unsigned DepthWords = 512,
-  parameter InitFile = ""
+  parameter              InitFile   = ""
 ) (
-  input logic clk,
-  input logic rst,
-  input logic en,
+  input  logic   clk,
+  input  logic   rst,
+  input  logic   en,
   input  pc_t    addr,
   output instr_t instr
 );

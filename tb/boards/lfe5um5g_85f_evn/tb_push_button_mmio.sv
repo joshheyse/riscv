@@ -10,15 +10,15 @@ module tb_push_button_mmio
   localparam int unsigned NumPushButtons = 1;
   localparam int unsigned DebounceCycles = 3;
 
-  logic _clk;
-  logic _rst;
-  word_t _mem_addr;
-  logic _selected;
-  word_t _read_data;
-  logic [NumPushButtons-1:0] _push_button;
+  logic                             _clk;
+  logic                             _rst;
+  word_t                            _mem_addr;
+  logic                             _selected;
+  word_t                            _read_data;
+  logic        [NumPushButtons-1:0] _push_button;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned                      errors = 0;
+  int unsigned                      checks = 0;
 
   push_button_mmio #(
     .PushButtonAddr(PushButtonAddr),

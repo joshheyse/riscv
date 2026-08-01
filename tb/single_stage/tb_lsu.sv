@@ -48,7 +48,7 @@ module tb_lsu
 
   dmem #(
     .DepthWords(DepthWords),
-    .InitFile  (InitFile)
+    .InitFile(InitFile)
   ) _dmem (
     .clk(_clk),
     .rst(_rst),

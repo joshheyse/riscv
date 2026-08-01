@@ -30,7 +30,7 @@ module tb_core
 
   soc #(
     .ImemDepthWords(32),
-    .ImemInitFile  (ProgramFile)
+    .ImemInitFile(ProgramFile)
   ) _dut (
     .clk(_clk),
     .rst(_rst),

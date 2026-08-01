@@ -19,11 +19,11 @@
 module alu_decoder
   import riscv_pkg::*;
 (
-  input logic alu_op,
-  input instr_u instr,
+  input  logic        alu_op,
+  input  instr_u      instr,
   output alu_select_t alu_select,
-  output logic sub_arith,
-  output logic illegal_alu
+  output logic        sub_arith,
+  output logic        illegal_alu
 );
 
   assign alu_select = alu_op ? instr.r.funct3.alu : ALU_ADDSUB;

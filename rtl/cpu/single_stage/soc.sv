@@ -10,9 +10,9 @@ module soc
   import riscv_pkg::*;
 #(
   parameter int unsigned ImemDepthWords = 512,
-  parameter ImemInitFile = "",
+  parameter              ImemInitFile   = "",
   parameter int unsigned DmemDepthWords = 512,
-  parameter DmemInitFile = ""
+  parameter              DmemInitFile   = ""
 ) (
   input logic clk,
   input logic rst,
@@ -20,18 +20,18 @@ module soc
   output pc_t    pc,
   output pc_t    imem_addr,
   output instr_u instr,
-  output logic halted
+  output logic   halted
 );
 
-  logic _imem_en;
-  word_t _read_mem;
-  word_t _write_mem;
-  logic [3:0] _write_mask;
+  logic        _imem_en;
+  word_t       _read_mem;
+  word_t       _write_mem;
+  logic  [3:0] _write_mask;
   dbus_if _dbus ();
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
     .clk(clk),
     .rst(rst),
@@ -64,7 +64,7 @@ module soc
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
+    .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),

@@ -21,10 +21,10 @@ typedef enum logic {
 module i2c_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t DataAddr = '0,
-  parameter word_t ControlAddr = '0,
-  parameter word_t StatusAddr = '0,
-  parameter word_t AddressAddr = '0,
+  parameter word_t       DataAddr         = '0,
+  parameter word_t       ControlAddr      = '0,
+  parameter word_t       StatusAddr       = '0,
+  parameter word_t       AddressAddr      = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
   input  logic  clk,
@@ -40,21 +40,21 @@ module i2c_mmio
   output logic  i2c_scl_drive_low
 );
 
-  i2c_state_t _state;
-  i2c_phase_t _phase;
-  i2c_byte_t _byte_type;
-  logic _data_selected;
-  logic _control_selected;
-  logic _status_selected;
-  logic _address_selected;
+  i2c_state_t       _state;
+  i2c_phase_t       _phase;
+  i2c_byte_t        _byte_type;
+  logic             _data_selected;
+  logic             _control_selected;
+  logic             _status_selected;
+  logic             _address_selected;
 
-  logic _busy;
-  logic _ack_error;
-  byte_t _tx_data;
-  byte_t _rx_data;
-  logic [6:0] _i2c_addr;
-  byte_t _i2c_byte;
-  logic [2:0] _bit_index;
+  logic             _busy;
+  logic             _ack_error;
+  byte_t            _tx_data;
+  byte_t            _rx_data;
+  logic       [6:0] _i2c_addr;
+  byte_t            _i2c_byte;
+  logic       [2:0] _bit_index;
 
   assign _data_selected = mem_addr == DataAddr;
   assign _control_selected = mem_addr == ControlAddr;

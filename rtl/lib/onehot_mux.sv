@@ -1,12 +1,12 @@
 `timescale 1ns / 1ps
 
 module onehot_mux #(
-  parameter int unsigned Width = 32,
+  parameter int unsigned Width     = 32,
   parameter int unsigned NumInputs = 1
 ) (
-  input logic [NumInputs - 1:0] selected,
-  input logic [Width-1:0] data_in[NumInputs],
-  output logic [Width-1:0] data_out
+  input  logic [NumInputs - 1:0] selected,
+  input  logic [      Width-1:0] data_in [NumInputs],
+  output logic [      Width-1:0] data_out
 );
 
   always_comb begin

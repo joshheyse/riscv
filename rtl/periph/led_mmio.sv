@@ -3,18 +3,18 @@
 module led_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t LedAddr = '0,
+  parameter word_t       LedAddr = '0,
   parameter int unsigned NumLeds = 1
 ) (
   input logic clk,
   input logic rst,
 
-  input logic mem_write_en,
-  input word_t mem_addr,
-  input word_t mem_write_data,
-  output logic selected,
-  output word_t read_data,
-  output logic [NumLeds-1:0] led
+  input  logic                mem_write_en,
+  input  word_t               mem_addr,
+  input  word_t               mem_write_data,
+  output logic                selected,
+  output word_t               read_data,
+  output logic  [NumLeds-1:0] led
 );
 
   localparam int unsigned WordBits = $bits(mem_addr);

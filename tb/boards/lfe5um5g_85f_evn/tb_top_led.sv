@@ -23,22 +23,22 @@ module tb_top_led;
   assign _unused_outputs = _uart_tx | _spi_sck | _spi_mosi | _spi_cs_n | (|gpio) | _i2c_sda | _i2c_scl;
 
   top #(
-    .ImemInitFile      (ProgramFile),
+    .ImemInitFile(ProgramFile),
     .PowerOnResetCycles(4)
   ) _dut (
-    .clk_12mhz    (_clk_12mhz),
-    .rst_n        (_rst_n),
-    .uart_tx      (_uart_tx),
-    .led_n        (_led_n),
-    .dip_switch_n (_dip_switch_n),
+    .clk_12mhz(_clk_12mhz),
+    .rst_n(_rst_n),
+    .uart_tx(_uart_tx),
+    .led_n(_led_n),
+    .dip_switch_n(_dip_switch_n),
     .push_button_n(_push_button_n),
-    .gpio         (gpio),
-    .spi_sck      (_spi_sck),
-    .spi_mosi     (_spi_mosi),
-    .spi_miso     (_spi_miso),
-    .spi_cs_n     (_spi_cs_n),
-    .i2c_sda      (_i2c_sda),
-    .i2c_scl      (_i2c_scl)
+    .gpio(gpio),
+    .spi_sck(_spi_sck),
+    .spi_mosi(_spi_mosi),
+    .spi_miso(_spi_miso),
+    .spi_cs_n(_spi_cs_n),
+    .i2c_sda(_i2c_sda),
+    .i2c_scl(_i2c_scl)
   );
 
   initial begin

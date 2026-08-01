@@ -39,11 +39,11 @@ module tb_comparator
   localparam int unsigned RandomSeed = 32'h00c0_ffee;
   localparam int unsigned MaxPrintedFailures = 20;
 
-  word_t _src_a;
-  word_t _src_b;
-  logic _sngd;
-  logic _eq;
-  logic _lt;
+  word_t       _src_a;
+  word_t       _src_b;
+  logic        _sngd;
+  logic        _eq;
+  logic        _lt;
 
   int unsigned errors = 0;
   int unsigned checks = 0;

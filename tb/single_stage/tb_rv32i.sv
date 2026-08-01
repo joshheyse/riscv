@@ -15,19 +15,19 @@ module tb_rv32i
   localparam int unsigned TimeoutCycles = 200;
   localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_rv32i.mem";
 
-  logic   _clk;
-  logic   _rst;
-  logic   _halted;
-  pc_t    _pc;
-  pc_t    _imem_addr;
-  instr_u _instr;
+  logic        _clk;
+  logic        _rst;
+  logic        _halted;
+  pc_t         _pc;
+  pc_t         _imem_addr;
+  instr_u      _instr;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
 
   soc #(
     .ImemDepthWords(128),
-    .ImemInitFile  (ProgramFile)
+    .ImemInitFile(ProgramFile)
   ) _dut (
     .clk(_clk),
     .rst(_rst),

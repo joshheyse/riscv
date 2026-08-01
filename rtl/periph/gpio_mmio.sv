@@ -3,13 +3,13 @@
 module gpio_mmio
   import riscv_pkg::*;
 #(
-  parameter logic [31:0] GpioDataInAddr = '0,
-  parameter logic [31:0] GpioDataOutAddr = '0,
-  parameter logic [31:0] GpioDirAddr = '0,
-  parameter logic [31:0] GpioSetAddr = '0,
-  parameter logic [31:0] GpioClearAddr = '0,
-  parameter logic [31:0] GpioToggleAddr = '0,
-  parameter int unsigned NumGpio = 1
+  parameter logic        [31:0] GpioDataInAddr  = '0,
+  parameter logic        [31:0] GpioDataOutAddr = '0,
+  parameter logic        [31:0] GpioDirAddr     = '0,
+  parameter logic        [31:0] GpioSetAddr     = '0,
+  parameter logic        [31:0] GpioClearAddr   = '0,
+  parameter logic        [31:0] GpioToggleAddr  = '0,
+  parameter int unsigned        NumGpio         = 1
 ) (
   input logic clk,
   input logic rst,
