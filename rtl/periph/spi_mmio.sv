@@ -19,11 +19,14 @@ module spi_mmio
   input logic clk,
   input logic rst,
 
-  input  logic  mem_write_en,
-  input  word_t mem_addr,
-  input  word_t mem_write_data,
-  output logic  selected,
-  output word_t read_data,
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  word_t           mem_addr,
+  input  word_t           mem_write_data,
+  input  mem_write_mask_t mem_write_mask,
+  output logic            selected,
+  output logic            mem_ready,
+  output word_t           mem_read_data,
 
   output logic spi_sck,
   output logic spi_mosi,
@@ -44,6 +47,7 @@ module spi_mmio
   assign _control_selected = mem_addr == ControlAddr;
   assign _status_selected = mem_addr == StatusAddr;
   assign selected = _data_selected || _control_selected || _status_selected;
+  assign mem_ready = mem_valid && selected;
 
   logic _stg_en;
   logic _stg_clear;
@@ -127,15 +131,15 @@ module spi_mmio
     end
 
     if (_data_selected) begin
-      read_data = {24'b0, _rx_data};
+      mem_read_data = {24'b0, _rx_data};
     end else if (_status_selected) begin
-      read_data = {31'b0, _busy};
+      mem_read_data = {31'b0, _busy};
     end else begin
-      read_data = 32'b0;
+      mem_read_data = 32'b0;
     end
   end
 
   logic _unused_write_data;
-  assign _unused_write_data = |mem_write_data[31:8];
+  assign _unused_write_data = |mem_write_data[31:8] | (|mem_write_mask);
 
 endmodule

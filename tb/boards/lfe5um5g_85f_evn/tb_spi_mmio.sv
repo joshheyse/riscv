@@ -14,20 +14,25 @@ module tb_spi_mmio
   localparam logic [7:0] TxByte = 8'ha5;
   localparam logic [7:0] RxByte = 8'h3c;
 
-  logic        _clk;
-  logic        _rst;
-  logic        _mem_write_en;
-  word_t       _mem_addr;
-  word_t       _mem_write_data;
-  logic        _selected;
-  word_t       _read_data;
-  logic        _spi_sck;
-  logic        _spi_mosi;
-  logic        _spi_miso;
-  logic        _spi_cs_n;
+  logic            _clk;
+  logic            _rst;
+  logic            _mem_valid;
+  logic            _mem_write_en;
+  word_t           _mem_addr;
+  word_t           _mem_write_data;
+  mem_write_mask_t _mem_write_mask;
+  logic            _selected;
+  logic            _mem_ready;
+  word_t           _read_data;
+  logic            _spi_sck;
+  logic            _spi_mosi;
+  logic            _spi_miso;
+  logic            _spi_cs_n;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned     errors = 0;
+  int unsigned     checks = 0;
+  logic            _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   spi_mmio #(
     .DataAddr(DataAddr),
@@ -37,11 +42,14 @@ module tb_spi_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
     .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .spi_sck(_spi_sck),
     .spi_mosi(_spi_mosi),
     .spi_miso(_spi_miso),
@@ -71,8 +79,10 @@ module tb_spi_mmio
 
   task automatic set_read_addr(input word_t addr);
     @(negedge _clk);
+    _mem_valid = 1'b1;
     _mem_write_en = 1'b0;
     _mem_addr = addr;
+    _mem_write_mask = '0;
     #1;
   endtask
 
@@ -80,10 +90,13 @@ module tb_spi_mmio
     @(negedge _clk);
     _mem_addr       = addr;
     _mem_write_data = data;
+    _mem_write_mask = 4'b1111;
+    _mem_valid      = 1'b1;
     _mem_write_en   = 1'b1;
     @(posedge _clk);
     #1;
-    _mem_write_en = 1'b0;
+    _mem_write_en   = 1'b0;
+    _mem_write_mask = '0;
   endtask
 
   task automatic expect_idle(input string what);
@@ -145,9 +158,11 @@ module tb_spi_mmio
     end
 
     _rst            = 1'b1;
+    _mem_valid      = 1'b0;
     _mem_write_en   = 1'b0;
     _mem_addr       = '0;
     _mem_write_data = '0;
+    _mem_write_mask = '0;
     _spi_miso       = 1'b0;
 
     repeat (2) @(posedge _clk);

@@ -31,7 +31,7 @@ module soc
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
     .clk(clk),
     .rst(rst),
@@ -53,17 +53,17 @@ module soc
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
+    .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),
     .mem_valid(_dbus.valid),
     .mem_write_en(_dbus.write_en),
-    .addr(_dbus.addr),
-    .write_data(_dbus.write_data),
-    .read_data(_dbus.read_data),
+    .mem_addr(_dbus.addr),
+    .mem_write_data(_dbus.write_data),
+    .mem_read_data(_dbus.read_data),
     .mem_ready(_dbus.ready),
-    .write_mask(_dbus.write_mask)
+    .mem_write_mask(_dbus.write_mask)
   );
 
 endmodule

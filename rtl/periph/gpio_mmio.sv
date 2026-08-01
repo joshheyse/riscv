@@ -14,11 +14,14 @@ module gpio_mmio
   input logic clk,
   input logic rst,
 
-  input  logic  mem_write_en,
-  input  word_t mem_addr,
-  input  word_t mem_write_data,
-  output logic  selected,
-  output word_t read_data,
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  word_t           mem_addr,
+  input  word_t           mem_write_data,
+  input  mem_write_mask_t mem_write_mask,
+  output logic            selected,
+  output logic            mem_ready,
+  output word_t           mem_read_data,
 
   input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,
@@ -35,6 +38,7 @@ module gpio_mmio
 
   assign selected = mem_addr == GpioDataInAddr || mem_addr == GpioDataOutAddr || mem_addr == GpioDirAddr ||
              mem_addr == GpioSetAddr || mem_addr == GpioClearAddr || mem_addr == GpioToggleAddr;
+  assign mem_ready = mem_valid && selected;
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -62,9 +66,9 @@ module gpio_mmio
                    mem_addr == GpioDirAddr ? gpio_oe :
                    8'h0;
 
-  assign read_data = {{WordBits - NumGpio{1'b0}}, _read};
+  assign mem_read_data = {{WordBits - NumGpio{1'b0}}, _read};
 
   logic _unused_write_data;
-  assign _unused_write_data = |mem_write_data[WordBits-1:NumGpio];
+  assign _unused_write_data = |mem_write_data[WordBits-1:NumGpio] | (|mem_write_mask);
 
 endmodule

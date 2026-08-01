@@ -59,7 +59,7 @@ module datapath
 
   extend _extend (
     .imm_src(imm_src),
-    .instr  (instr[31:7]),
+    .instr(instr[31:7]),
     .imm_ext(_imm_ext)
   );
 

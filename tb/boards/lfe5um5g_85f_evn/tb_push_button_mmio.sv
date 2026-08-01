@@ -10,15 +10,22 @@ module tb_push_button_mmio
   localparam int unsigned NumPushButtons = 1;
   localparam int unsigned DebounceCycles = 3;
 
-  logic                             _clk;
-  logic                             _rst;
-  word_t                            _mem_addr;
-  logic                             _selected;
-  word_t                            _read_data;
-  logic        [NumPushButtons-1:0] _push_button;
+  logic                                 _clk;
+  logic                                 _rst;
+  logic                                 _mem_valid;
+  logic                                 _mem_write_en;
+  word_t                                _mem_addr;
+  word_t                                _mem_write_data;
+  mem_write_mask_t                      _mem_write_mask;
+  logic                                 _selected;
+  logic                                 _mem_ready;
+  word_t                                _read_data;
+  logic            [NumPushButtons-1:0] _push_button;
 
-  int unsigned                      errors = 0;
-  int unsigned                      checks = 0;
+  int unsigned                          errors = 0;
+  int unsigned                          checks = 0;
+  logic                                 _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   push_button_mmio #(
     .PushButtonAddr(PushButtonAddr),
@@ -27,9 +34,14 @@ module tb_push_button_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .mem_valid(_mem_valid),
+    .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
+    .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .push_button(_push_button)
   );
 
@@ -56,7 +68,8 @@ module tb_push_button_mmio
 
   task automatic set_addr(input word_t addr);
     @(negedge _clk);
-    _mem_addr = addr;
+    _mem_valid = 1'b1;
+    _mem_addr  = addr;
     #1;
   endtask
 
@@ -77,9 +90,13 @@ module tb_push_button_mmio
       $dumpvars(0, tb_push_button_mmio);
     end
 
-    _rst         = 1'b1;
-    _mem_addr    = '0;
-    _push_button = '0;
+    _rst            = 1'b1;
+    _mem_valid      = 1'b0;
+    _mem_write_en   = 1'b0;
+    _mem_addr       = '0;
+    _mem_write_data = '0;
+    _mem_write_mask = '0;
+    _push_button    = '0;
 
     repeat (2) @(posedge _clk);
     #1;

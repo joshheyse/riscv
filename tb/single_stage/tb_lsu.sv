@@ -54,11 +54,11 @@ module tb_lsu
     .rst(_rst),
     .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
-    .addr(_addr),
-    .write_data(_dmem_write_data),
-    .write_mask(_write_mask),
+    .mem_addr(_addr),
+    .mem_write_data(_dmem_write_data),
+    .mem_write_mask(_write_mask),
     .mem_ready(_mem_ready),
-    .read_data(_dmem_read_data)
+    .mem_read_data(_dmem_read_data)
   );
 
   initial begin

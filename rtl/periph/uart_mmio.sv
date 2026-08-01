@@ -10,12 +10,15 @@ module uart_mmio
   input logic clk,
   input logic rst,
 
-  input  logic  mem_write_en,
-  input  word_t mem_addr,
-  input  word_t mem_write_data,
-  output logic  selected,
-  output word_t read_data,
-  output logic  tx
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  word_t           mem_addr,
+  input  word_t           mem_write_data,
+  input  mem_write_mask_t mem_write_mask,
+  output logic            selected,
+  output logic            mem_ready,
+  output word_t           mem_read_data,
+  output logic            tx
 );
 
   byte_t       _tx_data;
@@ -25,9 +28,10 @@ module uart_mmio
   logic        _tx_ready;
 
   assign selected = (mem_addr == TxDataAddr | mem_addr == StatusAddr);
+  assign mem_ready = mem_valid && selected;
 
   assign _tx_ready = !_tx_busy;
-  assign read_data = (mem_addr == StatusAddr) ? {31'b0, _tx_ready} : 32'h0;
+  assign mem_read_data = (mem_addr == StatusAddr) ? {31'b0, _tx_ready} : 32'h0;
   assign _data_bit_idx = _bit_idx[2:0] - 3'd1;
 
   logic _stg_en;
@@ -80,6 +84,6 @@ module uart_mmio
 
   localparam int unsigned WordBits = $bits(mem_addr);
   logic _unused_write_data;
-  assign _unused_write_data = |mem_write_data[WordBits-1:8];
+  assign _unused_write_data = |mem_write_data[WordBits-1:8] | (|mem_write_mask);
 
 endmodule

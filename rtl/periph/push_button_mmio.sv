@@ -7,12 +7,17 @@ module push_button_mmio
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
-  input  logic                       clk,
-  input  logic                       rst,
-  input  word_t                      mem_addr,
-  output logic                       selected,
-  output word_t                      read_data,
-  input  logic  [NumPushButtons-1:0] push_button
+  input  logic                                 clk,
+  input  logic                                 rst,
+  input  logic                                 mem_valid,
+  input  logic                                 mem_write_en,
+  input  word_t                                mem_addr,
+  input  word_t                                mem_write_data,
+  input  mem_write_mask_t                      mem_write_mask,
+  output logic                                 selected,
+  output logic                                 mem_ready,
+  output word_t                                mem_read_data,
+  input  logic            [NumPushButtons-1:0] push_button
 );
 
   localparam int unsigned WordBits = $bits(mem_addr);
@@ -30,8 +35,9 @@ module push_button_mmio
   logic [     NumPushButtons-1:0] _debounced_button;
   logic [DebounceCounterBits-1:0] _counter;
 
-  assign selected  = (mem_addr == PushButtonAddr);
-  assign read_data = {{(WordBits - NumPushButtons) {1'b0}}, _debounced_button};
+  assign selected = (mem_addr == PushButtonAddr);
+  assign mem_ready = mem_valid && selected;
+  assign mem_read_data = {{(WordBits - NumPushButtons) {1'b0}}, _debounced_button};
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -53,5 +59,8 @@ module push_button_mmio
       end
     end
   end
+
+  logic _unused_write_bus;
+  assign _unused_write_bus = mem_write_en | (|mem_write_data) | (|mem_write_mask);
 
 endmodule

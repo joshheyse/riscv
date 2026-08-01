@@ -9,21 +9,33 @@ module tb_dip_switch_mmio
   localparam word_t DipSwitchAddr = 32'h1000_3000;
   localparam int unsigned NumDipSwitches = 8;
 
-  word_t                            _mem_addr;
-  logic                             _selected;
-  word_t                            _read_data;
-  logic        [NumDipSwitches-1:0] _dip_switch;
+  logic                                 _mem_valid;
+  logic                                 _mem_write_en;
+  word_t                                _mem_addr;
+  word_t                                _mem_write_data;
+  mem_write_mask_t                      _mem_write_mask;
+  logic                                 _selected;
+  logic                                 _mem_ready;
+  word_t                                _read_data;
+  logic            [NumDipSwitches-1:0] _dip_switch;
 
-  int unsigned                      errors = 0;
-  int unsigned                      checks = 0;
+  int unsigned                          errors = 0;
+  int unsigned                          checks = 0;
+  logic                                 _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   dip_switch_mmio #(
     .DipSwitchAddr(DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dut (
+    .mem_valid(_mem_valid),
+    .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
+    .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .dip_switch(_dip_switch)
   );
 
@@ -46,6 +58,7 @@ module tb_dip_switch_mmio
   task automatic set_inputs(input word_t addr, input logic [NumDipSwitches-1:0] switches);
     _mem_addr   = addr;
     _dip_switch = switches;
+    _mem_valid  = 1'b1;
     #Step;
   endtask
 
@@ -54,6 +67,10 @@ module tb_dip_switch_mmio
       $dumpfile("dump.vcd");
       $dumpvars(0, tb_dip_switch_mmio);
     end
+
+    _mem_write_en   = 1'b0;
+    _mem_write_data = '0;
+    _mem_write_mask = '0;
 
     set_inputs('0, '0);
     expect_bit(_selected, 1'b0, "reset-like unmapped address not selected");

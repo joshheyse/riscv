@@ -113,18 +113,18 @@ module tb_board_bus
       $dumpvars(0, tb_board_bus);
     end
 
-    _rst              = 1'b1;
-    dbus.valid        = 1'b0;
-    dbus.write_en     = 1'b0;
-    dbus.addr         = '0;
-    dbus.write_data   = '0;
-    dbus.write_mask   = '0;
-    _dip_switch       = 8'h00;
-    _push_button      = 1'b0;
-    _spi_miso         = 1'b0;
-    _i2c_sda_in       = 1'b1;
-    _i2c_scl_in       = 1'b1;
-    _gpio_in          = '0;
+    _rst            = 1'b1;
+    dbus.valid      = 1'b0;
+    dbus.write_en   = 1'b0;
+    dbus.addr       = '0;
+    dbus.write_data = '0;
+    dbus.write_mask = '0;
+    _dip_switch     = 8'h00;
+    _push_button    = 1'b0;
+    _spi_miso       = 1'b0;
+    _i2c_sda_in     = 1'b1;
+    _i2c_scl_in     = 1'b1;
+    _gpio_in        = '0;
 
     repeat (2) @(posedge _clk);
     #1;

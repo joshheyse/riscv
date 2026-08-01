@@ -27,17 +27,20 @@ module i2c_mmio
   parameter word_t       AddressAddr      = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
-  input  logic  clk,
-  input  logic  rst,
-  input  logic  mem_write_en,
-  input  word_t mem_addr,
-  input  word_t mem_write_data,
-  output logic  selected,
-  output word_t read_data,
-  input  logic  i2c_sda_in,
-  output logic  i2c_sda_drive_low,
-  input  logic  i2c_scl_in,
-  output logic  i2c_scl_drive_low
+  input  logic            clk,
+  input  logic            rst,
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  word_t           mem_addr,
+  input  word_t           mem_write_data,
+  input  mem_write_mask_t mem_write_mask,
+  output logic            selected,
+  output logic            mem_ready,
+  output word_t           mem_read_data,
+  input  logic            i2c_sda_in,
+  output logic            i2c_sda_drive_low,
+  input  logic            i2c_scl_in,
+  output logic            i2c_scl_drive_low
 );
 
   i2c_state_t       _state;
@@ -61,6 +64,7 @@ module i2c_mmio
   assign _status_selected = mem_addr == StatusAddr;
   assign _address_selected = mem_addr == AddressAddr;
   assign selected = _data_selected | _control_selected | _status_selected | _address_selected;
+  assign mem_ready = mem_valid && selected;
 
   logic _stg_en;
   logic _stg_clear;
@@ -196,19 +200,19 @@ module i2c_mmio
     endcase
 
     if (_data_selected) begin
-      read_data = {24'b0, _rx_data};
+      mem_read_data = {24'b0, _rx_data};
     end else if (_address_selected) begin
-      read_data = {25'b0, _i2c_addr};
+      mem_read_data = {25'b0, _i2c_addr};
     end else if (_status_selected) begin
-      read_data = {30'b0, _ack_error, _busy};
+      mem_read_data = {30'b0, _ack_error, _busy};
     end else begin
-      read_data = 32'b0;
+      mem_read_data = 32'b0;
     end
 
   end
 
   logic _unused_inputs;
-  assign _unused_inputs = |i2c_scl_in | (|mem_write_data[31:8]);
+  assign _unused_inputs = |i2c_scl_in | (|mem_write_data[31:8]) | (|mem_write_mask);
 
 
 endmodule

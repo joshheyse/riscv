@@ -33,8 +33,8 @@ module board_bus
 
   logic [NumSources-1:0] _selected;
   logic [NumSources-1:0] _write_en;
-  logic [  WordBits-1:0] _read_data  [NumSources];
-  logic                  _dmem_ready;
+  logic [NumSources-1:0] _ready;
+  logic [  WordBits-1:0] _read_data[NumSources];
 
   assign _selected[DmemIdx] = ((dbus.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
@@ -42,14 +42,14 @@ module board_bus
   assign _write_en[DmemIdx] = dbus.valid & dbus.write_en & _selected[DmemIdx] & !_mmio_selected;
   assign _write_en[LedIdx] = dbus.valid & dbus.write_en & _selected[LedIdx];
   assign _write_en[UartIdx] = dbus.valid & dbus.write_en & _selected[UartIdx];
-  assign dbus.ready = _selected[DmemIdx] ? _dmem_ready : dbus.valid;
+  assign dbus.ready = (|_selected) ? |(_selected & _ready) : dbus.valid;
 
   onehot_mux #(
     .Width(WordBits),
     .NumInputs(NumSources)
   ) _onehot_mux (
     .selected(_selected),
-    .data_in (_read_data),
+    .data_in(_read_data),
     .data_out(dbus.read_data)
   );
 
@@ -59,11 +59,14 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
+    .mem_valid(dbus.valid),
     .mem_write_en(_write_en[LedIdx]),
     .mem_addr(dbus.addr),
     .mem_write_data(dbus.write_data),
+    .mem_write_mask(dbus.write_mask),
     .selected(_selected[LedIdx]),
-    .read_data(_read_data[LedIdx]),
+    .mem_ready(_ready[LedIdx]),
+    .mem_read_data(_read_data[LedIdx]),
     .led(led)
   );
 
@@ -73,39 +76,47 @@ module board_bus
   ) _timer_mmio (
     .clk(clk),
     .rst(rst),
+    .mem_valid(dbus.valid),
+    .mem_write_en(_write_en[TimerIdx]),
     .mem_addr(dbus.addr),
+    .mem_write_data(dbus.write_data),
+    .mem_write_mask(dbus.write_mask),
     .selected(_selected[TimerIdx]),
-    .read_data(_read_data[TimerIdx])
+    .mem_ready(_ready[TimerIdx]),
+    .mem_read_data(_read_data[TimerIdx])
   );
 
   uart_mmio #(
     .ClocksPerBit(UartClocksPerBit),
-    .TxDataAddr  (board_constants_pkg::UartTxAddr),
-    .StatusAddr  (board_constants_pkg::UartStatusAddr)
+    .TxDataAddr(board_constants_pkg::UartTxAddr),
+    .StatusAddr(board_constants_pkg::UartStatusAddr)
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
+    .mem_valid(dbus.valid),
     .mem_write_en(_write_en[UartIdx]),
     .mem_addr(dbus.addr),
     .mem_write_data(dbus.write_data),
+    .mem_write_mask(dbus.write_mask),
     .selected(_selected[UartIdx]),
-    .read_data(_read_data[UartIdx]),
+    .mem_ready(_ready[UartIdx]),
+    .mem_read_data(_read_data[UartIdx]),
     .tx(uart_tx)
   );
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
+    .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),
     .mem_valid(dbus.valid & _selected[DmemIdx] & !_mmio_selected),
     .mem_write_en(_write_en[DmemIdx]),
-    .addr(dbus.addr),
-    .write_data(dbus.write_data),
-    .write_mask(dbus.write_mask),
-    .mem_ready(_dmem_ready),
-    .read_data(_read_data[DmemIdx])
+    .mem_addr(dbus.addr),
+    .mem_write_data(dbus.write_data),
+    .mem_write_mask(dbus.write_mask),
+    .mem_ready(_ready[DmemIdx]),
+    .mem_read_data(_read_data[DmemIdx])
   );
 
 endmodule

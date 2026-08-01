@@ -14,19 +14,24 @@ module tb_gpio_mmio
   localparam word_t ClearAddr = 32'h1000_6010;
   localparam word_t ToggleAddr = 32'h1000_6014;
 
-  logic                      _clk;
-  logic                      _rst;
-  logic                      _mem_write_en;
-  word_t                     _mem_addr;
-  word_t                     _mem_write_data;
-  logic                      _selected;
-  word_t                     _read_data;
-  logic        [NumGpio-1:0] _gpio_in;
-  logic        [NumGpio-1:0] _gpio_out;
-  logic        [NumGpio-1:0] _gpio_oe;
+  logic                          _clk;
+  logic                          _rst;
+  logic                          _mem_valid;
+  logic                          _mem_write_en;
+  word_t                         _mem_addr;
+  word_t                         _mem_write_data;
+  mem_write_mask_t               _mem_write_mask;
+  logic                          _selected;
+  logic                          _mem_ready;
+  word_t                         _read_data;
+  logic            [NumGpio-1:0] _gpio_in;
+  logic            [NumGpio-1:0] _gpio_out;
+  logic            [NumGpio-1:0] _gpio_oe;
 
-  int unsigned               errors = 0;
-  int unsigned               checks = 0;
+  int unsigned                   errors = 0;
+  int unsigned                   checks = 0;
+  logic                          _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   gpio_mmio #(
     .GpioDataInAddr(DataInAddr),
@@ -39,11 +44,14 @@ module tb_gpio_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
     .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
     .gpio_oe(_gpio_oe)
@@ -81,8 +89,10 @@ module tb_gpio_mmio
 
   task automatic set_read_addr(input word_t addr);
     @(negedge _clk);
+    _mem_valid = 1'b1;
     _mem_write_en = 1'b0;
     _mem_addr = addr;
+    _mem_write_mask = '0;
     #1;
   endtask
 
@@ -90,10 +100,13 @@ module tb_gpio_mmio
     @(negedge _clk);
     _mem_addr       = addr;
     _mem_write_data = data;
+    _mem_write_mask = 4'b1111;
+    _mem_valid      = 1'b1;
     _mem_write_en   = 1'b1;
     @(posedge _clk);
     #1;
-    _mem_write_en = 1'b0;
+    _mem_write_en   = 1'b0;
+    _mem_write_mask = '0;
   endtask
 
   task automatic expect_selected_addr(input word_t addr, input string what);
@@ -108,9 +121,11 @@ module tb_gpio_mmio
     end
 
     _rst            = 1'b1;
+    _mem_valid      = 1'b0;
     _mem_write_en   = 1'b0;
     _mem_addr       = '0;
     _mem_write_data = '0;
+    _mem_write_mask = '0;
     _gpio_in        = 8'ha5;
 
     repeat (2) @(posedge _clk);

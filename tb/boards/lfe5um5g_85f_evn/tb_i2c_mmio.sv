@@ -16,20 +16,25 @@ module tb_i2c_mmio
   localparam logic [7:0] AddrByte = {I2cAddr, 1'b0};
   localparam logic [7:0] TxByte = 8'ha5;
 
-  logic        _clk;
-  logic        _rst;
-  logic        _mem_write_en;
-  word_t       _mem_addr;
-  word_t       _mem_write_data;
-  logic        _selected;
-  word_t       _read_data;
-  logic        _i2c_sda_in;
-  logic        _i2c_sda_drive_low;
-  logic        _i2c_scl_in;
-  logic        _i2c_scl_drive_low;
+  logic            _clk;
+  logic            _rst;
+  logic            _mem_valid;
+  logic            _mem_write_en;
+  word_t           _mem_addr;
+  word_t           _mem_write_data;
+  mem_write_mask_t _mem_write_mask;
+  logic            _selected;
+  logic            _mem_ready;
+  word_t           _read_data;
+  logic            _i2c_sda_in;
+  logic            _i2c_sda_drive_low;
+  logic            _i2c_scl_in;
+  logic            _i2c_scl_drive_low;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned     errors = 0;
+  int unsigned     checks = 0;
+  logic            _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   i2c_mmio #(
     .DataAddr(DataAddr),
@@ -40,11 +45,14 @@ module tb_i2c_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
     .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .i2c_sda_in(_i2c_sda_in),
     .i2c_sda_drive_low(_i2c_sda_drive_low),
     .i2c_scl_in(_i2c_scl_in),
@@ -74,8 +82,10 @@ module tb_i2c_mmio
 
   task automatic set_read_addr(input word_t addr);
     @(negedge _clk);
+    _mem_valid = 1'b1;
     _mem_write_en = 1'b0;
     _mem_addr = addr;
+    _mem_write_mask = '0;
     #1;
   endtask
 
@@ -83,10 +93,13 @@ module tb_i2c_mmio
     @(negedge _clk);
     _mem_addr       = addr;
     _mem_write_data = data;
+    _mem_write_mask = 4'b1111;
+    _mem_valid      = 1'b1;
     _mem_write_en   = 1'b1;
     @(posedge _clk);
     #1;
-    _mem_write_en = 1'b0;
+    _mem_write_en   = 1'b0;
+    _mem_write_mask = '0;
   endtask
 
   task automatic expect_status(input logic busy, input logic ack_error, input string what);
@@ -169,9 +182,11 @@ module tb_i2c_mmio
     end
 
     _rst            = 1'b1;
+    _mem_valid      = 1'b0;
     _mem_write_en   = 1'b0;
     _mem_addr       = '0;
     _mem_write_data = '0;
+    _mem_write_mask = '0;
     _i2c_sda_in     = 1'b1;
     _i2c_scl_in     = 1'b1;
 

@@ -10,17 +10,22 @@ module tb_uart_mmio
   localparam word_t TxDataAddr = 32'h1000_1000;
   localparam word_t StatusAddr = 32'h1000_4000;
 
-  logic        _clk;
-  logic        _rst;
-  logic        _mem_write_en;
-  word_t       _mem_addr;
-  word_t       _mem_write_data;
-  logic        _selected;
-  word_t       _read_data;
-  logic        _tx;
+  logic            _clk;
+  logic            _rst;
+  logic            _mem_valid;
+  logic            _mem_write_en;
+  word_t           _mem_addr;
+  word_t           _mem_write_data;
+  mem_write_mask_t _mem_write_mask;
+  logic            _selected;
+  logic            _mem_ready;
+  word_t           _read_data;
+  logic            _tx;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned     errors = 0;
+  int unsigned     checks = 0;
+  logic            _unused_mem_ready;
+  assign _unused_mem_ready = _mem_ready;
 
   uart_mmio #(
     .ClocksPerBit(ClocksPerBit),
@@ -29,11 +34,14 @@ module tb_uart_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .mem_valid(_mem_valid),
     .mem_write_en(_mem_write_en),
     .mem_addr(_mem_addr),
     .mem_write_data(_mem_write_data),
+    .mem_write_mask(_mem_write_mask),
     .selected(_selected),
-    .read_data(_read_data),
+    .mem_ready(_mem_ready),
+    .mem_read_data(_read_data),
     .tx(_tx)
   );
 
@@ -62,6 +70,8 @@ module tb_uart_mmio
     @(negedge _clk);
     _mem_addr       = a;
     _mem_write_data = data;
+    _mem_write_mask = 4'b1111;
+    _mem_valid      = 1'b1;
     _mem_write_en   = 1'b1;
     @(posedge _clk);
     #1;
@@ -71,6 +81,7 @@ module tb_uart_mmio
   task automatic expect_status_ready(input logic ready, input string what);
     @(negedge _clk);
     _mem_addr = StatusAddr;
+    _mem_valid = 1'b1;
     _mem_write_en = 1'b0;
     #1;
     expect_bit(_selected, 1'b1, "status address selected");
@@ -93,9 +104,11 @@ module tb_uart_mmio
     end
 
     _rst            = 1'b1;
+    _mem_valid      = 1'b0;
     _mem_write_en   = 1'b0;
     _mem_addr       = '0;
     _mem_write_data = '0;
+    _mem_write_mask = '0;
 
     repeat (2) @(posedge _clk);
     #1;

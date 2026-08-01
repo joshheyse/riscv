@@ -6,16 +6,22 @@ module timer_mmio
   parameter word_t TimerLoAddr = '0,
   parameter word_t TimerHiAddr = '0
 ) (
-  input  logic  clk,
-  input  logic  rst,
-  input  word_t mem_addr,
-  output logic  selected,
-  output word_t read_data
+  input  logic            clk,
+  input  logic            rst,
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  word_t           mem_addr,
+  input  word_t           mem_write_data,
+  input  mem_write_mask_t mem_write_mask,
+  output logic            selected,
+  output logic            mem_ready,
+  output word_t           mem_read_data
 );
 
   dword_t _counter;
-  assign selected  = mem_addr == TimerLoAddr || mem_addr == TimerHiAddr;
-  assign read_data = !selected ? '0 : (mem_addr == TimerLoAddr) ? _counter[31:0] : _counter[63:32];
+  assign selected = mem_addr == TimerLoAddr || mem_addr == TimerHiAddr;
+  assign mem_ready = mem_valid && selected;
+  assign mem_read_data = !selected ? '0 : (mem_addr == TimerLoAddr) ? _counter[31:0] : _counter[63:32];
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -24,5 +30,8 @@ module timer_mmio
       _counter <= _counter + 1;
     end
   end
+
+  logic _unused_write_bus;
+  assign _unused_write_bus = mem_write_en | (|mem_write_data) | (|mem_write_mask);
 
 endmodule

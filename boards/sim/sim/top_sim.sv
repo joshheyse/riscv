@@ -57,7 +57,7 @@ module top_sim
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
     .clk(_clk),
     .rst(_rst),
@@ -79,7 +79,7 @@ module top_sim
 
   board_bus #(
     .DmemDepthWords(DmemDepthWords),
-    .DmemInitFile  (DmemInitFile)
+    .DmemInitFile(DmemInitFile)
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),
