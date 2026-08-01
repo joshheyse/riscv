@@ -12,7 +12,7 @@ module tb_rv32i
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 200;
+  localparam int unsigned TimeoutCycles = 1_000;
   localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_rv32i.mem";
 
   logic        _clk;
@@ -70,7 +70,7 @@ module tb_rv32i
     @(negedge _clk);
     _rst = 1'b0;
 
-    repeat (70) step("run");
+    repeat (220) step("run");
 
     expect_word(_dut._core._datapath._regfile._regs[3], 32'h0000_0008, "ADD");
     expect_word(_dut._core._datapath._regfile._regs[4], 32'h0000_0002, "SUB");

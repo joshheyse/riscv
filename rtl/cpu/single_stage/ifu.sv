@@ -21,20 +21,17 @@ module ifu
   input  logic    pc_en,
   input  pc_t     ieu_addr,
   output pc_t     pc,
-  output pc_t     imem_addr,
-  output logic    instr_valid
+  output pc_t     imem_addr
 );
 
   always_ff @(posedge clk) begin
     if (rst) begin
       pc <= '0;
       imem_addr <= '0;
-      instr_valid <= '0;
     end else begin
       if (pc_en) begin
         pc <= imem_addr;
         imem_addr <= pc_src == PC_SRC_INC ? imem_addr + pc_t'(4) : ieu_addr;
-        instr_valid <= pc_src == PC_SRC_INC;
       end
     end
   end

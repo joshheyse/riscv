@@ -31,18 +31,15 @@ module top
   localparam logic [ResetCounterBits-1:0] ResetCounterMax = ResetCounterBits'(PowerOnResetCycles);
   localparam logic [ResetCounterBits-1:0] ResetCounterInc = ResetCounterBits'(1);
   /* verilator lint_off PROCASSINIT */
-  logic   [ResetCounterBits-1:0] _reset_counter = '0;
+  logic [ResetCounterBits-1:0] _reset_counter = '0;
   /* verilator lint_on PROCASSINIT */
 
-  logic                          _rst;
-  logic                          _power_on_rst;
-  pc_t                           _pc;
-  pc_t                           _imem_addr;
-  instr_u                        _instr;
-  logic                          _halted;
+  logic                        _rst;
+  logic                        _power_on_rst;
+  logic                        _halted;
 
-  logic                          _imem_en;
   dbus_if _dbus ();
+  ibus_if _ibus ();
 
   logic [        7:0] _led;
   logic [        7:0] _dip_switch;
@@ -92,13 +89,11 @@ module top
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
+    .InitFile  (ImemInitFile)
   ) _imem (
-    .clk(clk_12mhz),
-    .rst(_rst),
-    .en(_imem_en),
-    .addr(_imem_addr),
-    .instr(_instr.raw)
+    .clk (clk_12mhz),
+    .rst (_rst),
+    .ibus(_ibus)
   );
 
   board_bus _board_bus (
@@ -125,12 +120,10 @@ module top
   core _core (
     .clk(clk_12mhz),
     .rst(_rst),
-    .instr(_instr),
     .pc(_pc),
-    .imem_addr(_imem_addr),
     .halted(_halted),
     .dbus(_dbus),
-    .imem_en(_imem_en)
+    .ibus(_ibus)
   );
 
 endmodule

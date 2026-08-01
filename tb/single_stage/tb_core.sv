@@ -113,6 +113,7 @@ module tb_core
     step("jal x0,0");
     step("jal fallthrough bubble");
     step("jal x0,0 again");
+    repeat (80) step("run to loop");
 
     expect_bit(_halted, 1'b0, "legal core smoke program does not halt");
     expect_word(_pc, 32'h0000_003c, "jal holds pc at loop address");

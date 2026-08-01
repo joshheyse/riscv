@@ -15,21 +15,22 @@ module top_sim
 );
   localparam realtime ClkPeriod = 10ns;
 
-  logic         _clk;
-  logic         _rst;
-  pc_t          _pc;
-  pc_t          _imem_addr;
-  instr_u       _instr;
-  logic   [7:0] _led;
-  logic   [7:0] _led_prev;
-  logic         _sim_halt_selected;
-  logic         _halted;
-  logic         _uart_tx;
-  logic         _core_imem_en;
+  logic       _clk;
+  logic       _rst;
+  pc_t        _pc;
+  logic [7:0] _led;
+  logic [7:0] _led_prev;
+  logic       _sim_halt_selected;
+  logic       _halted;
+  logic       _uart_tx;
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
+  ibus_if _core_ibus ();
+  ibus_if _imem_ibus ();
+
   assign _sim_halt_selected = (_core_dbus.req.addr == SimHaltAddr);
+
   assign _core_dbus.rsp.read_data = _sim_halt_selected ? '0 : _board_dbus.rsp.read_data;
   assign _core_dbus.rsp.ready = _sim_halt_selected ? _core_dbus.req.valid : _board_dbus.rsp.ready;
   assign _board_dbus.req.valid = _core_dbus.req.valid & !_sim_halt_selected;
@@ -37,6 +38,9 @@ module top_sim
   assign _board_dbus.req.addr = _core_dbus.req.addr;
   assign _board_dbus.req.write_data = _core_dbus.req.write_data;
   assign _board_dbus.req.write_mask = _core_dbus.req.write_mask;
+
+  assign _core_ibus.rsp = _imem_ibus.rsp;
+  assign _imem_ibus.req = _core_ibus.req;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -57,29 +61,25 @@ module top_sim
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
+    .InitFile  (ImemInitFile)
   ) _imem (
-    .clk(_clk),
-    .rst(_rst),
-    .en(_core_imem_en),
-    .addr(_imem_addr),
-    .instr(_instr.raw)
+    .clk (_clk),
+    .rst (_rst),
+    .ibus(_imem_ibus)
   );
 
   core _core (
     .clk(_clk),
     .rst(_rst),
-    .instr(_instr),
     .pc(_pc),
-    .imem_addr(_imem_addr),
     .halted(_halted),
     .dbus(_core_dbus),
-    .imem_en(_core_imem_en)
+    .ibus(_core_ibus)
   );
 
   board_bus #(
     .DmemDepthWords(DmemDepthWords),
-    .DmemInitFile(DmemInitFile)
+    .DmemInitFile  (DmemInitFile)
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),
