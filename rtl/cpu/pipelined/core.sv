@@ -1,5 +1,23 @@
 `timescale 1ns / 1ps
 
+// Five-stage RV32I pipeline core.
+//
+// Stage boundaries:
+// - IF/ID: instruction and request PC captured from the instruction fetch unit.
+// - ID/EX: decoded control, register operands, immediate, and destination.
+// - EX/MEM: ALU/execute result plus store data and memory controls.
+// - MEM/WB: final writeback data and destination register.
+//
+// Control policy:
+// - `_mem_wait` holds every pipeline register while a data-bus transaction is
+//   outstanding.
+// - `_data_stall` freezes fetch/decode and injects a bubble into execute.
+// - `_redirect_en` flushes the fetched/decode-side wrong-path instruction and
+//   redirects the IFU to the branch or jump target.
+//
+// This core is intentionally conservative: it stalls on data hazards instead of
+// forwarding and resolves control flow in execute.
+//
 module core
   import riscv_pkg::*;
   import pipelined_pkg::*;
@@ -45,21 +63,90 @@ module core
   pc_t           _redirect_pc;
   logic          _data_stall;
   logic          _fetch_en;
+  logic          _unused_mem_wait;
 
   assign _src_a = _id_ex.ctrl.alu_src[1] ? _id_ex.pc : _id_ex.rs1_data;
   assign _src_b = _id_ex.ctrl.alu_src[0] ? _id_ex.imm : _id_ex.rs2_data;
 
-  assign _mem_instr = _ex_mem.valid && (_ex_mem.ctrl.mem_write_en || _ex_mem.ctrl.result_src == RESULT_MEM);
-  assign _mem_wait = _mem_instr && !dbus.rsp.ready;
-  assign _pipe_en = !_mem_wait && !halted;
-  assign _fetch_en = _pipe_en && !_data_stall;
-
-  assign dbus.req.valid    = _ex_mem.valid && (_ex_mem.ctrl.mem_write_en || _ex_mem.ctrl.result_src == RESULT_MEM);
+  assign dbus.req.valid    = _mem_instr;
   assign dbus.req.write_en = _ex_mem.ctrl.mem_write_en;
   assign dbus.req.addr = _ex_mem.alu_result;
+  assign _unused_mem_wait = _mem_wait;
 
-  assign _redirect_en = _id_ex.valid && (_id_ex.ctrl.pc_src != PC_SRC_INC);
-  assign _redirect_pc = _id_ex.ctrl.clear_pc_lsb ? {_alu_result[31:1], 1'b0} : _alu_result;
+  // Pipeline control
+  pipeline_control _pipeline_control (
+    .halted(halted),
+    .ex_mem_valid(_ex_mem.valid),
+    .ex_mem_mem_write_en(_ex_mem.ctrl.mem_write_en),
+    .ex_mem_result_src(_ex_mem.ctrl.result_src),
+    .dbus_ready(dbus.rsp.ready),
+    .data_stall(_data_stall),
+    .mem_instr(_mem_instr),
+    .mem_wait(_mem_wait),
+    .pipe_en(_pipe_en),
+    .fetch_en(_fetch_en)
+  );
+
+  redirect_control _redirect_control (
+    .id_ex_valid(_id_ex.valid),
+    .id_ex_pc_src(_id_ex.ctrl.pc_src),
+    .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
+    .alu_result(_alu_result),
+    .redirect_en(_redirect_en),
+    .redirect_pc(_redirect_pc)
+  );
+
+  // Fetch
+  always_comb begin
+    if (!_pipe_en) begin
+      _if_id_next = _if_id;
+    end else begin
+      _if_id_next = '0;
+
+      if (_redirect_en) begin
+        _if_id_next = '0;
+      end else if (_data_stall) begin
+        _if_id_next = _if_id;
+      end else if (_fetched.valid) begin
+        _if_id_next = _fetched;
+      end
+    end
+  end
+
+  ifu _ifu (
+    .clk(clk),
+    .rst(rst),
+    .fetch_en(_fetch_en),
+    .redirect_en(_redirect_en),
+    .redirect_pc(_redirect_pc),
+    .pc(pc),
+    .fetched(_fetched),
+    .ibus(ibus)
+  );
+
+  // Decode
+  always_comb begin
+    if (!_pipe_en) begin
+      _id_ex_next = _id_ex;
+    end else begin
+      _id_ex_next = '0;
+
+      if (_data_stall || _redirect_en) begin
+        _id_ex_next = '0;
+      end else if (_if_id.valid) begin
+        _id_ex_next = '{
+            valid: 1'b1,
+            pc: _if_id.pc,
+            instr: _if_id.instr,
+            ctrl: _ctrl,
+            rs1_data: _decode_rs1_data,
+            rs2_data: _decode_rs2_data,
+            imm: _decode_imm,
+            rd: _if_id.instr.r.rd
+        };
+      end
+    end
+  end
 
   reg_file _reg_file (
     .clk(clk),
@@ -70,17 +157,6 @@ module core
     .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en),
     .rd_data1(_decode_rs1_data),
     .rd_data2(_decode_rs2_data)
-  );
-
-  ifu_pipelined _ifu_pipelined (
-    .clk(clk),
-    .rst(rst),
-    .fetch_en(_fetch_en),
-    .redirect_en(_redirect_en),
-    .redirect_pc(_redirect_pc),
-    .pc(pc),
-    .fetched(_fetched),
-    .ibus(ibus)
   );
 
   controller _controller (
@@ -103,6 +179,27 @@ module core
     .lt(_branch_flags.lt)
   );
 
+  // Execute
+  always_comb begin
+    if (!_pipe_en) begin
+      _ex_mem_next = _ex_mem;
+    end else begin
+      _ex_mem_next = '0;
+
+      if (_id_ex.valid) begin
+        _ex_mem_next = '{
+            valid: 1'b1,
+            pc: _id_ex.pc,
+            ctrl: _id_ex.ctrl,
+            alu_result: _alu_result,
+            execute_result: _execute_result,
+            write_data: _id_ex.rs2_data,
+            rd: _id_ex.instr.r.rd
+        };
+      end
+    end
+  end
+
   alu _alu (
     .src_a(_src_a),
     .src_b(_src_b),
@@ -118,6 +215,24 @@ module core
     .alu_result(_alu_result),
     .execute_result(_execute_result)
   );
+
+  // Memory
+  always_comb begin
+    if (!_pipe_en) begin
+      _mem_wb_next = _mem_wb;
+    end else begin
+      _mem_wb_next = '0;
+
+      if (_ex_mem.valid) begin
+        _mem_wb_next = '{
+            valid: 1'b1,
+            ctrl: _ex_mem.ctrl,
+            result: _mem_result_data,
+            rd: _ex_mem.rd
+        };
+      end
+    end
+  end
 
   lsu _lsu (
     .addr(_ex_mem.alu_result),
@@ -137,6 +252,7 @@ module core
     .writeback_data(_mem_result_data)
   );
 
+  // Writeback and hazards
   hazard_unit _hazard_unit (
     .if_id_valid(_if_id.valid),
     .if_id_instr(_if_id.instr),
@@ -166,64 +282,6 @@ module core
       _id_ex  <= _id_ex_next;
       _ex_mem <= _ex_mem_next;
       _mem_wb <= _mem_wb_next;
-    end
-  end
-
-  always_comb begin
-    if (!_pipe_en) begin
-      _if_id_next  = _if_id;
-      _id_ex_next  = _id_ex;
-      _ex_mem_next = _ex_mem;
-      _mem_wb_next = _mem_wb;
-    end else begin
-      _if_id_next  = '0;
-      _id_ex_next  = '0;
-      _ex_mem_next = '0;
-      _mem_wb_next = '0;
-
-      if (_redirect_en) begin
-        _if_id_next = '0;
-      end else if (_data_stall) begin
-        _if_id_next = _if_id;
-      end else if (_fetched.valid) begin
-        _if_id_next = _fetched;
-      end
-
-      if (_data_stall || _redirect_en) begin
-        _id_ex_next = '0;
-      end else if (_if_id.valid) begin
-        _id_ex_next = '{
-            valid: 1'b1,
-            pc: _if_id.pc,
-            instr: _if_id.instr,
-            ctrl: _ctrl,
-            rs1_data: _decode_rs1_data,
-            rs2_data: _decode_rs2_data,
-            imm: _decode_imm,
-            rd: _if_id.instr.r.rd
-        };
-      end
-
-      if (_id_ex.valid) begin
-        _ex_mem_next = '{
-            valid: 1'b1,
-            pc: _id_ex.pc,
-            ctrl: _id_ex.ctrl,
-            alu_result: _alu_result,
-            execute_result: _execute_result,
-            write_data: _id_ex.rs2_data,
-            rd: _id_ex.instr.r.rd
-        };
-      end
-
-      if (_ex_mem.valid) begin
-        _mem_wb_next = '{
-            valid: 1'b1,
-            ctrl: _ex_mem.ctrl,
-            result: _mem_result_data,
-            rd: _ex_mem.rd
-        };
-      end
     end
   end
 

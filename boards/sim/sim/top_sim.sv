@@ -23,7 +23,11 @@ module top_sim
   logic              _sim_halt_selected;
   logic              _halted;
   logic              _uart_tx;
+  logic              _retire;
+  logic              _sim_halt_fire;
+  logic              _sim_done;
   int unsigned       _cycle;
+  int unsigned       _instret;
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
@@ -31,6 +35,14 @@ module top_sim
   ibus_if _imem_ibus ();
 
   assign _sim_halt_selected = (_core_dbus.req.addr == SimHaltAddr);
+  assign _sim_halt_fire = !_rst && _core_dbus.req.valid && _core_dbus.req.write_en
+                          && _sim_halt_selected;
+
+`ifdef CPU_DESIGN_pipelined
+  assign _retire = _core._ex_mem.valid && !_core._mem_wait;
+`else
+  assign _retire = _core._retire;
+`endif
 
   assign _core_dbus.rsp.read_data = _sim_halt_selected ? '0 : _board_dbus.rsp.read_data;
   assign _core_dbus.rsp.ready = _sim_halt_selected ? _core_dbus.req.valid : _board_dbus.rsp.ready;
@@ -63,8 +75,16 @@ module top_sim
   always_ff @(posedge _clk) begin
     if (_rst) begin
       _cycle <= 0;
-    end else begin
+      _instret <= 0;
+      _sim_done <= 1'b0;
+    end else if (!_sim_done) begin
       _cycle <= _cycle + 1;
+      if (_retire) begin
+        _instret <= _instret + 1;
+      end
+      if (_sim_halt_fire) begin
+        _sim_done <= 1'b1;
+      end
     end
   end
 
@@ -141,10 +161,11 @@ module top_sim
   initial begin
     forever begin
       @(posedge _clk);
-      if (!_rst && _core_dbus.req.valid && _core_dbus.req.write_en && _sim_halt_selected) begin
+      if (_sim_halt_fire) begin
         repeat (ClocksPerBit * 12) @(posedge _clk);
         $write("\n");
         $display("top_sim: halt code 0x%08h _pc=0x%08h", _core_dbus.req.write_data, _pc);
+        $display("top_sim: stats cycles=%0d instret=%0d", _cycle, _instret);
         $finish;
       end
     end

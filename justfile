@@ -37,13 +37,19 @@ wave tb="core":
 board-sim sim="top_sim" app=default_sim_app target="sim":
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-sim BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
+    make board-sim DESIGN={{design}} BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
 
 # Run simulated-board firmware regressions: DESIGN=pipelined just board-app-test
 board-app-test sim="top_sim" target="sim":
     @board="{{target}}"; \
     board="${board#boards/}"; \
     make board-app-test DESIGN={{design}} BOARD="$board" BOARD_SIM="{{sim}}"
+
+# Compare simulated-board CPI between single_stage and pipelined.
+board-cpi sim="top_sim" target="sim":
+    @board="{{target}}"; \
+    board="${board#boards/}"; \
+    make board-cpi BOARD="$board" BOARD_SIM="{{sim}}"
 
 # Run a board peripheral testbench: just board-tb timer_mmio
 board-tb tb="timer_mmio" target=board:
@@ -55,31 +61,31 @@ board-tb tb="timer_mmio" target=board:
 board-build target=board app=default_app:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-build BOARD="$board" APP="{{app}}"
+    make board-build DESIGN={{design}} BOARD="$board" APP="{{app}}"
 
 # Synthesize the selected board top to JSON: just board-synth boards/lfe5um5g_85f_evn path/to/app.c
 board-synth target=board app=default_app:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-synth BOARD="$board" APP="{{app}}"
+    make board-synth DESIGN={{design}} BOARD="$board" APP="{{app}}"
 
 # Place and route the selected board design: just board-pnr boards/lfe5um5g_85f_evn path/to/app.c
 board-pnr target=board app=default_app:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-pnr BOARD="$board" APP="{{app}}"
+    make board-pnr DESIGN={{design}} BOARD="$board" APP="{{app}}"
 
 # Program the selected board bitstream into FPGA SRAM: just board-flash boards/lfe5um5g_85f_evn path/to/app.c
 board-flash target=board app=default_app:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-flash BOARD="$board" APP="{{app}}"
+    make board-flash DESIGN={{design}} BOARD="$board" APP="{{app}}"
 
 # Program a board bitstream into FPGA SRAM: just flash boards/lfe5um5g_85f_evn
 flash target=board app=default_app:
     @board="{{target}}"; \
     board="${board#boards/}"; \
-    make board-flash BOARD="$board" APP="{{app}}"
+    make board-flash DESIGN={{design}} BOARD="$board" APP="{{app}}"
 
 # Run every testbench in the design and report a pass/fail summary.
 test:

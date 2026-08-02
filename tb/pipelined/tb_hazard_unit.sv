@@ -11,18 +11,18 @@ module tb_hazard_unit
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic     _if_id_valid;
-  instr_u   _if_id_instr;
-  logic     _id_ex_valid;
-  logic     _id_ex_reg_write_en;
-  regaddr_t _id_ex_rd;
-  logic     _ex_mem_valid;
-  logic     _ex_mem_reg_write_en;
-  regaddr_t _ex_mem_rd;
-  logic     _mem_wb_valid;
-  logic     _mem_wb_reg_write_en;
-  regaddr_t _mem_wb_rd;
-  logic     _stall;
+  logic        _if_id_valid;
+  instr_u      _if_id_instr;
+  logic        _id_ex_valid;
+  logic        _id_ex_reg_write_en;
+  regaddr_t    _id_ex_rd;
+  logic        _ex_mem_valid;
+  logic        _ex_mem_reg_write_en;
+  regaddr_t    _ex_mem_rd;
+  logic        _mem_wb_valid;
+  logic        _mem_wb_reg_write_en;
+  regaddr_t    _mem_wb_rd;
+  logic        _stall;
 
   int unsigned errors = 0;
   int unsigned checks = 0;

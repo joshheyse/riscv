@@ -159,6 +159,7 @@ VERILATOR ?= verilator
 VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
                    -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) -I$(TB_DIR)
 BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
+                              +define+CPU_DESIGN_$(DESIGN) \
                               -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
                               -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                               -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
@@ -176,7 +177,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-cpi board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -321,6 +322,10 @@ board-sim: board-run
 ## board-app-test: run simulated-board firmware regressions
 board-app-test:
 	tools/run_board_app_tests.py --design $(DESIGN) --board $(BOARD) --sim $(BOARD_SIM)
+
+## board-cpi: compare simulated-board CPI for single_stage and pipelined
+board-cpi:
+	tools/compare_cpi.py --board $(BOARD) --sim $(BOARD_SIM)
 
 $(BOARD_TB_BIN): $(BOARD_SRCS) $(BOARD_TB_SRC)
 	@test -f $(BOARD_TB_SRC) || { echo "no such board testbench: $(BOARD_TB_SRC)"; exit 1; }

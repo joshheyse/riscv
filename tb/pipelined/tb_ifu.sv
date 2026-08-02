@@ -1,11 +1,11 @@
-// tb_ifu_pipelined.sv - directed checks for the pipelined instruction fetch unit.
+// tb_ifu.sv - directed checks for the pipelined instruction fetch unit.
 //
-//   make sim DESIGN=pipelined TB=ifu_pipelined
-//   make wave DESIGN=pipelined TB=ifu_pipelined
+//   make sim DESIGN=pipelined TB=ifu
+//   make wave DESIGN=pipelined TB=ifu
 
 `timescale 1ns / 1ps
 
-module tb_ifu_pipelined
+module tb_ifu
   import riscv_pkg::*;
   import pipelined_pkg::*;
 ();
@@ -29,7 +29,7 @@ module tb_ifu_pipelined
   logic        _unused_ibus_bits;
   assign _unused_ibus_bits = |{_ibus.rsp.ready, _ibus.rsp.instr.raw};
 
-  ifu_pipelined _dut (
+  ifu _dut (
     .clk(_clk),
     .rst(_rst),
     .fetch_en(_fetch_en),
@@ -64,7 +64,7 @@ module tb_ifu_pipelined
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
-      $dumpvars(0, tb_ifu_pipelined);
+      $dumpvars(0, tb_ifu);
     end
 
     _ibus.rsp = '0;
@@ -190,17 +190,17 @@ module tb_ifu_pipelined
     expect_word(_ibus.req.addr, 32'h0000_0048, "pending request leaves next pc on address bus");
 
     if (errors == 0) begin
-      $display("tb_ifu_pipelined: PASS (%0d checks)", checks);
+      $display("tb_ifu: PASS (%0d checks)", checks);
       $finish;
     end else begin
-      $display("tb_ifu_pipelined: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_ifu: FAIL (%0d failures out of %0d checks)", errors, checks);
       $fatal(1);
     end
   end
 
   initial begin
     repeat (TimeoutCycles) @(posedge _clk);
-    $display("tb_ifu_pipelined: TIMEOUT after %0d cycles", TimeoutCycles);
+    $display("tb_ifu: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end
 

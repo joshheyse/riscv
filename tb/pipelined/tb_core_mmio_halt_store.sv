@@ -9,7 +9,7 @@ module tb_core_mmio_halt_store
   import riscv_pkg::*;
 ();
 
-  localparam realtime     ClkPeriod    = 10ns;
+  localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 200;
   localparam string       ProgramFile   =
       "/home/josh/code/riscv-soc/tb/pipelined/tb_core_mmio_halt_store.mem";
@@ -22,14 +22,14 @@ module tb_core_mmio_halt_store
   ibus_if _ibus ();
   dbus_if _dbus ();
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
-  int unsigned _stores_seen;
-  word_t       _store_addr[2];
-  word_t       _store_data[2];
-  logic        _extra_store;
-  logic        _unused_halted;
-  logic  [3:0] _unused_write_mask;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
+  int unsigned       _stores_seen;
+  word_t             _store_addr        [2];
+  word_t             _store_data        [2];
+  logic              _extra_store;
+  logic              _unused_halted;
+  logic        [3:0] _unused_write_mask;
 
   core _dut (
     .clk   (_clk),
@@ -69,12 +69,12 @@ module tb_core_mmio_halt_store
 
   always_ff @(posedge _clk) begin
     if (_rst) begin
-      _stores_seen <= 0;
+      _stores_seen   <= 0;
       _store_addr[0] <= '0;
       _store_addr[1] <= '0;
       _store_data[0] <= '0;
       _store_data[1] <= '0;
-      _extra_store <= 1'b0;
+      _extra_store   <= 1'b0;
     end else if (_dbus.req.valid && _dbus.req.write_en) begin
       _stores_seen <= _stores_seen + 1;
 
@@ -116,8 +116,7 @@ module tb_core_mmio_halt_store
       $display("tb_core_mmio_halt_store: PASS (%0d checks)", checks);
       $finish;
     end else begin
-      $display("tb_core_mmio_halt_store: FAIL (%0d failures out of %0d checks)", errors,
-               checks);
+      $display("tb_core_mmio_halt_store: FAIL (%0d failures out of %0d checks)", errors, checks);
       $fatal(1);
     end
   end

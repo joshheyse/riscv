@@ -1,12 +1,17 @@
 `timescale 1ns / 1ps
 
-// Minimal single-stage SoC wrapper.
+// Minimal pipelined SoC wrapper.
 //
 // This preserves the original "core + instruction ROM + data RAM" integration
-// while keeping memory outside the CPU core. Board-specific wrappers can extend
-// this layer with memory-mapped peripherals without changing the processor.
+// while keeping memory outside the CPU core. Board-specific wrappers can replace
+// the private data RAM with memory-mapped peripherals without changing the
+// processor interface.
 //
-module soc_pipelined
+// The wrapper is mainly useful for core-level simulation and simple integration
+// tests. Real board tops instantiate `core`, `imem`, and `board_bus` directly so
+// the same CPU can run against RAM, MMIO, or simulated halt devices.
+//
+module soc
   import riscv_pkg::*;
 #(
   parameter int unsigned ImemDepthWords = 512,

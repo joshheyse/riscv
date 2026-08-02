@@ -1,14 +1,14 @@
-// tb_core_pipelined.sv - first bring-up checks for the pipelined core.
+// tb_core.sv - first bring-up checks for the pipelined core.
 //
-//   make sim DESIGN=pipelined TB=core_pipelined
-//   make wave DESIGN=pipelined TB=core_pipelined
+//   make sim DESIGN=pipelined TB=core
+//   make wave DESIGN=pipelined TB=core
 //
 // This testbench grows one pipeline stage at a time as the implementation
 // comes online.
 
 `timescale 1ns / 1ps
 
-module tb_core_pipelined
+module tb_core
   import riscv_pkg::*;
   import pipelined_pkg::*;
 ();
@@ -24,27 +24,27 @@ module tb_core_pipelined
   ibus_if _ibus ();
   dbus_if _dbus ();
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
 
-  pc_t         _pc_hold;
-  pc_t         _if_id_pc_hold;
-  instr_t      _if_id_instr_hold;
-  logic        _if_id_valid_hold;
-  pc_t         _id_ex_pc_hold;
-  instr_t      _id_ex_instr_hold;
-  logic        _id_ex_valid_hold;
-  word_t       _ex_mem_alu_result_hold;
-  regaddr_t    _ex_mem_rd_hold;
-  logic        _ex_mem_valid_hold;
-  word_t       _mem_wb_result_hold;
-  regaddr_t    _mem_wb_rd_hold;
-  logic        _mem_wb_valid_hold;
-  word_t       _dbus_addr_hold;
-  word_t       _dbus_write_data_hold;
-  logic  [3:0] _dbus_write_mask_hold;
+  pc_t               _pc_hold;
+  pc_t               _if_id_pc_hold;
+  instr_t            _if_id_instr_hold;
+  logic              _if_id_valid_hold;
+  pc_t               _id_ex_pc_hold;
+  instr_t            _id_ex_instr_hold;
+  logic              _id_ex_valid_hold;
+  word_t             _ex_mem_alu_result_hold;
+  regaddr_t          _ex_mem_rd_hold;
+  logic              _ex_mem_valid_hold;
+  word_t             _mem_wb_result_hold;
+  regaddr_t          _mem_wb_rd_hold;
+  logic              _mem_wb_valid_hold;
+  word_t             _dbus_addr_hold;
+  word_t             _dbus_write_data_hold;
+  logic        [3:0] _dbus_write_mask_hold;
 
-  logic        _unused_bus_bits;
+  logic              _unused_bus_bits;
   assign _unused_bus_bits = |{
     _ibus.rsp.ready,
     _ibus.rsp.instr.raw,
@@ -223,7 +223,7 @@ module tb_core_pipelined
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
-      $dumpvars(0, tb_core_pipelined);
+      $dumpvars(0, tb_core);
     end
 
     _ibus.rsp = '0;
@@ -547,18 +547,19 @@ module tb_core_pipelined
     expect_bit(_dut._pipe_en, 1'b0, "store waits when data bus is not ready");
     expect_bit(_ibus.req.valid, 1'b0, "store stall suppresses instruction request");
 
-    _pc_hold               = _pc;
+    _pc_hold                = _pc;
     _ex_mem_alu_result_hold = _dut._ex_mem.alu_result;
-    _ex_mem_rd_hold        = _dut._ex_mem.rd;
-    _ex_mem_valid_hold     = _dut._ex_mem.valid;
-    _dbus_addr_hold        = _dbus.req.addr;
-    _dbus_write_data_hold  = _dbus.req.write_data;
-    _dbus_write_mask_hold  = _dbus.req.write_mask;
+    _ex_mem_rd_hold         = _dut._ex_mem.rd;
+    _ex_mem_valid_hold      = _dut._ex_mem.valid;
+    _dbus_addr_hold         = _dbus.req.addr;
+    _dbus_write_data_hold   = _dbus.req.write_data;
+    _dbus_write_mask_hold   = _dbus.req.write_mask;
 
     @(posedge _clk);
     #1;
     expect_word(_pc, _pc_hold, "store stall holds pc");
-    expect_word(_dut._ex_mem.alu_result, _ex_mem_alu_result_hold, "store stall holds EX/MEM address");
+    expect_word(_dut._ex_mem.alu_result, _ex_mem_alu_result_hold,
+                "store stall holds EX/MEM address");
     expect_regaddr(_dut._ex_mem.rd, _ex_mem_rd_hold, "store stall holds EX/MEM rd");
     expect_bit(_dut._ex_mem.valid, _ex_mem_valid_hold, "store stall holds EX/MEM valid");
     expect_bit(_dbus.req.valid, 1'b1, "store stall keeps data request valid");
@@ -713,7 +714,8 @@ module tb_core_pipelined
     expect_word(_dut._if_id.instr.raw, 32'h00a4_8863, "IF/ID captures taken branch instr");
     expect_bit(_dut._fetched.valid, 1'b1, "IFU captures taken-branch wrong-path fetch");
     expect_word(_dut._fetched.pc, 32'h0000_0004, "IFU captures taken-branch wrong-path pc");
-    expect_word(_dut._fetched.instr.raw, 32'h00c0_0613, "IFU captures taken-branch wrong-path instr");
+    expect_word(_dut._fetched.instr.raw, 32'h00c0_0613,
+                "IFU captures taken-branch wrong-path instr");
 
     @(negedge _clk);
     _ibus.rsp.instr.raw = 32'h00d0_0693;  // wrong-path addi x13, x0, 13
@@ -754,8 +756,10 @@ module tb_core_pipelined
     expect_bit(_dut._if_id.valid, 1'b1, "IF/ID captures taken branch target");
     expect_word(_dut._if_id.pc, 32'h0000_0010, "IF/ID captures taken branch target pc");
     expect_word(_dut._if_id.instr.raw, 32'h00e0_0713, "IF/ID captures taken branch target instr");
-    expect_word(_dut._reg_file._regs[12], 32'hcccc_cccc, "taken branch wrong-path x12 write is not committed");
-    expect_word(_dut._reg_file._regs[13], 32'hdddd_dddd, "taken branch wrong-path x13 write is not committed");
+    expect_word(_dut._reg_file._regs[12], 32'hcccc_cccc,
+                "taken branch wrong-path x12 write is not committed");
+    expect_word(_dut._reg_file._regs[13], 32'hdddd_dddd,
+                "taken branch wrong-path x13 write is not committed");
 
     @(negedge _clk);
     _rst = 1'b1;
@@ -817,7 +821,8 @@ module tb_core_pipelined
     #1;
     expect_bit(_dut._id_ex.valid, 1'b1, "fall-through instruction advances after not-taken branch");
     expect_word(_dut._id_ex.pc, 32'h0000_0004, "fall-through ID/EX pc after not-taken branch");
-    expect_word(_dut._id_ex.instr.raw, 32'h00f0_0793, "fall-through ID/EX instr after not-taken branch");
+    expect_word(_dut._id_ex.instr.raw, 32'h00f0_0793,
+                "fall-through ID/EX instr after not-taken branch");
 
     @(negedge _clk);
     _rst = 1'b1;
@@ -903,7 +908,8 @@ module tb_core_pipelined
     @(posedge _clk);
     #1;
     expect_word(_dut._reg_file._regs[6], 32'h0000_0004, "WB writes JALR link to x6");
-    expect_word(_dut._reg_file._regs[17], 32'h1717_1717, "JALR wrong-path x17 write is not committed");
+    expect_word(_dut._reg_file._regs[17], 32'h1717_1717,
+                "JALR wrong-path x17 write is not committed");
     expect_bit(_dut._if_id.valid, 1'b1, "IF/ID captures JALR target instruction");
     expect_word(_dut._if_id.pc, 32'h0000_0022, "IF/ID captures JALR target pc");
     expect_word(_dut._if_id.instr.raw, 32'h00e0_0713, "IF/ID captures JALR target instr");
@@ -964,7 +970,8 @@ module tb_core_pipelined
     expect_word(_dut._if_id.pc, 32'h0000_0004, "IF/ID captures dependent consumer pc");
     expect_word(_dut._if_id.instr.raw, 32'h0010_8133, "IF/ID captures dependent consumer instr");
     expect_bit(_dut._data_stall, 1'b1, "ID/EX producer triggers data stall");
-    expect_word(_pc, 32'h0000_000c, "prefetched following instruction advances pc before stall is visible");
+    expect_word(_pc, 32'h0000_000c,
+                "prefetched following instruction advances pc before stall is visible");
 
     _pc_hold          = _pc;
     _if_id_pc_hold    = _dut._if_id.pc;
@@ -978,7 +985,8 @@ module tb_core_pipelined
     expect_word(_dut._if_id.instr.raw, _if_id_instr_hold, "data stall holds IF/ID instr");
     expect_bit(_dut._id_ex.valid, 1'b0, "data stall inserts ID/EX bubble");
     expect_bit(_dut._ex_mem.valid, 1'b1, "data stall lets producer advance to EX/MEM");
-    expect_word(_dut._ex_mem.execute_result, 32'h0000_0005, "data stall producer result reaches EX/MEM");
+    expect_word(_dut._ex_mem.execute_result, 32'h0000_0005,
+                "data stall producer result reaches EX/MEM");
     expect_regaddr(_dut._ex_mem.rd, 5'd1, "data stall producer rd reaches EX/MEM");
     expect_bit(_dut._data_stall, 1'b1, "EX/MEM producer keeps data stall asserted");
     expect_bit(_ibus.req.valid, 1'b0, "data stall suppresses instruction request");
@@ -990,16 +998,19 @@ module tb_core_pipelined
     expect_word(_dut._if_id.instr.raw, _if_id_instr_hold, "second data stall holds IF/ID instr");
     expect_bit(_dut._id_ex.valid, 1'b0, "second data stall keeps ID/EX bubbled");
     expect_bit(_dut._mem_wb.valid, 1'b1, "producer reaches MEM/WB during data stall");
-    expect_word(_dut._mem_wb.result, 32'h0000_0005, "producer result reaches MEM/WB during data stall");
+    expect_word(_dut._mem_wb.result, 32'h0000_0005,
+                "producer result reaches MEM/WB during data stall");
     expect_regaddr(_dut._mem_wb.rd, 5'd1, "producer rd reaches MEM/WB during data stall");
     expect_bit(_dut._data_stall, 1'b1, "MEM/WB producer keeps conservative data stall asserted");
 
     @(posedge _clk);
     #1;
-    expect_word(_dut._reg_file._regs[1], 32'h0000_0005, "producer writes x1 before consumer decode");
+    expect_word(_dut._reg_file._regs[1], 32'h0000_0005,
+                "producer writes x1 before consumer decode");
     expect_bit(_dut._data_stall, 1'b0, "data stall clears after producer writeback");
     expect_bit(_dut._if_id.valid, 1'b1, "cleared data stall still holds consumer in IF/ID");
-    expect_word(_dut._if_id.instr.raw, _if_id_instr_hold, "cleared data stall keeps consumer ready for decode");
+    expect_word(_dut._if_id.instr.raw, _if_id_instr_hold,
+                "cleared data stall keeps consumer ready for decode");
     expect_bit(_dut._id_ex.valid, 1'b0, "consumer waits one edge after stall clears");
 
     @(posedge _clk);
@@ -1012,7 +1023,8 @@ module tb_core_pipelined
     @(posedge _clk);
     #1;
     expect_bit(_dut._ex_mem.valid, 1'b1, "consumer advances to EX/MEM");
-    expect_word(_dut._ex_mem.execute_result, 32'h0000_000a, "consumer computes with updated producer value");
+    expect_word(_dut._ex_mem.execute_result, 32'h0000_000a,
+                "consumer computes with updated producer value");
     expect_regaddr(_dut._ex_mem.rd, 5'd2, "consumer rd reaches EX/MEM");
 
     @(posedge _clk);
@@ -1026,17 +1038,17 @@ module tb_core_pipelined
     expect_word(_dut._reg_file._regs[2], 32'h0000_000a, "WB writes dependent consumer result");
 
     if (errors == 0) begin
-      $display("tb_core_pipelined: PASS (%0d checks)", checks);
+      $display("tb_core: PASS (%0d checks)", checks);
       $finish;
     end else begin
-      $display("tb_core_pipelined: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_core: FAIL (%0d failures out of %0d checks)", errors, checks);
       $fatal(1);
     end
   end
 
   initial begin
     repeat (TimeoutCycles) @(posedge _clk);
-    $display("tb_core_pipelined: TIMEOUT after %0d cycles", TimeoutCycles);
+    $display("tb_core: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end
 

@@ -1,5 +1,17 @@
 `timescale 1ns / 1ps
 
+// Conservative decode-stage data hazard detector.
+//
+// The unit looks at the instruction currently held in IF/ID and compares its
+// real source registers against the destination registers of older in-flight
+// instructions. A match requests a stall so decode does not read stale register
+// file data.
+//
+// This is deliberately stronger than a load-use-only hazard unit because the
+// pipeline has no forwarding yet. Any pending register write in ID/EX, EX/MEM,
+// or MEM/WB can stall a dependent consumer. x0 is ignored because writes to x0
+// are architecturally invisible.
+//
 module hazard_unit
   import riscv_pkg::*;
   import pipelined_pkg::*;
@@ -21,8 +33,8 @@ module hazard_unit
 
   logic [4:0] rs1_addr;
   logic [4:0] rs2_addr;
-  logic uses_rs1;
-  logic uses_rs2;
+  logic       uses_rs1;
+  logic       uses_rs2;
 
   always_comb begin
     stall = 1'b0;
