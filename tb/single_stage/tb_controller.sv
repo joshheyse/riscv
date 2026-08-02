@@ -15,44 +15,18 @@ module tb_controller
   localparam int unsigned TimeoutNs = 100_000;
   localparam int unsigned MaxPrintedFailures = 24;
 
-  instr_u          _instr;
-  branch_flags_t   _branch_flags;
-  logic            _reg_write_en;
-  logic            _mem_write_en;
-  imm_src_t        _imm_src;
-  alu_src_t        _alu_src;
-  alu_result_src_t _alu_result_src;
-  alu_select_t     _alu_select;
-  result_src_t     _result_src;
-  logic            _sub_arith;
-  pc_src_t         _pc_src;
-  logic            _branch_sgnd;
-  mem_size_t       _mem_size;
-  logic            _mem_unsigned;
-  logic            _clear_pc_lsb;
-  logic            _illegal_instr;
+  instr_u        _instr;
+  branch_flags_t _branch_flags;
+  control_t      _ctrl;
 
-  int unsigned     errors = 0;
-  int unsigned     checks = 0;
-  int unsigned     printed = 0;
+  int unsigned   errors = 0;
+  int unsigned   checks = 0;
+  int unsigned   printed = 0;
 
   controller _dut (
-    .instr(_instr),
+    .instr       (_instr),
     .branch_flags(_branch_flags),
-    .reg_write_en(_reg_write_en),
-    .mem_write_en(_mem_write_en),
-    .imm_src(_imm_src),
-    .alu_src(_alu_src),
-    .alu_result_src(_alu_result_src),
-    .alu_select(_alu_select),
-    .result_src(_result_src),
-    .sub_arith(_sub_arith),
-    .pc_src(_pc_src),
-    .branch_sgnd(_branch_sgnd),
-    .mem_size(_mem_size),
-    .mem_unsigned(_mem_unsigned),
-    .clear_pc_lsb(_clear_pc_lsb),
-    .illegal_instr(_illegal_instr)
+    .ctrl        (_ctrl)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -252,33 +226,34 @@ module tb_controller
     _branch_flags.lt = lt;
     #1;
     checks++;
-    mem_unsigned_bad = mem_unsigned_matters(op) && (_mem_unsigned !== exp_mem_unsigned(op, funct3));
+    mem_unsigned_bad = mem_unsigned_matters(op) &&
+        (_ctrl.mem_unsigned !== exp_mem_unsigned(op, funct3));
 
-    if (_reg_write_en !== exp_reg_write_en(
+    if (_ctrl.reg_write_en !== exp_reg_write_en(
             op
-        ) || _mem_write_en !== exp_mem_write_en(
+        ) || _ctrl.mem_write_en !== exp_mem_write_en(
             op
-        ) || _imm_src !== exp_imm_src(
+        ) || _ctrl.imm_src !== exp_imm_src(
             op
-        ) || _alu_src !== exp_alu_src(
+        ) || _ctrl.alu_src !== exp_alu_src(
             op
-        ) || _alu_result_src !== exp_alu_result_src(
+        ) || _ctrl.alu_result_src !== exp_alu_result_src(
             op
-        ) || _alu_select !== exp_alu_select(
+        ) || _ctrl.alu_select !== exp_alu_select(
             op, funct3
-        ) || _result_src !== exp_result_src(
+        ) || _ctrl.result_src !== exp_result_src(
             op
-        ) || _sub_arith !== exp_sub_arith(
+        ) || _ctrl.sub_arith !== exp_sub_arith(
             op, funct3, funct7_bit5
-        ) || _pc_src !== exp_pc_src(
+        ) || _ctrl.pc_src !== exp_pc_src(
             op, eq, lt, funct3
-        ) || _branch_sgnd !== exp_branch_sgnd(
+        ) || _ctrl.branch_sgnd !== exp_branch_sgnd(
             funct3[1]
-        ) || _mem_size !== exp_mem_size(
+        ) || _ctrl.mem_size !== exp_mem_size(
             op, funct3
-        ) || mem_unsigned_bad || _clear_pc_lsb !== exp_clear_pc_lsb(
+        ) || mem_unsigned_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
             op
-        ) || _illegal_instr !== exp_illegal_instr(
+        ) || _ctrl.illegal_instr !== exp_illegal_instr(
             op, funct3, funct7
         )) begin
       errors++;
@@ -288,9 +263,10 @@ module tb_controller
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
             "       got reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
-            _reg_write_en, _mem_write_en, _imm_src.name(), _alu_src.name(), _alu_result_src.name(),
-            _alu_select.name(), _result_src.name(), _sub_arith, _pc_src.name(), _branch_sgnd,
-            _mem_size.name(), _mem_unsigned, _clear_pc_lsb, _illegal_instr);
+            _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.imm_src.name(), _ctrl.alu_src.name(),
+            _ctrl.alu_result_src.name(), _ctrl.alu_select.name(), _ctrl.result_src.name(),
+            _ctrl.sub_arith, _ctrl.pc_src.name(), _ctrl.branch_sgnd, _ctrl.mem_size.name(),
+            _ctrl.mem_unsigned, _ctrl.clear_pc_lsb, _ctrl.illegal_instr);
         $display(
             "       exp reg=%b mem=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write_en(op), exp_mem_write_en(op), exp_imm_src(op).name(), exp_alu_src(op

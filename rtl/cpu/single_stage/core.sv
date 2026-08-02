@@ -28,28 +28,6 @@ module core
   ibus_if.master ibus
 );
 
-  typedef struct packed {
-    instr_u instr;
-    pc_t    pc;
-  } instr_slot_t;
-
-  typedef struct packed {
-    logic            reg_write_en;
-    logic            mem_write_en;
-    imm_src_t        imm_src;
-    alu_src_t        alu_src;
-    alu_result_src_t alu_result_src;
-    alu_select_t     alu_select;
-    result_src_t     result_src;
-    logic            sub_arith;
-    pc_src_t         pc_src;
-    logic            branch_sgnd;
-    mem_size_t       mem_size;
-    logic            mem_unsigned;
-    logic            clear_pc_lsb;
-    logic            illegal_instr;
-  } control_t;
-
   typedef enum logic [1:0] {
     CORE_FETCH,
     CORE_EXEC,
@@ -182,22 +160,9 @@ module core
   );
 
   controller _controller (
-    .instr(_current.instr),
+    .instr       (_current.instr),
     .branch_flags(_branch_flags),
-    .reg_write_en(_ctrl.reg_write_en),
-    .mem_write_en(_ctrl.mem_write_en),
-    .imm_src(_ctrl.imm_src),
-    .alu_src(_ctrl.alu_src),
-    .alu_result_src(_ctrl.alu_result_src),
-    .alu_select(_ctrl.alu_select),
-    .result_src(_ctrl.result_src),
-    .sub_arith(_ctrl.sub_arith),
-    .pc_src(_ctrl.pc_src),
-    .branch_sgnd(_ctrl.branch_sgnd),
-    .mem_size(_ctrl.mem_size),
-    .mem_unsigned(_ctrl.mem_unsigned),
-    .clear_pc_lsb(_ctrl.clear_pc_lsb),
-    .illegal_instr(_ctrl.illegal_instr)
+    .ctrl        (_ctrl)
   );
 
   datapath _datapath (

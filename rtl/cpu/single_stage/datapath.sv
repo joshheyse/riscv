@@ -55,11 +55,11 @@ module datapath
   word_t _imm_ext;
   word_t _src_a;
   word_t _src_b;
-  word_t _alu_result_mux;
+  word_t _execute_result;
 
   extend _extend (
     .imm_src(imm_src),
-    .instr(instr[31:7]),
+    .instr  (instr[31:7]),
     .imm_ext(_imm_ext)
   );
 
@@ -74,7 +74,7 @@ module datapath
     .rd_data2(_rd_data2)
   );
 
-  comparator _controller (
+  comparator _comparator (
     .src_a(_rd_data1),
     .src_b(_rd_data2),
     .sngd(branch_sgnd),
@@ -95,17 +95,19 @@ module datapath
     .alu_result(alu_result)
   );
 
-  always_comb begin
-    unique case (alu_result_src)
-      ALU_RES_ALU: _alu_result_mux = alu_result;
-      ALU_RES_PC_PLUS4: _alu_result_mux = pc + pc_t'(4);
-      ALU_RES_IMM: _alu_result_mux = _imm_ext;
-    endcase
+  execute_result_mux _execute_result_mux (
+    .alu_result_src(alu_result_src),
+    .pc(pc),
+    .imm(_imm_ext),
+    .alu_result(alu_result),
+    .execute_result(_execute_result)
+  );
 
-    unique case (result_src)
-      RESULT_ALU: _wr_data = _alu_result_mux;
-      RESULT_MEM: _wr_data = read_data;
-    endcase
-  end
+  writeback_mux _writeback_mux (
+    .result_src(result_src),
+    .execute_result(_execute_result),
+    .read_data(read_data),
+    .writeback_data(_wr_data)
+  );
 
 endmodule

@@ -13,22 +13,9 @@
 module controller
   import riscv_pkg::*;
 (
-  input  instr_u          instr,
-  input  branch_flags_t   branch_flags,
-  output logic            reg_write_en,
-  output logic            mem_write_en,
-  output imm_src_t        imm_src,
-  output alu_src_t        alu_src,
-  output alu_result_src_t alu_result_src,
-  output alu_select_t     alu_select,
-  output result_src_t     result_src,
-  output logic            sub_arith,
-  output pc_src_t         pc_src,
-  output logic            branch_sgnd,
-  output mem_size_t       mem_size,
-  output logic            mem_unsigned,
-  output logic            clear_pc_lsb,
-  output logic            illegal_instr
+  input  instr_u        instr,
+  input  branch_flags_t branch_flags,
+  output control_t      ctrl
 );
 
   logic _branch;
@@ -36,23 +23,23 @@ module controller
   logic _alu_op;
   logic _illegal_main;
   logic _illegal_alu;
-  assign branch_sgnd   = ~instr.r.funct3.br.unsgnd;
-  assign illegal_instr = _illegal_main | _illegal_alu;
+  assign ctrl.branch_sgnd   = ~instr.r.funct3.br.unsgnd;
+  assign ctrl.illegal_instr = _illegal_main | _illegal_alu;
 
   main_decoder _main_decoder (
     .instr(instr),
-    .reg_write_en(reg_write_en),
-    .mem_write_en(mem_write_en),
-    .imm_src(imm_src),
-    .alu_src(alu_src),
-    .alu_result_src(alu_result_src),
-    .result_src(result_src),
+    .reg_write_en(ctrl.reg_write_en),
+    .mem_write_en(ctrl.mem_write_en),
+    .imm_src(ctrl.imm_src),
+    .alu_src(ctrl.alu_src),
+    .alu_result_src(ctrl.alu_result_src),
+    .result_src(ctrl.result_src),
     .branch(_branch),
     .jump(_jump),
     .alu_op(_alu_op),
-    .mem_size(mem_size),
-    .mem_unsigned(mem_unsigned),
-    .clear_pc_lsb(clear_pc_lsb),
+    .mem_size(ctrl.mem_size),
+    .mem_unsigned(ctrl.mem_unsigned),
+    .clear_pc_lsb(ctrl.clear_pc_lsb),
     .illegal_main(_illegal_main)
   );
 
@@ -61,14 +48,14 @@ module controller
     .jump(_jump),
     .flags(branch_flags),
     .funct3(instr.r.funct3.br),
-    .pc_src(pc_src)
+    .pc_src(ctrl.pc_src)
   );
 
   alu_decoder _alu_decoder (
     .alu_op(_alu_op),
     .instr(instr),
-    .alu_select(alu_select),
-    .sub_arith(sub_arith),
+    .alu_select(ctrl.alu_select),
+    .sub_arith(ctrl.sub_arith),
     .illegal_alu(_illegal_alu)
   );
 

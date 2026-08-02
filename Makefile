@@ -156,9 +156,9 @@ ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*
                          $(wildcard boards/*/sim/*.sv) $(wildcard boards/*/sim/*.v))
 
 VERILATOR ?= verilator
-VERILATOR_FLAGS := -sv --timing --assert -Wall \
+VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
                    -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) -I$(TB_DIR)
-BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall \
+BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
                               -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
                               -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                               -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)

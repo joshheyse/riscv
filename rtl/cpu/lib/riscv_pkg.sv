@@ -119,6 +119,10 @@ package riscv_pkg;
     i_type_t i;
   } instr_u;
 
+  typedef struct packed {
+    instr_u instr;
+    pc_t    pc;
+  } instr_slot_t;
 
   typedef enum logic [2:0] {
     IMM_I = 3'b000,
@@ -167,5 +171,21 @@ package riscv_pkg;
     MEM_SIZE_WORD
   } mem_size_t;
 
+  typedef struct packed {
+    logic            reg_write_en;
+    logic            mem_write_en;
+    imm_src_t        imm_src;
+    alu_src_t        alu_src;
+    alu_result_src_t alu_result_src;
+    alu_select_t     alu_select;
+    result_src_t     result_src;
+    logic            sub_arith;
+    pc_src_t         pc_src;
+    logic            branch_sgnd;
+    mem_size_t       mem_size;
+    logic            mem_unsigned;
+    logic            clear_pc_lsb;
+    logic            illegal_instr;
+  } control_t;
 
 endpackage
