@@ -57,7 +57,7 @@ BOARD_TOP       ?= top
 BOARD_SIM       ?= top_sim
 BOARD_SIM_TOP   := $(BOARD_SIM)
 BOARD_BUILD_DIR := build/boards/$(BOARD)
-BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(BOARD_SIM_TOP)/$(APP_NAME)
+BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(DESIGN)/$(BOARD_SIM_TOP)/$(APP_NAME)
 BOARD_TB_DIR       := tb/boards/$(BOARD)
 BOARD_TB           ?= timer_mmio
 BOARD_TB_TOP       := tb_$(BOARD_TB)
@@ -176,7 +176,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -242,10 +242,13 @@ board-constants: $(BOARD_CONSTANTS_HDR) $(BOARD_CONSTANTS_PKG)
 ## filelist: regenerate verible.filelist (language server cross-file symbols)
 # Without this file verible-verilog-ls only sees the buffer being edited, so
 # types from riscv_pkg read as "Can't find typedef". Packages are listed first.
+# This is design-specific because different CPU design directories may define
+# the same module names, such as `core`.
 filelist:
-	@{ find rtl boards tb -name '*_pkg.sv' 2>/dev/null | sort; \
-	   find rtl boards tb \( -name '*.sv' -o -name '*.svh' -o -name '*.v' \) \
-	        ! -name '*_pkg.sv' 2>/dev/null | sort; } > verible.filelist
+	@printf '%s\n' $(CPU_PKG_SRCS) $(BOARD_PKG_SRCS) \
+		$(RTL_LIB_SRCS) $(CPU_LIB_SRCS) $(CPU_DESIGN_SRCS) \
+		$(PERIPH_SRCS) $(BOARD_LOCAL_SRCS) $(ALL_TB_SRCS) \
+		$(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS) > verible.filelist
 	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
 
 $(COMPILE_COMMANDS): FORCE tools/gen_compile_commands.py $(BOARD_CONSTANTS_HDR)
@@ -314,6 +317,10 @@ board-run: $(BOARD_HARNESS_BIN)
 
 ## board-sim: build and run a board-level testbench
 board-sim: board-run
+
+## board-app-test: run simulated-board firmware regressions
+board-app-test:
+	tools/run_board_app_tests.py --design $(DESIGN) --board $(BOARD) --sim $(BOARD_SIM)
 
 $(BOARD_TB_BIN): $(BOARD_SRCS) $(BOARD_TB_SRC)
 	@test -f $(BOARD_TB_SRC) || { echo "no such board testbench: $(BOARD_TB_SRC)"; exit 1; }

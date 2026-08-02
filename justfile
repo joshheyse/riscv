@@ -39,6 +39,12 @@ board-sim sim="top_sim" app=default_sim_app target="sim":
     board="${board#boards/}"; \
     make board-sim BOARD="$board" BOARD_SIM="{{sim}}" APP="{{app}}"
 
+# Run simulated-board firmware regressions: DESIGN=pipelined just board-app-test
+board-app-test sim="top_sim" target="sim":
+    @board="{{target}}"; \
+    board="${board#boards/}"; \
+    make board-app-test DESIGN={{design}} BOARD="$board" BOARD_SIM="{{sim}}"
+
 # Run a board peripheral testbench: just board-tb timer_mmio
 board-tb tb="timer_mmio" target=board:
     @board="{{target}}"; \

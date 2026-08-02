@@ -15,14 +15,15 @@ module top_sim
 );
   localparam realtime ClkPeriod = 10ns;
 
-  logic       _clk;
-  logic       _rst;
-  pc_t        _pc;
-  logic [7:0] _led;
-  logic [7:0] _led_prev;
-  logic       _sim_halt_selected;
-  logic       _halted;
-  logic       _uart_tx;
+  logic              _clk;
+  logic              _rst;
+  pc_t               _pc;
+  logic        [7:0] _led;
+  logic        [7:0] _led_prev;
+  logic              _sim_halt_selected;
+  logic              _halted;
+  logic              _uart_tx;
+  int unsigned       _cycle;
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
@@ -57,6 +58,14 @@ module top_sim
     _rst = 1'b1;
     repeat (4) @(posedge _clk);
     _rst = 1'b0;
+  end
+
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
+      _cycle <= 0;
+    end else begin
+      _cycle <= _cycle + 1;
+    end
   end
 
   imem #(
@@ -116,6 +125,7 @@ module top_sim
     forever begin
       uart_getc(ch);
       $write("%c", ch);
+      $display("top_sim: uart byte 0x%02h", ch);
     end
   end
 
@@ -148,6 +158,11 @@ module top_sim
 
   initial begin
     repeat (TimeoutCycles) @(posedge _clk);
+    $display(
+        "top_sim: watchdog state cycle=%0d _pc=0x%08h halted=%b ibus_valid=%b ibus_addr=0x%08h ibus_ready=%b dbus_valid=%b dbus_write_en=%b dbus_addr=0x%08h dbus_write_data=0x%08h dbus_ready=%b",
+        _cycle, _pc, _halted, _core_ibus.req.valid, _core_ibus.req.addr, _core_ibus.rsp.ready,
+        _core_dbus.req.valid, _core_dbus.req.write_en, _core_dbus.req.addr,
+        _core_dbus.req.write_data, _core_dbus.rsp.ready);
     $fatal(1, "top_sim: watchdog timeout after %0d cycles", TimeoutCycles);
   end
 

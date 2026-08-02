@@ -18,6 +18,7 @@ package pipelined_pkg;
     word_t    rs1_data;
     word_t    rs2_data;
     word_t    imm;
+    regaddr_t rd;
   } id_ex_t;
 
   typedef struct packed {
