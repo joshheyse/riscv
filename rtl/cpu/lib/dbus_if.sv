@@ -17,8 +17,12 @@ interface dbus_if
     mem_data_t read_data;
   } rsp_t;
 
+  /* verilator lint_off UNUSEDSIGNAL */
+  /* verilator lint_off UNDRIVEN */
   req_t req;
   rsp_t rsp;
+  /* verilator lint_on UNDRIVEN */
+  /* verilator lint_on UNUSEDSIGNAL */
 
   modport master(output req, input rsp);
 

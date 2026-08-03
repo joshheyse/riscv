@@ -19,9 +19,11 @@ package riscv_pkg;
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [11:0] csr_addr_t;  // CSR address field
+
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
   typedef logic [3:0] mem_write_mask_t;
+  typedef word_t mtval_t;
 
   // RV32I opcode map used by the main decoder.
   //
@@ -215,6 +217,41 @@ package riscv_pkg;
     CBIE_INVAL    = 2'b11
   } cbie_t;
 
+  typedef enum csr_addr_t {
+    CSR_SSTATUS  = 12'h100,
+    CSR_SIE      = 12'h104,
+    CSR_STVEC    = 12'h105,
+    CSR_SENVCFG  = 12'h10a,
+    CSR_SSCRATCH = 12'h140,
+    CSR_SEPC     = 12'h141,
+    CSR_SCAUSE   = 12'h142,
+    CSR_STVAL    = 12'h143,
+    CSR_SIP      = 12'h144,
+
+    CSR_MSTATUS    = 12'h300,
+    CSR_MISA       = 12'h301,
+    CSR_MEDELEG    = 12'h302,
+    CSR_MIDELEG    = 12'h303,
+    CSR_MIE        = 12'h304,
+    CSR_MTVEC      = 12'h305,
+    CSR_MCOUNTEREN = 12'h306,
+    CSR_MENVCFG    = 12'h30a,
+
+    CSR_MSTATUSH = 12'h310,
+    CSR_MENVCFGH = 12'h31a,
+
+    CSR_MSCRATCH = 12'h340,
+    CSR_MEPC     = 12'h341,
+    CSR_MCAUSE   = 12'h342,
+    CSR_MTVAL    = 12'h343,
+    CSR_MIP      = 12'h344,
+
+    CSR_MVENDORID = 12'hf11,
+    CSR_MARCHID   = 12'hf12,
+    CSR_MIMPID    = 12'hf13,
+    CSR_MHARTID   = 12'hf14
+  } csr_addr_e;
+
   typedef struct packed {
     logic [25:0] wpri5;  // [31:6] write-preserved, reads ignored
     logic        mbe;    // [5] machine big-endian mode
@@ -302,5 +339,43 @@ package riscv_pkg;
     logic        ssip;      // [1] supervisor software interrupt pending
     logic        usip;      // [0] user software interrupt pending
   } mip_t;
+
+  typedef mip_t mie_t;
+
+  typedef enum logic [1:0] {
+    MTVEC_MODE_DIRECT   = 2'b00,
+    MTVEC_MODE_VECTORED = 2'b01
+  } mtvec_mode_t;
+
+  typedef struct packed {
+    logic [29:0] base;  // [31:2] trap-vector base address
+    mtvec_mode_t mode;  // [1:0] trap-vector mode
+  } mtvec_t;
+
+  typedef pc_t mepc_t;
+
+  typedef struct packed {
+    logic        is_interrupt;  // [31] 1 = interrupt, 0 = exception
+    logic [30:0] code;          // [30:0] exception/interrupt cause code
+  } mcause_t;
+
+  typedef enum logic [30:0] {
+    MCAUSE_INSTR_ADDR_MISALIGNED = 31'd0,
+    MCAUSE_INSTR_ACCESS_FAULT    = 31'd1,
+    MCAUSE_ILLEGAL_INSTR         = 31'd2,
+    MCAUSE_BREAKPOINT            = 31'd3,
+    MCAUSE_LOAD_ADDR_MISALIGNED  = 31'd4,
+    MCAUSE_LOAD_ACCESS_FAULT     = 31'd5,
+    MCAUSE_STORE_ADDR_MISALIGNED = 31'd6,
+    MCAUSE_STORE_ACCESS_FAULT    = 31'd7,
+    MCAUSE_ECALL_U               = 31'd8,
+    MCAUSE_ECALL_S               = 31'd9,
+    MCAUSE_ECALL_M               = 31'd11
+  } exception_code_t;
+
+  typedef csr_data_t mvendorid_t;
+  typedef csr_data_t marchid_t;
+  typedef csr_data_t mimpid_t;
+  typedef csr_data_t mhartid_t;
 
 endpackage

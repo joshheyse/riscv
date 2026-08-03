@@ -63,20 +63,43 @@ module core
   reg_data_t     _mem_result_data;
   logic          _mem_instr;
   logic          _mem_wait;
-  logic          _pipe_en;
   if_id_t        _fetched;
   logic          _redirect_en;
   pc_t           _redirect_pc;
   logic          _data_stall;
-  logic          _fetch_en;
   logic          _unused_mem_wait;
   logic          _execute_branch;
   logic          _execute_jump;
   pc_src_t       _execute_pc_src;
 
-
   logic          _ex_mem_can_forward;
   logic          _mem_wb_can_forward;
+
+
+  logic          _csr_en;
+  logic          _csr_write_en;
+  csr_addr_t     _csr_addr;
+  csr_data_t     _csr_write_data;
+  logic          _trap_valid;
+  mepc_t         _trap_mepc;
+  mcause_t       _trap_mcause;
+  mtval_t        _trap_mtval;
+  csr_data_t     _csr_read_data;
+  logic          _illegal_csr;
+  pc_t           _trap_pc;
+  mtvec_t        _mtvec;
+
+  stage_ctrl_t   _fetch_ctrl;
+  stage_ctrl_t   _if_id_ctrl;
+  stage_ctrl_t   _id_ex_ctrl;
+  stage_ctrl_t   _ex_mem_ctrl;
+  stage_ctrl_t   _mem_wb_ctrl;
+
+  assign _mtvec = '0;
+  assign _csr_en = 1'b0;
+  assign _csr_write_en = 1'b0;
+  assign _csr_addr = '0;
+  assign _csr_write_data = '0;
 
   assign dbus.req.valid = _mem_instr;
   assign dbus.req.write_en = _ex_mem.ctrl.mem_write_en;
@@ -122,6 +145,33 @@ module core
     end
   end
 
+  // Files
+  reg_file _reg_file (
+    .clk(clk),
+    .rd_addr1(_if_id.instr.r.rs1),
+    .rd_addr2(_if_id.instr.r.rs2),
+    .wr_addr(_mem_wb.rd),
+    .wr_data(_mem_wb.result),
+    .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en),
+    .rd_data1(_decode_rs1_data),
+    .rd_data2(_decode_rs2_data)
+  );
+
+  csr_file _csr_file (
+    .clk(clk),
+    .rst(rst),
+    .csr_en(_csr_en),
+    .csr_write_en(_csr_write_en),
+    .csr_addr(_csr_addr),
+    .csr_write_data(_csr_write_data),
+    .trap_valid(_trap_valid),
+    .trap_mepc(_trap_mepc),
+    .trap_mcause(_trap_mcause),
+    .trap_mtval(_trap_mtval),
+    .csr_read_data(_csr_read_data),
+    .illegal_csr(_illegal_csr)
+  );
+
   // Pipeline control
   pipeline_control _pipeline_control (
     .halted(halted),
@@ -132,8 +182,11 @@ module core
     .data_stall(_data_stall),
     .mem_instr(_mem_instr),
     .mem_wait(_mem_wait),
-    .pipe_en(_pipe_en),
-    .fetch_en(_fetch_en)
+    .fetch_ctrl(_fetch_ctrl),
+    .if_id_ctrl(_if_id_ctrl),
+    .id_ex_ctrl(_id_ex_ctrl),
+    .ex_mem_ctrl(_ex_mem_ctrl),
+    .mem_wb_ctrl(_mem_wb_ctrl)
   );
 
   redirect_control _redirect_control (
@@ -145,27 +198,45 @@ module core
     .redirect_pc(_redirect_pc)
   );
 
+  trap_controller _trap_control (
+    .illegal_instr(_if_id.valid && _ctrl.illegal_instr),
+    .instr(_if_id.instr),
+    .pc(_if_id.pc),
+    .mtvec(_mtvec),
+    .trap_valid(_trap_valid),
+    .trap_mepc(_trap_mepc),
+    .trap_mcause(_trap_mcause),
+    .trap_mtval(_trap_mtval),
+    .trap_pc(_trap_pc)
+  );
+
   // Fetch
   always_comb begin
-    if (!_pipe_en) begin
-      _if_id_next = _if_id;
-    end else begin
-      _if_id_next = '0;
+    _if_id_next = '0;
 
-      if (_redirect_en) begin
-        _if_id_next = '0;
-      end else if (_data_stall) begin
+    unique case (_if_id_ctrl)
+      STAGE_HOLD: begin
         _if_id_next = _if_id;
-      end else if (_fetched.valid) begin
-        _if_id_next = _fetched;
       end
-    end
+
+      STAGE_FLUSH: begin
+        _if_id_next = '0;
+      end
+
+      STAGE_ADVANCE: begin
+        if (_redirect_en) begin
+          _if_id_next = '0;
+        end else if (_fetched.valid) begin
+          _if_id_next = _fetched;
+        end
+      end
+    endcase
   end
 
   ifu _ifu (
     .clk(clk),
     .rst(rst),
-    .fetch_en(_fetch_en),
+    .fetch_en(_fetch_ctrl == STAGE_ADVANCE),
     .redirect_en(_redirect_en),
     .redirect_pc(_redirect_pc),
     .pc(pc),
@@ -175,38 +246,36 @@ module core
 
   // Decode
   always_comb begin
-    if (!_pipe_en) begin
-      _id_ex_next = _id_ex;
-    end else begin
-      _id_ex_next = '0;
+    _id_ex_next = '0;
 
-      if (_data_stall || _redirect_en) begin
-        _id_ex_next = '0;
-      end else if (_if_id.valid) begin
-        _id_ex_next = '{
-            valid: 1'b1,
-            pc: _if_id.pc,
-            instr: _if_id.instr,
-            ctrl: _ctrl,
-            rs1_data: _decode_rs1_value,
-            rs2_data: _decode_rs2_value,
-            imm: _decode_imm,
-            rd: _if_id.instr.r.rd
-        };
+    unique case (_id_ex_ctrl)
+      STAGE_HOLD: begin
+        _id_ex_next = _id_ex;
       end
-    end
+
+      STAGE_FLUSH: begin
+        _id_ex_next = '0;
+      end
+
+      STAGE_ADVANCE: begin
+        if (_redirect_en) begin
+          _id_ex_next = '0;
+        end else if (_if_id.valid) begin
+          _id_ex_next = '{
+              valid: 1'b1,
+              pc: _if_id.pc,
+              instr: _if_id.instr,
+              ctrl: _ctrl,
+              rs1_data: _decode_rs1_value,
+              rs2_data: _decode_rs2_value,
+              imm: _decode_imm,
+              rd: _if_id.instr.r.rd
+          };
+        end
+      end
+    endcase
   end
 
-  reg_file _reg_file (
-    .clk(clk),
-    .rd_addr1(_if_id.instr.r.rs1),
-    .rd_addr2(_if_id.instr.r.rs2),
-    .wr_addr(_mem_wb.rd),
-    .wr_data(_mem_wb.result),
-    .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en),
-    .rd_data1(_decode_rs1_data),
-    .rd_data2(_decode_rs2_data)
-  );
 
   controller _controller (
     .instr       (_if_id.instr),
@@ -222,23 +291,31 @@ module core
 
   // Execute
   always_comb begin
-    if (!_pipe_en) begin
-      _ex_mem_next = _ex_mem;
-    end else begin
-      _ex_mem_next = '0;
+    _ex_mem_next = '0;
 
-      if (_id_ex.valid) begin
-        _ex_mem_next = '{
-            valid: 1'b1,
-            pc: _id_ex.pc,
-            ctrl: _id_ex.ctrl,
-            alu_result: _alu_result,
-            execute_result: _execute_result,
-            write_data: _rs2_value,
-            rd: _id_ex.instr.r.rd
-        };
+    unique case (_ex_mem_ctrl)
+      STAGE_HOLD: begin
+        _ex_mem_next = _ex_mem;
       end
-    end
+
+      STAGE_FLUSH: begin
+        _ex_mem_next = '0;
+      end
+
+      STAGE_ADVANCE: begin
+        if (_id_ex.valid) begin
+          _ex_mem_next = '{
+              valid: 1'b1,
+              pc: _id_ex.pc,
+              ctrl: _id_ex.ctrl,
+              alu_result: _alu_result,
+              execute_result: _execute_result,
+              write_data: _rs2_value,
+              rd: _id_ex.instr.r.rd
+          };
+        end
+      end
+    endcase
   end
 
   alu _alu (
@@ -267,28 +344,36 @@ module core
 
   branch_logic _execute_branch_logic (
     .branch(_execute_branch),
-    .jump(_execute_jump),
-    .flags(_execute_branch_flags),
+    .jump  (_execute_jump),
+    .flags (_execute_branch_flags),
     .funct3(_id_ex.instr.r.funct3.br),
     .pc_src(_execute_pc_src)
   );
 
   // Memory
   always_comb begin
-    if (!_pipe_en) begin
-      _mem_wb_next = _mem_wb;
-    end else begin
-      _mem_wb_next = '0;
+    _mem_wb_next = '0;
 
-      if (_ex_mem.valid) begin
-        _mem_wb_next = '{
-            valid: 1'b1,
-            ctrl: _ex_mem.ctrl,
-            result: _mem_result_data,
-            rd: _ex_mem.rd
-        };
+    unique case (_mem_wb_ctrl)
+      STAGE_HOLD: begin
+        _mem_wb_next = _mem_wb;
       end
-    end
+
+      STAGE_FLUSH: begin
+        _mem_wb_next = '0;
+      end
+
+      STAGE_ADVANCE: begin
+        if (_ex_mem.valid) begin
+          _mem_wb_next = '{
+              valid: 1'b1,
+              ctrl: _ex_mem.ctrl,
+              result: _mem_result_data,
+              rd: _ex_mem.rd
+          };
+        end
+      end
+    endcase
   end
 
   lsu _lsu (
@@ -330,8 +415,12 @@ module core
       _id_ex  <= '0;
       _ex_mem <= '0;
       _mem_wb <= '0;
-    end else if (_if_id.valid && _ctrl.illegal_instr) begin
-      halted <= 1'b1;
+    end else if (_trap_valid) begin
+      halted  <= 1'b1;
+      _if_id  <= '0;
+      _id_ex  <= '0;
+      _ex_mem <= '0;
+      _mem_wb <= '0;
     end else begin
       _if_id  <= _if_id_next;
       _id_ex  <= _id_ex_next;
@@ -342,5 +431,8 @@ module core
 
   pc_t _unused_pc;
   assign _unused_pc = _ex_mem.pc;
+
+  logic _unused_csr;
+  assign _unused_csr = |{_csr_read_data, _illegal_csr, _trap_pc};
 
 endmodule

@@ -9,6 +9,7 @@
 //
 module pipeline_control
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 (
   input logic        halted,
   input logic        ex_mem_valid,
@@ -17,15 +18,42 @@ module pipeline_control
   input logic        dbus_ready,
   input logic        data_stall,
 
-  output logic mem_instr,
-  output logic mem_wait,
-  output logic pipe_en,
-  output logic fetch_en
+  output logic        mem_instr,
+  output logic        mem_wait,
+  output stage_ctrl_t fetch_ctrl,
+  output stage_ctrl_t if_id_ctrl,
+  output stage_ctrl_t id_ex_ctrl,
+  output stage_ctrl_t ex_mem_ctrl,
+  output stage_ctrl_t mem_wb_ctrl
 );
 
-  assign mem_instr = ex_mem_valid && (ex_mem_mem_write_en || ex_mem_result_src == RESULT_MEM);
-  assign mem_wait  = mem_instr && !dbus_ready;
-  assign pipe_en   = !mem_wait && !halted;
-  assign fetch_en  = pipe_en && !data_stall;
+  always_comb begin
+    mem_instr = ex_mem_valid && (ex_mem_mem_write_en || ex_mem_result_src == RESULT_MEM);
+    mem_wait = mem_instr && !dbus_ready;
+
+    fetch_ctrl = STAGE_ADVANCE;
+    if_id_ctrl = STAGE_ADVANCE;
+    id_ex_ctrl = STAGE_ADVANCE;
+    ex_mem_ctrl = STAGE_ADVANCE;
+    mem_wb_ctrl = STAGE_ADVANCE;
+
+    if (halted) begin
+      fetch_ctrl  = STAGE_HOLD;
+      if_id_ctrl  = STAGE_HOLD;
+      id_ex_ctrl  = STAGE_HOLD;
+      ex_mem_ctrl = STAGE_HOLD;
+      mem_wb_ctrl = STAGE_HOLD;
+    end else if (mem_wait) begin
+      fetch_ctrl  = STAGE_HOLD;
+      if_id_ctrl  = STAGE_HOLD;
+      id_ex_ctrl  = STAGE_HOLD;
+      ex_mem_ctrl = STAGE_HOLD;
+      mem_wb_ctrl = STAGE_HOLD;
+    end else if (data_stall) begin
+      fetch_ctrl = STAGE_HOLD;
+      if_id_ctrl = STAGE_HOLD;
+      id_ex_ctrl = STAGE_FLUSH;
+    end
+  end
 
 endmodule
