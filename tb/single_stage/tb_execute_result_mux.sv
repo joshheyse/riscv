@@ -14,6 +14,7 @@ module tb_execute_result_mux
   pc_t             _pc;
   word_t           _imm;
   word_t           _alu_result;
+  word_t           _csr_result;
   word_t           _execute_result;
 
   int unsigned     errors = 0;
@@ -24,15 +25,18 @@ module tb_execute_result_mux
     .pc(_pc),
     .imm(_imm),
     .alu_result(_alu_result),
+    .csr_result(_csr_result),
     .execute_result(_execute_result)
   );
 
   task automatic check(input execute_result_t execute_result, input pc_t pc, input word_t imm,
-                       input word_t alu_result, input word_t exp, input string what);
+                       input word_t alu_result, input word_t csr_result, input word_t exp,
+                       input string what);
     _execute_result_kind = execute_result;
     _pc                  = pc;
     _imm                 = imm;
     _alu_result          = alu_result;
+    _csr_result          = csr_result;
     #1;
     checks++;
     if (_execute_result !== exp) begin
@@ -42,11 +46,14 @@ module tb_execute_result_mux
   endtask
 
   initial begin
-    check(EXEC_RESULT_ALU, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h1111_2222,
+    check(EXEC_RESULT_ALU, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h1111_2222,
           "ALU result");
-    check(EXEC_RESULT_PC_PLUS4, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h0000_1004,
+    check(EXEC_RESULT_PC_PLUS4, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h0000_1004,
           "PC plus 4");
-    check(EXEC_RESULT_IMM, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'haaaa_bbbb, "immediate");
+    check(EXEC_RESULT_IMM, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'haaaa_bbbb,
+          "immediate");
+    check(EXEC_RESULT_CSR, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h3333_4444,
+          "CSR result");
 
     if (errors == 0) begin
       $display("tb_execute_result_mux: PASS (%0d checks)", checks);

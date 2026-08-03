@@ -135,7 +135,8 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic execute_result_t exp_execute_result(input logic [6:0] op);
+  function automatic execute_result_t exp_execute_result(input logic [6:0] op, input funct3_t funct3);
+    if (exp_csr_en(op, funct3)) return EXEC_RESULT_CSR;
     case (op)
       OP_JAL, OP_JALR: return EXEC_RESULT_PC_PLUS4;
       OP_LUI:          return EXEC_RESULT_IMM;
@@ -342,7 +343,7 @@ module tb_controller
         ) || _ctrl.alu_operands !== exp_alu_operands(
             op
         ) || _ctrl.execute_result !== exp_execute_result(
-            op
+            op, funct3
         ) || _ctrl.alu_op !== exp_alu_op(
             op, funct3
         ) || _ctrl.writeback_result !== exp_writeback_result(
@@ -380,7 +381,7 @@ module tb_controller
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
             ).name(), exp_csr_use_zimm(op, funct3), exp_imm_format(op).name(), exp_alu_operands(op
-            ).name(), exp_execute_result(op).name(), exp_alu_op(op, funct3).name(),
+            ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3).name(),
             exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
             op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
             funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),

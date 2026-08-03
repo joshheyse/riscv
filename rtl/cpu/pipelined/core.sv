@@ -72,11 +72,12 @@ module core
   logic          _ex_mem_can_forward;
   logic          _mem_wb_can_forward;
 
-
   logic          _csr_en;
   logic          _csr_write_en;
   csr_addr_t     _csr_addr;
   csr_data_t     _csr_write_data;
+  csr_data_t     _csr_result;
+
   logic          _trap_valid;
   mepc_t         _trap_mepc;
   mcause_t       _trap_mcause;
@@ -93,10 +94,6 @@ module core
   stage_ctrl_t   _mem_wb_ctrl;
 
   assign _mtvec = '0;
-  assign _csr_en = 1'b0;
-  assign _csr_write_en = 1'b0;
-  assign _csr_addr = '0;
-  assign _csr_write_data = '0;
 
   assign dbus.req.valid = _mem_instr;
   assign dbus.req.write_en = _ex_mem.ctrl.mem_write_en;
@@ -105,6 +102,10 @@ module core
   assign _decode_branch_flags = '0;
   assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
   assign _mem_wb_can_forward = _mem_wb.valid && _mem_wb.ctrl.reg_write_en && (_mem_wb.rd != 5'd0);
+
+  assign _csr_en = _id_ex.valid && _id_ex.ctrl.csr_en;
+  assign _csr_addr = _id_ex.instr.i.imm;  // bits [31:20]
+  assign _csr_write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
 
   // Forwarding
   always_comb begin
@@ -323,14 +324,24 @@ module core
     .pc_src(_execute_pc_src)
   );
 
+  csr_execute _csr_execute (
+    .csr_op(_id_ex.ctrl.csr_op),
+    .csr_use_zimm(_id_ex.ctrl.csr_use_zimm),
+    .csr_read_data(_csr_read_data),
+    .rs1_data(_rs1_value),
+    .zimm(_id_ex.instr.r.rs1),
+    .csr_result(_csr_result),
+    .csr_write_data(_csr_write_data)
+  );
+
   execute_result_mux _execute_result_mux (
     .execute_result_kind(_id_ex.ctrl.execute_result),
     .pc(_id_ex.pc),
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
+    .csr_result(_csr_result),
     .execute_result(_execute_result)
   );
-
 
   // Memory
   always_comb begin

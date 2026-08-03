@@ -99,6 +99,7 @@ module datapath
     .pc(pc),
     .imm(_imm_ext),
     .alu_result(alu_result),
+    .csr_result('0),
     .execute_result(_execute_result)
   );
 

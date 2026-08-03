@@ -11,6 +11,7 @@ module execute_result_mux
   input pc_t             pc,
   input imm_t            imm,
   input alu_data_t       alu_result,
+  input csr_data_t       csr_result,
 
   output reg_data_t execute_result
 );
@@ -20,6 +21,7 @@ module execute_result_mux
       EXEC_RESULT_ALU: execute_result = alu_result;
       EXEC_RESULT_PC_PLUS4: execute_result = pc + pc_t'(4);
       EXEC_RESULT_IMM: execute_result = imm;
+      EXEC_RESULT_CSR: execute_result = csr_result;
     endcase
   end
 

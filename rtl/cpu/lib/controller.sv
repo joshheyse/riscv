@@ -18,13 +18,14 @@ module controller
   output control_t      ctrl
 );
 
-  logic _alu_decode_en;
-  logic _main_op_illegal;
-  logic _alu_op_illegal;
-  logic _mem_op_illegal;
-  logic _csr_op_illegal;
-  logic _main_reg_write_en;
-  logic _csr_reg_write_en;
+  logic            _alu_decode_en;
+  logic            _main_op_illegal;
+  logic            _alu_op_illegal;
+  logic            _mem_op_illegal;
+  logic            _csr_op_illegal;
+  logic            _main_reg_write_en;
+  logic            _csr_reg_write_en;
+  execute_result_t _main_execute_result;
 
   assign ctrl.branch_sgnd = ~instr.r.funct3.br.unsgnd;
   assign ctrl.illegal_instr = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _csr_op_illegal;
@@ -38,7 +39,7 @@ module controller
     .mem_write_en(ctrl.mem_write_en),
     .imm_format(ctrl.imm_format),
     .alu_operands(ctrl.alu_operands),
-    .execute_result(ctrl.execute_result),
+    .execute_result(_main_execute_result),
     .writeback_result(ctrl.writeback_result),
     .flow(ctrl.flow),
     .alu_decode_en(_alu_decode_en),
@@ -76,5 +77,8 @@ module controller
     .csr_use_zimm(ctrl.csr_use_zimm),
     .csr_op_illegal(_csr_op_illegal)
   );
+
+  assign ctrl.execute_result = ctrl.csr_en ? EXEC_RESULT_CSR : _main_execute_result;
+
 
 endmodule

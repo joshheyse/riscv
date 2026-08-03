@@ -162,12 +162,14 @@ package riscv_pkg;
     ALU_OPERANDS_PC_IMM  = 2'b11   // branch/jal target, auipc
   } alu_operands_t;
 
-  // First level of the writeback mux. Three sources reach rd without touching
-  // memory: the ALU's own output, the link address, and the raw immediate.
+  // First level of the writeback mux. These sources reach rd without touching
+  // memory: the ALU's own output, the link address, the raw immediate, or the
+  // old CSR value returned by a CSR instruction.
   typedef enum logic [1:0] {
     EXEC_RESULT_ALU      = 2'b00,  // R-type, I-type ALU, auipc (PC + imm)
     EXEC_RESULT_PC_PLUS4 = 2'b01,  // jal, jalr -- the return address
-    EXEC_RESULT_IMM      = 2'b10   // lui, which bypasses the ALU entirely
+    EXEC_RESULT_IMM      = 2'b10,  // lui, which bypasses the ALU entirely
+    EXEC_RESULT_CSR      = 2'b11   // CSR read result
   } execute_result_t;
 
   // Second level of the writeback mux: the value chosen above, or memory.
@@ -212,7 +214,7 @@ package riscv_pkg;
     imm_format_t       imm_format;        // instruction immediate encoding
     alu_op_t           alu_op;            // ALU function selected by decode
     alu_operands_t     alu_operands;      // values driven onto ALU src_a/src_b
-    flow_t             flow;              // decoded branch/jump class
+    flow_t flow;                          // decoded branch/jump class
     execute_result_t   execute_result;    // execute-stage value before memory
     writeback_result_t writeback_result;  // value committed to rd
     logic              sub_arith;         // use SUB/SRA variant for shared ALU op
