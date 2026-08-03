@@ -21,22 +21,22 @@ typedef enum logic {
 module i2c_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t       DataAddr         = '0,
-  parameter word_t       ControlAddr      = '0,
-  parameter word_t       StatusAddr       = '0,
-  parameter word_t       AddressAddr      = '0,
+  parameter mem_addr_t   DataAddr         = '0,
+  parameter mem_addr_t   ControlAddr      = '0,
+  parameter mem_addr_t   StatusAddr       = '0,
+  parameter mem_addr_t   AddressAddr      = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
   input  logic            clk,
   input  logic            rst,
   input  logic            mem_valid,
   input  logic            mem_write_en,
-  input  word_t           mem_addr,
-  input  word_t           mem_write_data,
+  input  mem_addr_t       mem_addr,
+  input  mem_data_t       mem_write_data,
   input  mem_write_mask_t mem_write_mask,
   output logic            selected,
   output logic            mem_ready,
-  output word_t           mem_read_data,
+  output mem_data_t       mem_read_data,
   input  logic            i2c_sda_in,
   output logic            i2c_sda_drive_low,
   input  logic            i2c_scl_in,

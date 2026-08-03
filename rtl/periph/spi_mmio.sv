@@ -11,9 +11,9 @@ typedef enum logic [2:0] {
 module spi_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t       DataAddr         = '0,
-  parameter word_t       ControlAddr      = '0,
-  parameter word_t       StatusAddr       = '0,
+  parameter mem_addr_t   DataAddr         = '0,
+  parameter mem_addr_t   ControlAddr      = '0,
+  parameter mem_addr_t   StatusAddr       = '0,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
   input logic clk,
@@ -21,12 +21,12 @@ module spi_mmio
 
   input  logic            mem_valid,
   input  logic            mem_write_en,
-  input  word_t           mem_addr,
-  input  word_t           mem_write_data,
+  input  mem_addr_t       mem_addr,
+  input  mem_data_t       mem_write_data,
   input  mem_write_mask_t mem_write_mask,
   output logic            selected,
   output logic            mem_ready,
-  output word_t           mem_read_data,
+  output mem_data_t       mem_read_data,
 
   output logic spi_sck,
   output logic spi_mosi,

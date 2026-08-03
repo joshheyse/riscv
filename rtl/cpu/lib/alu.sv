@@ -20,25 +20,25 @@
 module alu
   import riscv_pkg::*;
 (
-  input  word_t       src_a,
-  input  word_t       src_b,
+  input  alu_data_t   src_a,
+  input  alu_data_t   src_b,
   input  alu_select_t alu_select,
   input  wire         sub_arith,
-  output word_t       alu_result
+  output alu_data_t   alu_result
 );
 
-  word_t _add;
-  word_t _sub;
-  word_t _and;
-  word_t _or;
-  word_t _xor;
+  alu_data_t _add;
+  alu_data_t _sub;
+  alu_data_t _and;
+  alu_data_t _or;
+  alu_data_t _xor;
   assign _add = src_a + src_b;
   assign _sub = src_a - src_b;
   assign _and = src_a & src_b;
   assign _or  = src_a | src_b;
   assign _xor = src_a ^ src_b;
 
-  word_t _arith;
+  alu_data_t _arith;
   assign _arith = $unsigned($signed(src_a) >>> src_b[4:0]);
 
 

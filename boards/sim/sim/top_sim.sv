@@ -10,7 +10,7 @@ module top_sim
   parameter int unsigned ClockHz        = board_constants_pkg::ClockHz,
   parameter int unsigned UartBaud       = board_constants_pkg::UartBaud,
   parameter int unsigned ClocksPerBit   = ClockHz / UartBaud,
-  parameter word_t       SimHaltAddr    = board_constants_pkg::SimHaltAddr,
+  parameter mem_addr_t   SimHaltAddr    = board_constants_pkg::SimHaltAddr,
   parameter int unsigned TimeoutCycles  = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;

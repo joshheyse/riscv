@@ -5,10 +5,10 @@ module writeback_mux
   import riscv_pkg::*;
 (
   input result_src_t result_src,
-  input word_t       execute_result,
-  input word_t       read_data,
+  input reg_data_t   execute_result,
+  input mem_data_t   read_data,
 
-  output word_t writeback_data
+  output reg_data_t writeback_data
 );
 
   always_comb begin

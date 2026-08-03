@@ -10,8 +10,15 @@ package riscv_pkg;
   typedef logic [7:0] byte_t;
   typedef logic [15:0] half_t;
   typedef word_t pc_t;  // program counter / instruction address
+  typedef word_t reg_data_t;  // register file value
+  typedef word_t imm_t;  // decoded immediate value
+  typedef word_t alu_data_t;  // ALU operand/result value
+  typedef word_t mem_addr_t;  // data-memory or MMIO byte address
+  typedef word_t mem_data_t;  // data-memory or MMIO payload
+  typedef word_t csr_data_t;  // CSR read/write payload
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
+  typedef logic [11:0] csr_addr_t;  // CSR address field
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
   typedef logic [3:0] mem_write_mask_t;
@@ -187,5 +194,113 @@ package riscv_pkg;
     logic            clear_pc_lsb;
     logic            illegal_instr;
   } control_t;
+
+  typedef enum logic [1:0] {
+    EXT_STATUS_OFF     = 2'b00,
+    EXT_STATUS_INITIAL = 2'b01,
+    EXT_STATUS_CLEAN   = 2'b10,
+    EXT_STATUS_DIRTY   = 2'b11
+  } ext_status_t;
+
+  typedef enum logic [1:0] {
+    MPP_USER       = 2'b00,
+    MPP_SUPERVISOR = 2'b01,
+    MPP_MACHINE    = 2'b11
+  } mpp_t;
+
+  typedef enum logic [1:0] {
+    CBIE_NONE     = 2'b00,
+    CBIE_FLUSH    = 2'b01,
+    CBIE_RESERVED = 2'b10,
+    CBIE_INVAL    = 2'b11
+  } cbie_t;
+
+  typedef struct packed {
+    logic [25:0] wpri5;  // [31:6] write-preserved, reads ignored
+    logic        mbe;    // [5] machine big-endian mode
+    logic        sbe;    // [4] supervisor big-endian mode
+    logic [3:0]  wpri4;  // [3:0] write-preserved, reads ignored
+  } mstatush_t;
+
+  typedef struct packed {
+    logic        sd;     // [31] extension dirty summary
+    logic [7:0]  wpri3;  // [30:23] write-preserved, reads ignored
+    logic        tsr;    // [22] trap SRET
+    logic        tw;     // [21] timeout wait
+    logic        tvm;    // [20] trap virtual-memory management
+    logic        mxr;    // [19] make executable readable
+    logic        sum;    // [18] permit S-mode user-memory access
+    logic        mprv;   // [17] modify privilege for data accesses
+    ext_status_t xs;     // [16:15] user extension status
+    ext_status_t fs;     // [14:13] floating-point status
+    mpp_t        mpp;    // [12:11] previous machine privilege
+    ext_status_t vs;     // [10:9] vector extension status
+    logic        spp;    // [8] previous supervisor privilege
+    logic        mpie;   // [7] previous machine interrupt enable
+    logic        ube;    // [6] user big-endian mode
+    logic        spie;   // [5] previous supervisor interrupt enable
+    logic        wpri2;  // [4] write-preserved, reads ignored
+    logic        mie;    // [3] machine interrupt enable
+    logic        wpri1;  // [2] write-preserved, reads ignored
+    logic        sie;    // [1] supervisor interrupt enable
+    logic        wpri0;  // [0] write-preserved, reads ignored
+  } mstatus_t;
+
+  typedef struct packed {
+    logic        sd;     // [31] extension dirty summary
+    logic [10:0] wpri5;  // [30:20] write-preserved, reads ignored
+    logic        mxr;    // [19] make executable readable
+    logic        sum;    // [18] permit S-mode user-memory access
+    logic        wpri4;  // [17] write-preserved, reads ignored
+    ext_status_t xs;     // [16:15] user extension status
+    ext_status_t fs;     // [14:13] floating-point status
+    logic [1:0]  wpri3;  // [12:11] write-preserved, reads ignored
+    ext_status_t vs;     // [10:9] vector extension status
+    logic        spp;    // [8] previous supervisor privilege
+    logic        wpri2;  // [7] write-preserved, reads ignored
+    logic        ube;    // [6] user big-endian mode
+    logic        spie;   // [5] previous supervisor interrupt enable
+    logic [2:0]  wpri1;  // [4:2] write-preserved, reads ignored
+    logic        sie;    // [1] supervisor interrupt enable
+    logic        wpri0;  // [0] write-preserved, reads ignored
+  } sstatus_t;
+
+  typedef struct packed {
+    logic [23:0] wpri1;  // [31:8] write-preserved, reads ignored
+    logic        cbze;   // [7] cache-block zero instruction enable
+    logic        cbcfe;  // [6] cache-block clean/flush instruction enable
+    cbie_t       cbie;   // [5:4] cache-block invalidate instruction enable
+    logic        sse;    // [3] shadow stack enable
+    logic        lpe;    // [2] landing pad enable
+    logic        wpri0;  // [1] write-preserved, reads ignored
+    logic        fiom;   // [0] fence of I/O implies memory
+  } envcfg_t;
+
+  typedef envcfg_t senvcfg_t;
+  typedef envcfg_t menvcfg_t;
+
+  typedef struct packed {
+    logic        stce;   // [31] supervisor timer compare enable
+    logic        pbmte;  // [30] page-based memory types enable
+    logic        adue;   // [29] hardware A/D PTE update enable
+    logic [28:0] wpri2;  // [28:0] write-preserved, reads ignored
+  } menvcfgh_t;
+
+  typedef struct packed {
+    logic [15:0] platform;  // [31:16] platform/custom interrupt pending
+    logic [3:0]  wpri5;     // [15:12] write-preserved, reads ignored
+    logic        meip;      // [11] machine external interrupt pending
+    logic        wpri4;     // [10] write-preserved, reads ignored
+    logic        seip;      // [9] supervisor external interrupt pending
+    logic        wpri3;     // [8] write-preserved, reads ignored
+    logic        mtip;      // [7] machine timer interrupt pending
+    logic        wpri2;     // [6] write-preserved, reads ignored
+    logic        stip;      // [5] supervisor timer interrupt pending
+    logic        wpri1;     // [4] write-preserved, reads ignored
+    logic        msip;      // [3] machine software interrupt pending
+    logic        wpri0;     // [2] write-preserved, reads ignored
+    logic        ssip;      // [1] supervisor software interrupt pending
+    logic        usip;      // [0] user software interrupt pending
+  } mip_t;
 
 endpackage

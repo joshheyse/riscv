@@ -3,7 +3,7 @@
 module push_button_mmio
   import riscv_pkg::*;
 #(
-  parameter word_t       PushButtonAddr = '0,
+  parameter mem_addr_t   PushButtonAddr = '0,
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
@@ -11,12 +11,12 @@ module push_button_mmio
   input  logic                                 rst,
   input  logic                                 mem_valid,
   input  logic                                 mem_write_en,
-  input  word_t                                mem_addr,
-  input  word_t                                mem_write_data,
+  input  mem_addr_t                            mem_addr,
+  input  mem_data_t                            mem_write_data,
   input  mem_write_mask_t                      mem_write_mask,
   output logic                                 selected,
   output logic                                 mem_ready,
-  output word_t                                mem_read_data,
+  output mem_data_t                            mem_read_data,
   input  logic            [NumPushButtons-1:0] push_button
 );
 

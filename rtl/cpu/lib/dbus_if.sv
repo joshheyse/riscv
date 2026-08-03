@@ -7,14 +7,14 @@ interface dbus_if
   typedef struct packed {
     logic            valid;
     logic            write_en;
-    word_t           addr;
-    word_t           write_data;
+    mem_addr_t       addr;
+    mem_data_t       write_data;
     mem_write_mask_t write_mask;
   } req_t;
 
   typedef struct packed {
-    logic  ready;
-    word_t read_data;
+    logic ready;
+    mem_data_t read_data;
   } rsp_t;
 
   req_t req;

@@ -14,15 +14,15 @@
 module comparator
   import riscv_pkg::*;
 (
-  input  word_t src_a,
-  input  word_t src_b,
-  input  logic  sngd,
-  output logic  eq,
-  output logic  lt
+  input  alu_data_t src_a,
+  input  alu_data_t src_b,
+  input  logic      sngd,
+  output logic      eq,
+  output logic      lt
 );
 
-  word_t _af;
-  word_t _bf;
+  alu_data_t _af;
+  alu_data_t _bf;
   assign _af = {src_a[XLEN-1] ^ sngd, src_a[XLEN-2:0]};
   assign _bf = {src_b[XLEN-1] ^ sngd, src_b[XLEN-2:0]};
   assign eq  = (_af == _bf);

@@ -9,10 +9,10 @@
 module redirect_control
   import riscv_pkg::*;
 (
-  input logic    id_ex_valid,
-  input pc_src_t id_ex_pc_src,
-  input logic    id_ex_clear_pc_lsb,
-  input word_t   alu_result,
+  input logic      id_ex_valid,
+  input pc_src_t   id_ex_pc_src,
+  input logic      id_ex_clear_pc_lsb,
+  input alu_data_t alu_result,
 
   output logic redirect_en,
   output pc_t  redirect_pc

@@ -19,14 +19,14 @@
 module lsu
   import riscv_pkg::*;
 (
-  input  word_t           addr,
-  input  word_t           write_data,
+  input  mem_addr_t       addr,
+  input  mem_data_t       write_data,
   input  mem_size_t       mem_size,
   input  logic            mem_unsigned,
-  input  word_t           mem_read_data,
-  output word_t           mem_write_data,
+  input  mem_data_t       mem_read_data,
+  output mem_data_t       mem_write_data,
   output logic      [3:0] write_mask,
-  output word_t           read_data
+  output mem_data_t       read_data
 );
 
   byte_t _selected_byte;

@@ -41,21 +41,21 @@ module datapath
   input result_src_t     result_src,
   input logic            sub_arith,
   input logic            branch_sgnd,
-  input word_t           read_data,       // later from dmem/LSU
+  input mem_data_t       read_data,       // later from dmem/LSU
 
   output pc_t           ieu_addr,     // branch/jump target
-  output word_t         alu_result,   // later dmem address
-  output word_t         write_data,   // later store data
+  output alu_data_t     alu_result,   // later dmem address
+  output mem_data_t     write_data,   // later store data
   output branch_flags_t branch_flags
 );
 
-  word_t _rd_data1;
-  word_t _rd_data2;
-  word_t _wr_data;
-  word_t _imm_ext;
-  word_t _src_a;
-  word_t _src_b;
-  word_t _execute_result;
+  reg_data_t _rd_data1;
+  reg_data_t _rd_data2;
+  reg_data_t _wr_data;
+  imm_t      _imm_ext;
+  alu_data_t _src_a;
+  alu_data_t _src_b;
+  reg_data_t _execute_result;
 
   extend _extend (
     .imm_src(imm_src),

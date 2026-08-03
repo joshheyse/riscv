@@ -57,8 +57,8 @@ module core
   logic          _exec_done;
   logic          _mem_done;
   logic          _retire;
-  word_t         _read_data;
-  word_t         _write_data;
+  mem_data_t     _read_data;
+  mem_data_t     _write_data;
 
   core_state_t   _state;
   core_state_t   _state_next;

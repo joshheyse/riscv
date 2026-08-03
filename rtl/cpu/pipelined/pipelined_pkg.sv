@@ -13,37 +13,37 @@ package pipelined_pkg;
   import riscv_pkg::*;
 
   typedef struct packed {
-    logic   valid;
-    pc_t    pc;
-    instr_u instr;
+    logic   valid;  // slot contains an instruction
+    pc_t    pc;     // PC associated with instr
+    instr_u instr;  // fetched instruction
   } if_id_t;
 
   typedef struct packed {
-    logic     valid;
-    pc_t      pc;
-    instr_u   instr;
-    control_t ctrl;
-    word_t    rs1_data;
-    word_t    rs2_data;
-    word_t    imm;
-    regaddr_t rd;
+    logic      valid;     // slot contains an instruction
+    pc_t       pc;        // PC associated with instr
+    instr_u    instr;     // decoded instruction
+    control_t  ctrl;      // decoded control signals
+    reg_data_t rs1_data;  // register source 1 value
+    reg_data_t rs2_data;  // register source 2 value
+    imm_t      imm;       // decoded immediate value
+    regaddr_t  rd;        // destination register address
   } id_ex_t;
 
   typedef struct packed {
-    logic     valid;
-    pc_t      pc;
-    control_t ctrl;
-    word_t    alu_result;
-    word_t    execute_result;
-    word_t    write_data;
-    regaddr_t rd;
+    logic      valid;           // slot contains an instruction
+    pc_t       pc;              // PC associated with instr
+    control_t  ctrl;            // control signals carried into memory
+    alu_data_t alu_result;      // raw ALU output
+    reg_data_t execute_result;  // value selected before memory/writeback
+    mem_data_t write_data;      // store data before LSU alignment
+    regaddr_t  rd;              // destination register address
   } ex_mem_t;
 
   typedef struct packed {
-    logic     valid;
-    control_t ctrl;
-    word_t    result;
-    regaddr_t rd;
+    logic      valid;   // slot contains an instruction
+    control_t  ctrl;    // control signals carried into writeback
+    reg_data_t result;  // final register writeback value
+    regaddr_t  rd;      // destination register address
   } mem_wb_t;
 
 endpackage

@@ -19,7 +19,7 @@ module extend
 (
   input  imm_src_t        imm_src,
   input  logic     [31:7] instr,
-  output word_t           imm_ext
+  output imm_t            imm_ext
 );
 
   always_comb begin

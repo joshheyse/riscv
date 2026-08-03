@@ -6,21 +6,21 @@ module dmem
   parameter int unsigned DepthWords = 512,
   parameter              InitFile   = ""
 ) (
-  input  logic        clk,
-  input  logic        rst,
-  input  logic        mem_valid,
-  input  logic        mem_write_en,
-  input  word_t       mem_addr,
-  input  word_t       mem_write_data,
-  input  logic  [3:0] mem_write_mask,
-  output logic        mem_ready,
-  output word_t       mem_read_data
+  input  logic            clk,
+  input  logic            rst,
+  input  logic            mem_valid,
+  input  logic            mem_write_en,
+  input  mem_addr_t       mem_addr,
+  input  mem_data_t       mem_write_data,
+  input  logic      [3:0] mem_write_mask,
+  output logic            mem_ready,
+  output mem_data_t       mem_read_data
 );
 
   localparam int unsigned IndexBits = $clog2(DepthWords);
 
 
-  word_t _memory[0:DepthWords-1];
+  mem_data_t _memory[0:DepthWords-1];
   initial begin
     if (InitFile != "") begin
       $readmemh(InitFile, _memory);

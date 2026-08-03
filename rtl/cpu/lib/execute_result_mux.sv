@@ -9,10 +9,10 @@ module execute_result_mux
 (
   input alu_result_src_t alu_result_src,
   input pc_t             pc,
-  input word_t           imm,
-  input word_t           alu_result,
+  input imm_t            imm,
+  input alu_data_t       alu_result,
 
-  output word_t execute_result
+  output reg_data_t execute_result
 );
 
   always_comb begin
