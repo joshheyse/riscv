@@ -33,6 +33,6 @@ module decode_bypass_unit
   assign _unused_if_id = |{if_id.valid, if_id.pc};
 
   logic _unused_mem_wb;
-  assign _unused_mem_wb = |{mem_wb.ctrl, mem_wb.result};
+  assign _unused_mem_wb = |{mem_wb.ctrl, mem_wb.result, mem_wb.trap};
 
 endmodule

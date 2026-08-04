@@ -44,7 +44,8 @@ module mem_stage
           valid: ex_mem.valid,
           ctrl: ex_mem.ctrl,
           result: _mem_result_data,
-          rd: ex_mem.rd
+          rd: ex_mem.rd,
+          trap: ex_mem.trap
       };
 
   pc_t _unused_pc;

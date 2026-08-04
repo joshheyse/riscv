@@ -14,7 +14,8 @@ module tb_pipeline_control
 
   logic           _halted;
   logic           _data_stall;
-  logic           _mem_wait;
+  logic           _dbus_wait;
+  logic           _trap_in_flight;
   flow_ctrl_t     _flow;
   pipeline_ctrl_t _pipe_ctrl;
 
@@ -23,8 +24,9 @@ module tb_pipeline_control
 
   pipeline_control _dut (
     .halted(_halted),
-    .mem_wait(_mem_wait),
+    .mem_wait(_dbus_wait),
     .data_stall(_data_stall),
+    .trap_in_flight(_trap_in_flight),
     .flow(_flow),
     .pipe_ctrl(_pipe_ctrl)
   );
@@ -59,7 +61,8 @@ module tb_pipeline_control
   task automatic clear_inputs();
     _halted = 1'b0;
     _data_stall = 1'b0;
-    _mem_wait = 1'b0;
+    _dbus_wait = 1'b0;
+    _trap_in_flight = 1'b0;
     _flow = '0;
   endtask
 
@@ -84,9 +87,28 @@ module tb_pipeline_control
                    "data stall holds fetch/decode and bubbles execute");
 
     clear_inputs();
-    _mem_wait = 1'b1;
+    _dbus_wait = 1'b1;
     expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
                    "memory wait stops pipe");
+
+    clear_inputs();
+    _flow.take_trap = 1'b1;
+    _flow.flush_if_id = 1'b1;
+    _flow.flush_id_ex = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "new trap drains older stages");
+
+    clear_inputs();
+    _trap_in_flight = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "trap in flight drains to retirement");
+
+    clear_inputs();
+    _flow.redirect.valid = 1'b1;
+    _flow.flush_if_id = 1'b1;
+    _flow.flush_id_ex = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "redirect flushes younger stages");
 
     if (errors == 0) begin
       $display("tb_pipeline_control: PASS (%0d checks)", checks);

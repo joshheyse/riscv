@@ -9,7 +9,7 @@
 // - MEM/WB: final writeback data and destination register.
 //
 // Control policy:
-// - `_mem_wait` holds every pipeline register while a data-bus transaction is
+// - `_dbus_wait` holds every pipeline register while a data-bus transaction is
 //   outstanding.
 // - `_data_stall` freezes fetch/decode and injects a bubble into execute.
 // - `_flow.redirect.valid` redirects the IFU to the priority-resolved trap,
@@ -44,7 +44,7 @@ module core
   ex_mem_t        _ex_mem_next;
   mem_wb_t        _mem_wb_next;
 
-  branch_flags_t  _decode_branch_flags;
+  branch_flags_t  _id_branch_flags;
   control_t       _ctrl;
 
   reg_data_t      _rf_rs1_read;
@@ -52,36 +52,41 @@ module core
   reg_data_t      _id_rs1_operand;
   reg_data_t      _id_rs2_operand;
 
-  imm_t           _decode_imm;
+  imm_t           _id_imm;
   alu_data_t      _alu_result;
-  branch_flags_t  _execute_branch_flags;
+  branch_flags_t  _ex_branch_flags;
   reg_data_t      _ex_rs1_operand;
   reg_data_t      _ex_rs2_operand;
   mem_data_t      _store_data;
-  reg_data_t      _execute_result;
+  reg_data_t      _ex_result;
   if_id_t         _fetched;
   logic           _data_stall;
-  pc_src_t        _execute_pc_src;
+  pc_src_t        _ex_pc_src;
 
-  logic           _mem_wait;
+  logic           _dbus_wait;
   mem_wb_t        _mem_wb_payload;
 
   redirect_t      _redirect;
-  trap_t          _trap;
+  trap_stage_t    _trap;
   flow_ctrl_t     _flow;
 
   csr_pipe_t      _csr;
   mtvec_t         _mtvec;
 
   pipeline_ctrl_t _pipe_ctrl;
+  logic           _retire_trap;
+  logic           _trap_in_flight;
 
   assign _mtvec = '0;
 
-  assign _decode_branch_flags = '0;
+  assign _id_branch_flags = '0;
 
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en;
   assign _csr.addr = _id_ex.instr.i.imm;  // bits [31:20]
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
+
+  assign _retire_trap = _mem_wb.valid && _mem_wb.trap.valid;
+  assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
 
   // Files
   reg_file _reg_file (
@@ -102,10 +107,10 @@ module core
     .csr_write_en(_csr.write_en),
     .csr_addr(_csr.addr),
     .csr_write_data(_csr.write_data),
-    .trap_valid(_trap.valid),
-    .trap_mepc(_trap.mepc),
-    .trap_mcause(_trap.mcause),
-    .trap_mtval(_trap.mtval),
+    .trap_valid(_retire_trap),
+    .trap_mepc(_mem_wb.trap.payload.mepc),
+    .trap_mcause(_mem_wb.trap.payload.mcause),
+    .trap_mtval(_mem_wb.trap.payload.mtval),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal)
   );
@@ -113,7 +118,7 @@ module core
   // Pipeline control
   redirect_control _redirect_control (
     .id_ex_valid(_id_ex.valid),
-    .id_ex_pc_src(_execute_pc_src),
+    .id_ex_pc_src(_ex_pc_src),
     .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
     .alu_result(_alu_result),
     .redirect(_redirect)
@@ -135,8 +140,9 @@ module core
 
   pipeline_control _pipeline_control (
     .halted(halted),
-    .mem_wait(_mem_wait),
+    .mem_wait(_dbus_wait),
     .data_stall(_data_stall),
+    .trap_in_flight(_trap_in_flight),
     .flow(_flow),
     .pipe_ctrl(_pipe_ctrl)
   );
@@ -155,9 +161,7 @@ module core
       end
 
       STAGE_ADVANCE: begin
-        if (_redirect.valid) begin
-          _if_id_next = '0;
-        end else if (_fetched.valid) begin
+        if (_fetched.valid) begin
           _if_id_next = _fetched;
         end
       end
@@ -188,9 +192,7 @@ module core
       end
 
       STAGE_ADVANCE: begin
-        if (_redirect.valid) begin
-          _id_ex_next = '0;
-        end else if (_if_id.valid) begin
+        if (_if_id.valid) begin
           _id_ex_next = '{
               valid: 1'b1,
               pc: _if_id.pc,
@@ -198,8 +200,9 @@ module core
               ctrl: _ctrl,
               rs1_operand: _id_rs1_operand,
               rs2_operand: _id_rs2_operand,
-              imm: _decode_imm,
-              rd: _if_id.instr.r.rd
+              imm: _id_imm,
+              rd: _if_id.instr.r.rd,
+              trap: _trap
           };
         end
       end
@@ -208,14 +211,14 @@ module core
 
   controller _controller (
     .instr(_if_id.instr),
-    .branch_flags(_decode_branch_flags),
+    .branch_flags(_id_branch_flags),
     .ctrl(_ctrl)
   );
 
   extend _extend (
     .imm_format(_ctrl.imm_format),
     .instr(_if_id.instr[31:7]),
-    .imm_ext(_decode_imm)
+    .imm_ext(_id_imm)
   );
 
   // Execute
@@ -238,9 +241,10 @@ module core
               pc: _id_ex.pc,
               ctrl: _id_ex.ctrl,
               alu_result: _alu_result,
-              execute_result: _execute_result,
+              execute_result: _ex_result,
               write_data: _store_data,
-              rd: _id_ex.instr.r.rd
+              rd: _id_ex.instr.r.rd,
+              trap: _id_ex.trap
           };
         end
       end
@@ -256,8 +260,8 @@ module core
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .store_data(_store_data),
-    .branch_flags(_execute_branch_flags),
-    .pc_src(_execute_pc_src)
+    .branch_flags(_ex_branch_flags),
+    .pc_src(_ex_pc_src)
   );
 
   csr_execute _csr_execute (
@@ -276,7 +280,7 @@ module core
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .csr_result(_csr.result),
-    .execute_result(_execute_result)
+    .execute_result(_ex_result)
   );
 
   // Memory
@@ -300,7 +304,7 @@ module core
 
   mem_stage _mem_stage (
     .ex_mem(_ex_mem),
-    .mem_wait(_mem_wait),
+    .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(dbus)
   );
@@ -343,7 +347,7 @@ module core
       _id_ex  <= '0;
       _ex_mem <= '0;
       _mem_wb <= '0;
-    end else if (_trap.valid) begin
+    end else if (_mem_wb.valid && _mem_wb.trap.valid) begin
       halted  <= 1'b1;
       _if_id  <= '0;
       _id_ex  <= '0;
@@ -361,9 +365,9 @@ module core
   assign _unused_pc = _ex_mem.pc;
 
   logic _unused_csr;
-  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.pc};
+  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.payload.pc};
 
-  logic _unused_execute_branch_flags;
-  assign _unused_execute_branch_flags = |{_execute_branch_flags};
+  logic _unused_ex_branch_flags;
+  assign _unused_ex_branch_flags = |{_ex_branch_flags};
 
 endmodule

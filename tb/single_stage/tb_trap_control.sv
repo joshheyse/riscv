@@ -15,11 +15,7 @@ module tb_trap_control
   instr_u      _instr;
   pc_t         _pc;
   mtvec_t      _mtvec;
-  logic        _trap_valid;
-  mepc_t       _trap_mepc;
-  mcause_t     _trap_mcause;
-  mtval_t      _trap_mtval;
-  pc_t         _trap_pc;
+  trap_stage_t _trap;
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -29,11 +25,7 @@ module tb_trap_control
     .instr(_instr),
     .pc(_pc),
     .mtvec(_mtvec),
-    .trap_valid(_trap_valid),
-    .trap_mepc(_trap_mepc),
-    .trap_mcause(_trap_mcause),
-    .trap_mtval(_trap_mtval),
-    .trap_pc(_trap_pc)
+    .trap(_trap)
   );
 
   task automatic expect_bits(input logic [31:0] got, input logic [31:0] exp, input string what);
@@ -63,11 +55,11 @@ module tb_trap_control
 
   task automatic expect_illegal_trap(input instr_t instr, input pc_t pc, input pc_t trap_pc,
                                      input string what);
-    expect_bool(_trap_valid, 1'b1, {what, " valid"});
-    expect_bits(_trap_mepc, pc, {what, " mepc"});
-    expect_bits(_trap_mcause, 32'h0000_0002, {what, " mcause"});
-    expect_bits(_trap_mtval, instr, {what, " mtval"});
-    expect_bits(_trap_pc, trap_pc, {what, " trap_pc"});
+    expect_bool(_trap.valid, 1'b1, {what, " valid"});
+    expect_bits(_trap.payload.mepc, pc, {what, " mepc"});
+    expect_bits(_trap.payload.mcause, 32'h0000_0002, {what, " mcause"});
+    expect_bits(_trap.payload.mtval, instr, {what, " mtval"});
+    expect_bits(_trap.payload.pc, trap_pc, {what, " trap_pc"});
   endtask
 
   initial begin
@@ -77,7 +69,7 @@ module tb_trap_control
     end
 
     drive(1'b0, 32'h0000_0013, 32'h0000_0000, '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT});
-    expect_bool(_trap_valid, 1'b0, "legal instruction has no trap");
+    expect_bool(_trap.valid, 1'b0, "legal instruction has no trap");
 
     drive(1'b1, 32'hffff_ffff, 32'h0000_0020, '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT});
     expect_illegal_trap(32'hffff_ffff, 32'h0000_0020, 32'h0000_0400,

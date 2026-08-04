@@ -36,9 +36,12 @@ module forwarding_unit
   end
 
   logic _unused_id_ex;
-  assign _unused_id_ex = |{id_ex.valid, id_ex.pc, id_ex.ctrl, id_ex.imm, id_ex.rd};
+  assign _unused_id_ex = |{id_ex.valid, id_ex.pc, id_ex.ctrl, id_ex.imm, id_ex.rd, id_ex.trap};
 
   logic _unused_ex_mem;
-  assign _unused_ex_mem = |{ex_mem.pc, ex_mem.ctrl, ex_mem.alu_result, ex_mem.write_data};
+  assign _unused_ex_mem = |{ex_mem.pc, ex_mem.ctrl, ex_mem.alu_result, ex_mem.write_data, ex_mem.trap};
+
+  logic _unused_mem_wb;
+  assign _unused_mem_wb = |{mem_wb.trap};
 
 endmodule

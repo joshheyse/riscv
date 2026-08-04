@@ -412,12 +412,16 @@ package riscv_pkg;
   typedef csr_data_t mhartid_t;
 
   typedef struct packed {
-    logic    valid;   // trap should be taken
     mepc_t   mepc;    // trapped instruction PC
     mcause_t mcause;  // trap cause
     mtval_t  mtval;   // trap-specific value
     pc_t     pc;      // trap vector target
   } trap_t;
+
+  typedef struct packed {
+    logic  valid;    // trap should be taken
+    trap_t payload;  // architectural trap payload
+  } trap_stage_t;
 
 
 endpackage

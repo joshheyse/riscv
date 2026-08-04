@@ -14,6 +14,7 @@ module pipeline_control
   input  logic           halted,
   input  logic           mem_wait,
   input  logic           data_stall,
+  input  logic           trap_in_flight,
   input  flow_ctrl_t     flow,
   output pipeline_ctrl_t pipe_ctrl
 );
@@ -43,13 +44,16 @@ module pipeline_control
           ex_mem: STAGE_HOLD,
           mem_wb: STAGE_HOLD
       };
+    end else if (flow.take_trap || trap_in_flight) begin
+      pipe_ctrl.fetch = STAGE_HOLD;
+      pipe_ctrl.if_id = STAGE_FLUSH;
     end else if (flow.flush_if_id || flow.flush_id_ex) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,
           id_ex: STAGE_FLUSH,
-          ex_mem: STAGE_HOLD,
-          mem_wb: STAGE_HOLD
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
       };
     end else if (data_stall) begin
       pipe_ctrl.fetch = STAGE_HOLD;
