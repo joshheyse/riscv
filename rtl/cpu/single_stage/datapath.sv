@@ -8,23 +8,23 @@
 // happens here where the register/immediate datapath uses those fields.
 //
 // ALU operand mux:
-//   alu_src           _src_a      _src_b
+//   alu_operands           _src_a      _src_b
 //   ----------------  ---------  --------
-//   ALU_SRC_RS1_RS2   _rd_data1   _rd_data2
-//   ALU_SRC_RS1_IMM   _rd_data1   _imm_ext
-//   ALU_SRC_PC_IMM    pc         _imm_ext
+//   ALU_OPERANDS_RS1_RS2   _rd_data1   _rd_data2
+//   ALU_OPERANDS_RS1_IMM   _rd_data1   _imm_ext
+//   ALU_OPERANDS_PC_IMM    pc         _imm_ext
 //
 // Writeback mux:
-//   alu_result_src     pre-memory value
+//   execute_result     pre-memory value
 //   -----------------  ----------------
-//   ALU_RES_ALU        alu_result
-//   ALU_RES_PC_PLUS4   pc + 4
-//   ALU_RES_IMM        _imm_ext
+//   EXEC_RESULT_ALU        alu_result
+//   EXEC_RESULT_PC_PLUS4   pc + 4
+//   EXEC_RESULT_IMM        _imm_ext
 //
-//   result_src         _regfile _wr_data
+//   writeback_result         _regfile _wr_data
 //   ----------         ----------------
-//   RESULT_ALU         pre-memory value
-//   RESULT_MEM         read_data from LSU
+//   WB_RESULT_EXEC         pre-memory value
+//   WB_RESULT_MEM         read_data from LSU
 //
 module datapath
   import riscv_pkg::*;
@@ -33,15 +33,15 @@ module datapath
   input instr_u instr,
   input pc_t    pc,
 
-  input logic            reg_write_en,
-  input imm_src_t        imm_src,
-  input alu_src_t        alu_src,
-  input alu_result_src_t alu_result_src,
-  input alu_select_t     alu_select,
-  input result_src_t     result_src,
-  input logic            sub_arith,
-  input logic            branch_sgnd,
-  input mem_data_t       read_data,       // later from dmem/LSU
+  input logic              reg_write_en,
+  input imm_format_t       imm_format,
+  input alu_operands_t     alu_operands,
+  input execute_result_t   execute_result,
+  input alu_op_t           alu_op,
+  input writeback_result_t writeback_result,
+  input logic              sub_arith,
+  input logic              branch_sgnd,
+  input mem_data_t         read_data,         // later from dmem/LSU
 
   output pc_t           ieu_addr,     // branch/jump target
   output alu_data_t     alu_result,   // later dmem address
@@ -58,8 +58,8 @@ module datapath
   reg_data_t _execute_result;
 
   extend _extend (
-    .imm_src(imm_src),
-    .instr  (instr[31:7]),
+    .imm_format(imm_format),
+    .instr(instr[31:7]),
     .imm_ext(_imm_ext)
   );
 
@@ -82,21 +82,21 @@ module datapath
     .lt(branch_flags.lt)
   );
 
-  assign _src_a = alu_src[1] ? pc : _rd_data1;
-  assign _src_b = alu_src[0] ? _imm_ext : _rd_data2;
+  assign _src_a = alu_operands[1] ? pc : _rd_data1;
+  assign _src_b = alu_operands[0] ? _imm_ext : _rd_data2;
   assign write_data = _rd_data2;
   assign ieu_addr = alu_result;
 
   alu _alu (
     .src_a(_src_a),
     .src_b(_src_b),
-    .alu_select(alu_select),
+    .alu_op(alu_op),
     .sub_arith(sub_arith),
     .alu_result(alu_result)
   );
 
   execute_result_mux _execute_result_mux (
-    .alu_result_src(alu_result_src),
+    .execute_result_kind(execute_result),
     .pc(pc),
     .imm(_imm_ext),
     .alu_result(alu_result),
@@ -104,7 +104,7 @@ module datapath
   );
 
   writeback_mux _writeback_mux (
-    .result_src(result_src),
+    .writeback_result(writeback_result),
     .execute_result(_execute_result),
     .read_data(read_data),
     .writeback_data(_wr_data)

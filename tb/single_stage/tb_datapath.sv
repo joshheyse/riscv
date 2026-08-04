@@ -17,37 +17,37 @@ module tb_datapath
   localparam int unsigned TimeoutCycles = 1_000;
   localparam int unsigned MaxPrintedFailures = 24;
 
-  logic            _clk;
-  instr_u          _instr;
-  pc_t             _pc;
-  logic            _reg_write_en;
-  imm_src_t        _imm_src;
-  alu_src_t        _alu_src;
-  alu_result_src_t _alu_result_src;
-  alu_select_t     _alu_select;
-  result_src_t     _result_src;
-  logic            _sub_arith;
-  logic            _branch_sgnd;
-  word_t           _read_data;
-  pc_t             _ieu_addr;
-  word_t           _alu_result;
-  word_t           _write_data;
-  branch_flags_t   _branch_flags;
+  logic              _clk;
+  instr_u            _instr;
+  pc_t               _pc;
+  logic              _reg_write_en;
+  imm_format_t       _imm_format;
+  alu_operands_t     _alu_operands;
+  execute_result_t   _execute_result;
+  alu_op_t           _alu_op;
+  writeback_result_t _writeback_result;
+  logic              _sub_arith;
+  logic              _branch_sgnd;
+  word_t             _read_data;
+  pc_t               _ieu_addr;
+  word_t             _alu_result;
+  word_t             _write_data;
+  branch_flags_t     _branch_flags;
 
-  int unsigned     errors = 0;
-  int unsigned     checks = 0;
-  int unsigned     printed = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
+  int unsigned       printed = 0;
 
   datapath _dut (
     .clk(_clk),
     .instr(_instr),
     .pc(_pc),
     .reg_write_en(_reg_write_en),
-    .imm_src(_imm_src),
-    .alu_src(_alu_src),
-    .alu_result_src(_alu_result_src),
-    .alu_select(_alu_select),
-    .result_src(_result_src),
+    .imm_format(_imm_format),
+    .alu_operands(_alu_operands),
+    .execute_result(_execute_result),
+    .alu_op(_alu_op),
+    .writeback_result(_writeback_result),
     .sub_arith(_sub_arith),
     .branch_sgnd(_branch_sgnd),
     .read_data(_read_data),
@@ -122,27 +122,27 @@ module tb_datapath
   endtask
 
   task automatic set_defaults;
-    _instr.raw      = r_instr(7'b0000000, 5'd0, 5'd0, 3'b000, 5'd0, OP_R);
-    _pc             = 32'h0000_0000;
-    _reg_write_en   = 1'b0;
-    _imm_src        = IMM_I;
-    _alu_src        = ALU_SRC_RS1_RS2;
-    _alu_result_src = ALU_RES_ALU;
-    _alu_select     = ALU_ADDSUB;
-    _result_src     = RESULT_ALU;
-    _sub_arith      = 1'b0;
-    _branch_sgnd    = 1'b1;
-    _read_data      = 32'h0000_0000;
+    _instr.raw        = r_instr(7'b0000000, 5'd0, 5'd0, 3'b000, 5'd0, OP_R);
+    _pc               = 32'h0000_0000;
+    _reg_write_en     = 1'b0;
+    _imm_format       = IMM_I;
+    _alu_operands     = ALU_OPERANDS_RS1_RS2;
+    _execute_result   = EXEC_RESULT_ALU;
+    _alu_op           = ALU_ADDSUB;
+    _writeback_result = WB_RESULT_EXEC;
+    _sub_arith        = 1'b0;
+    _branch_sgnd      = 1'b1;
+    _read_data        = 32'h0000_0000;
   endtask
 
   task automatic write_lui(input regaddr_t rd, input logic [19:0] imm20, input string what);
     @(negedge _clk);
-    _instr.raw      = u_instr(imm20, rd, OP_LUI);
-    _reg_write_en   = 1'b1;
-    _imm_src        = IMM_U;
-    _alu_src        = ALU_SRC_RS1_RS2;
-    _alu_result_src = ALU_RES_IMM;
-    _result_src     = RESULT_ALU;
+    _instr.raw        = u_instr(imm20, rd, OP_LUI);
+    _reg_write_en     = 1'b1;
+    _imm_format       = IMM_U;
+    _alu_operands     = ALU_OPERANDS_RS1_RS2;
+    _execute_result   = EXEC_RESULT_IMM;
+    _writeback_result = WB_RESULT_EXEC;
     commit();
     _reg_write_en = 1'b0;
     $display("tb_datapath: wrote %s", what);
@@ -150,12 +150,12 @@ module tb_datapath
 
   task automatic write_mem_result(input regaddr_t rd, input word_t data, input string what);
     @(negedge _clk);
-    _instr.raw      = i_instr(12'h000, 5'd0, 3'b010, rd, OP_LOAD);
-    _read_data      = data;
-    _reg_write_en   = 1'b1;
-    _imm_src        = IMM_I;
-    _alu_result_src = ALU_RES_ALU;
-    _result_src     = RESULT_MEM;
+    _instr.raw        = i_instr(12'h000, 5'd0, 3'b010, rd, OP_LOAD);
+    _read_data        = data;
+    _reg_write_en     = 1'b1;
+    _imm_format       = IMM_I;
+    _execute_result   = EXEC_RESULT_ALU;
+    _writeback_result = WB_RESULT_MEM;
     commit();
     _reg_write_en = 1'b0;
     $display("tb_datapath: wrote %s", what);
@@ -178,13 +178,13 @@ module tb_datapath
 
     // R-type ALU path: x1 + x2.
     @(negedge _clk);
-    _instr.raw      = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd3, OP_R);
-    _reg_write_en   = 1'b1;
-    _alu_src        = ALU_SRC_RS1_RS2;
-    _alu_select     = ALU_ADDSUB;
-    _sub_arith      = 1'b0;
-    _alu_result_src = ALU_RES_ALU;
-    _result_src     = RESULT_ALU;
+    _instr.raw        = r_instr(7'b0000000, 5'd2, 5'd1, 3'b000, 5'd3, OP_R);
+    _reg_write_en     = 1'b1;
+    _alu_operands     = ALU_OPERANDS_RS1_RS2;
+    _alu_op           = ALU_ADDSUB;
+    _sub_arith        = 1'b0;
+    _execute_result   = EXEC_RESULT_ALU;
+    _writeback_result = WB_RESULT_EXEC;
     settle();
     expect_word(_alu_result, 32'h1234_5010, "R-type add ALU result");
     expect_word(_ieu_addr, 32'h1234_5010, "IEU address follows ALU result");
@@ -194,8 +194,8 @@ module tb_datapath
     @(negedge _clk);
     _reg_write_en = 1'b0;
     _instr.raw = i_instr(12'h001, 5'd3, 3'b000, 5'd0, OP_I_ALU);
-    _imm_src = IMM_I;
-    _alu_src = ALU_SRC_RS1_IMM;
+    _imm_format = IMM_I;
+    _alu_operands = ALU_OPERANDS_RS1_IMM;
     settle();
     expect_word(_alu_result, 32'h1234_5011, "x3 writeback visible on rs1");
 
@@ -205,32 +205,32 @@ module tb_datapath
     expect_word(_write_data, 32'h0000_0010, "store write_data is rs2 value");
 
     // PC + immediate target path.
-    _pc        = 32'h0000_0100;
-    _instr.raw = b_instr(13'd16, 5'd2, 5'd1, 3'b000);
-    _imm_src   = IMM_B;
-    _alu_src   = ALU_SRC_PC_IMM;
+    _pc           = 32'h0000_0100;
+    _instr.raw    = b_instr(13'd16, 5'd2, 5'd1, 3'b000);
+    _imm_format   = IMM_B;
+    _alu_operands = ALU_OPERANDS_PC_IMM;
     settle();
     expect_word(_alu_result, 32'h0000_0110, "PC+imm branch target");
     expect_word(_ieu_addr, 32'h0000_0110, "IEU address carries branch target");
 
     // PC+4 link writeback path for jal/jalr-style instructions.
     @(negedge _clk);
-    _pc             = 32'h0000_0200;
-    _instr.raw      = i_instr(12'h004, 5'd1, 3'b000, 5'd4, OP_JALR);
-    _imm_src        = IMM_I;
-    _alu_src        = ALU_SRC_RS1_IMM;
-    _alu_result_src = ALU_RES_PC_PLUS4;
-    _result_src     = RESULT_ALU;
-    _reg_write_en   = 1'b1;
+    _pc               = 32'h0000_0200;
+    _instr.raw        = i_instr(12'h004, 5'd1, 3'b000, 5'd4, OP_JALR);
+    _imm_format       = IMM_I;
+    _alu_operands     = ALU_OPERANDS_RS1_IMM;
+    _execute_result   = EXEC_RESULT_PC_PLUS4;
+    _writeback_result = WB_RESULT_EXEC;
+    _reg_write_en     = 1'b1;
     commit();
 
     @(negedge _clk);
-    _reg_write_en   = 1'b0;
-    _instr.raw      = i_instr(12'h000, 5'd4, 3'b000, 5'd0, OP_I_ALU);
-    _imm_src        = IMM_I;
-    _alu_src        = ALU_SRC_RS1_IMM;
-    _alu_result_src = ALU_RES_ALU;
-    _result_src     = RESULT_ALU;
+    _reg_write_en     = 1'b0;
+    _instr.raw        = i_instr(12'h000, 5'd4, 3'b000, 5'd0, OP_I_ALU);
+    _imm_format       = IMM_I;
+    _alu_operands     = ALU_OPERANDS_RS1_IMM;
+    _execute_result   = EXEC_RESULT_ALU;
+    _writeback_result = WB_RESULT_EXEC;
     settle();
     expect_word(_alu_result, 32'h0000_0204, "PC+4 writeback visible in x4");
 

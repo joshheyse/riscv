@@ -12,13 +12,13 @@ module tb_mem_decoder
   localparam int unsigned TimeoutNs = 100_000;
   localparam int unsigned MaxPrintedFailures = 20;
 
-  instr_u    _instr;
-  mem_size_t _mem_size;
-  logic      _mem_unsigned;
-  logic      _mem_op_illegal;
+  instr_u      _instr;
+  mem_size_t   _mem_size;
+  logic        _mem_unsigned;
+  logic        _mem_op_illegal;
 
-  int unsigned errors  = 0;
-  int unsigned checks  = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
   int unsigned printed = 0;
 
   mem_decoder _dut (
@@ -63,10 +63,14 @@ module tb_mem_decoder
            what,
            opcode,
            funct3,
-           mem_size_name(_mem_size),
+           mem_size_name(
+               _mem_size
+           ),
            _mem_unsigned,
            _mem_op_illegal,
-           mem_size_name(exp_size),
+           mem_size_name(
+               exp_size
+           ),
            exp_unsigned,
            exp_illegal
            ));

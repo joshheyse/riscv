@@ -34,10 +34,10 @@ module soc
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
-    .clk (clk),
-    .rst (rst),
+    .clk(clk),
+    .rst(rst),
     .ibus(_ibus)
   );
 
@@ -52,7 +52,7 @@ module soc
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
+    .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),

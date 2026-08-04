@@ -29,20 +29,20 @@ module tb_core_boot_branch
   logic        [3:0] _unused_write_mask;
 
   core _dut (
-    .clk   (_clk),
-    .rst   (_rst),
+    .clk(_clk),
+    .rst(_rst),
     .halted(_halted),
-    .pc    (_pc),
-    .ibus  (_ibus),
-    .dbus  (_dbus)
+    .pc(_pc),
+    .ibus(_ibus),
+    .dbus(_dbus)
   );
 
   imem #(
     .DepthWords(16),
-    .InitFile  (ProgramFile)
+    .InitFile(ProgramFile)
   ) _imem (
-    .clk (_clk),
-    .rst (_rst),
+    .clk(_clk),
+    .rst(_rst),
     .ibus(_ibus)
   );
 

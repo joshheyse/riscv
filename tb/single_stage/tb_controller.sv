@@ -24,9 +24,9 @@ module tb_controller
   int unsigned   printed = 0;
 
   controller _dut (
-    .instr       (_instr),
+    .instr(_instr),
     .branch_flags(_branch_flags),
-    .ctrl        (_ctrl)
+    .ctrl(_ctrl)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -109,7 +109,7 @@ module tb_controller
     return op == OP_JAL || op == OP_JALR;
   endfunction
 
-  function automatic imm_src_t exp_imm_src(input logic [6:0] op);
+  function automatic imm_format_t exp_imm_format(input logic [6:0] op);
     case (op)
       OP_I_ALU, OP_LOAD, OP_JALR: return IMM_I;
       OP_STORE:                   return IMM_S;
@@ -120,33 +120,33 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic alu_src_t exp_alu_src(input logic [6:0] op);
+  function automatic alu_operands_t exp_alu_operands(input logic [6:0] op);
     case (op)
-      OP_R:                                 return ALU_SRC_RS1_RS2;
-      OP_I_ALU, OP_LOAD, OP_STORE, OP_JALR: return ALU_SRC_RS1_IMM;
-      OP_BRANCH, OP_JAL, OP_AUIPC:          return ALU_SRC_PC_IMM;
-      default:                              return ALU_SRC_RS1_RS2;
+      OP_R:                                 return ALU_OPERANDS_RS1_RS2;
+      OP_I_ALU, OP_LOAD, OP_STORE, OP_JALR: return ALU_OPERANDS_RS1_IMM;
+      OP_BRANCH, OP_JAL, OP_AUIPC:          return ALU_OPERANDS_PC_IMM;
+      default:                              return ALU_OPERANDS_RS1_RS2;
     endcase
   endfunction
 
-  function automatic alu_result_src_t exp_alu_result_src(input logic [6:0] op);
+  function automatic execute_result_t exp_execute_result(input logic [6:0] op);
     case (op)
-      OP_JAL, OP_JALR: return ALU_RES_PC_PLUS4;
-      OP_LUI:          return ALU_RES_IMM;
-      default:         return ALU_RES_ALU;
+      OP_JAL, OP_JALR: return EXEC_RESULT_PC_PLUS4;
+      OP_LUI:          return EXEC_RESULT_IMM;
+      default:         return EXEC_RESULT_ALU;
     endcase
   endfunction
 
-  function automatic result_src_t exp_result_src(input logic [6:0] op);
-    return op == OP_LOAD ? RESULT_MEM : RESULT_ALU;
+  function automatic writeback_result_t exp_writeback_result(input logic [6:0] op);
+    return op == OP_LOAD ? WB_RESULT_MEM : WB_RESULT_EXEC;
   endfunction
 
-  function automatic logic exp_alu_op(input logic [6:0] op);
+  function automatic logic exp_alu_decode_en(input logic [6:0] op);
     return op == OP_R || op == OP_I_ALU;
   endfunction
 
-  function automatic alu_select_t exp_alu_select(input logic [6:0] op, input funct3_t funct3);
-    if (!exp_alu_op(op)) return ALU_ADDSUB;
+  function automatic alu_op_t exp_alu_op(input logic [6:0] op, input funct3_t funct3);
+    if (!exp_alu_decode_en(op)) return ALU_ADDSUB;
     case (funct3)
       3'b000:  return ALU_ADDSUB;
       3'b001:  return ALU_SLL;
@@ -161,7 +161,7 @@ module tb_controller
 
   function automatic logic exp_sub_arith(input logic [6:0] op, input funct3_t funct3,
                                          input logic funct7_bit5);
-    if (!exp_alu_op(op)) return 1'b0;
+    if (!exp_alu_decode_en(op)) return 1'b0;
     case (funct3)
       3'b000:  return funct7_bit5 & op[5];
       3'b101:  return funct7_bit5;
@@ -230,7 +230,8 @@ module tb_controller
   function automatic logic exp_main_illegal(input logic [6:0] op);
     case (op)
       OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_FENCE,
-      OP_SYSTEM: return 1'b0;
+      OP_SYSTEM:
+      return 1'b0;
       default: return 1'b1;
     endcase
   endfunction
@@ -288,8 +289,8 @@ module tb_controller
 
   function automatic logic exp_illegal_instr(input logic [6:0] op, input funct3_t funct3,
                                              input logic [6:0] funct7);
-    return exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) || exp_mem_illegal(
-        op, funct3) || exp_csr_illegal(op, funct3);
+    return exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) ||
+        exp_mem_illegal(op, funct3) || exp_csr_illegal(op, funct3);
   endfunction
 
   task automatic check(input instr_t word, input logic eq, input logic lt, input string what);
@@ -330,15 +331,15 @@ module tb_controller
             op, funct3
         ) || _ctrl.csr_use_zimm !== exp_csr_use_zimm(
             op, funct3
-        ) || _ctrl.imm_src !== exp_imm_src(
+        ) || _ctrl.imm_format !== exp_imm_format(
             op
-        ) || _ctrl.alu_src !== exp_alu_src(
+        ) || _ctrl.alu_operands !== exp_alu_operands(
             op
-        ) || _ctrl.alu_result_src !== exp_alu_result_src(
+        ) || _ctrl.execute_result !== exp_execute_result(
             op
-        ) || _ctrl.alu_select !== exp_alu_select(
+        ) || _ctrl.alu_op !== exp_alu_op(
             op, funct3
-        ) || _ctrl.result_src !== exp_result_src(
+        ) || _ctrl.writeback_result !== exp_writeback_result(
             op
         ) || _ctrl.sub_arith !== exp_sub_arith(
             op, funct3, funct7_bit5
@@ -359,22 +360,22 @@ module tb_controller
         $display("  FAIL %-38s instr=0x%08h op=%s f3=%03b f7b5=%b eq=%b lt=%b", what, word,
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
-            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr_en, _ctrl.csr_write_en,
-            _ctrl.csr_op.name(), _ctrl.csr_use_zimm, _ctrl.imm_src.name(), _ctrl.alu_src.name(),
-            _ctrl.alu_result_src.name(), _ctrl.alu_select.name(), _ctrl.result_src.name(),
-            _ctrl.sub_arith, _ctrl.pc_src.name(), _ctrl.branch_sgnd, _ctrl.mem_size.name(),
-            _ctrl.mem_unsigned, _ctrl.clear_pc_lsb, _ctrl.illegal_instr);
+            _ctrl.csr_op.name(), _ctrl.csr_use_zimm, _ctrl.imm_format.name(),
+            _ctrl.alu_operands.name(), _ctrl.execute_result.name(), _ctrl.alu_op.name(),
+            _ctrl.writeback_result.name(), _ctrl.sub_arith, _ctrl.pc_src.name(), _ctrl.branch_sgnd,
+            _ctrl.mem_size.name(), _ctrl.mem_unsigned, _ctrl.clear_pc_lsb, _ctrl.illegal_instr);
         $display(
-            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_src=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
-            exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3).name(
-            ), exp_csr_use_zimm(op, funct3), exp_imm_src(op).name(), exp_alu_src(op).name(),
-            exp_alu_result_src(op).name(), exp_alu_select(op, funct3).name(), exp_result_src(
-            op).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3
-            ).name(), exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(),
-            exp_mem_unsigned(op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3,
-            funct7));
+            exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
+            ).name(), exp_csr_use_zimm(op, funct3), exp_imm_format(op).name(), exp_alu_operands(op
+            ).name(), exp_execute_result(op).name(), exp_alu_op(op, funct3).name(),
+            exp_writeback_result(op).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(
+            op, eq, lt, funct3).name(), exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3
+            ).name(), exp_mem_unsigned(op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(
+            op, funct3, funct7));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

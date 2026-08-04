@@ -36,34 +36,34 @@ module tb_main_decoder
   // that the decoder ignores them.
   localparam int unsigned NoiseVectors = 8;
 
-  instr_u          _instr;
-  logic            _reg_write_en;
-  imm_src_t        _imm_src;
-  logic            _mem_write_en;
-  alu_src_t        _alu_src;
-  alu_result_src_t _alu_result_src;
-  result_src_t     _result_src;
-  logic            _branch;
-  logic            _jump;
-  logic            _alu_op;
-  logic            _clear_pc_lsb;
-  logic            _main_op_illegal;
+  instr_u            _instr;
+  logic              _reg_write_en;
+  imm_format_t       _imm_format;
+  logic              _mem_write_en;
+  alu_operands_t     _alu_operands;
+  execute_result_t   _execute_result;
+  writeback_result_t _writeback_result;
+  logic              _branch;
+  logic              _jump;
+  logic              _alu_decode_en;
+  logic              _clear_pc_lsb;
+  logic              _main_op_illegal;
 
-  int unsigned     errors = 0;
-  int unsigned     checks = 0;
-  int unsigned     printed = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
+  int unsigned       printed = 0;
 
   main_decoder _dut (
     .instr(_instr),
     .reg_write_en(_reg_write_en),
-    .imm_src(_imm_src),
+    .imm_format(_imm_format),
     .mem_write_en(_mem_write_en),
-    .alu_src(_alu_src),
-    .alu_result_src(_alu_result_src),
-    .result_src(_result_src),
+    .alu_operands(_alu_operands),
+    .execute_result(_execute_result),
+    .writeback_result(_writeback_result),
     .branch(_branch),
     .jump(_jump),
-    .alu_op(_alu_op),
+    .alu_decode_en(_alu_decode_en),
     .clear_pc_lsb(_clear_pc_lsb),
     .main_op_illegal(_main_op_illegal)
   );
@@ -72,7 +72,7 @@ module tb_main_decoder
   //
   // The RV32I decode table. Each function below is one column of it.
   //
-  //   category op      branch jump alu_src imm_src alu_result_src result_src alu_op reg_write_en mem_write_en
+  //   category op      branch jump alu_operands imm_format execute_result writeback_result alu_decode_en reg_write_en mem_write_en
   //   R-type   0110011 0      0    RS1_RS2 x       ALU            ALU        1      1         0
   //   I-ALU    0010011 0      0    RS1_IMM IMM_I   ALU            ALU        1      1         0
   //   load     0000011 0      0    RS1_IMM IMM_I   x              MEM        0      1         0
@@ -119,7 +119,7 @@ module tb_main_decoder
   // immediate is a plain 12-bit signed value at instr[31:20] -- the same
   // encoding as a load, which is why objdump prints `jalr ra,-4(sp)`. Only
   // jal uses the scrambled 21-bit J-type immediate.
-  function automatic imm_src_t exp_imm_src(input logic [6:0] op);
+  function automatic imm_format_t exp_imm_format(input logic [6:0] op);
     case (op)
       7'b0010011: return IMM_I;  // I-ALU:  addi/slti/xori/...
       7'b0000011: return IMM_I;  // load:   lw rd, imm(rs1)
@@ -134,7 +134,7 @@ module tb_main_decoder
   endfunction
 
   // R-type, system and illegal opcodes carry no immediate at all.
-  function automatic logic imm_src_matters(input logic [6:0] op);
+  function automatic logic imm_format_matters(input logic [6:0] op);
     case (op)
       7'b0010011, 7'b0000011, 7'b1100111, 7'b0100011, 7'b1100011, 7'b1101111, 7'b0110111,
       7'b0010111:
@@ -150,18 +150,18 @@ module tb_main_decoder
   //                              but goes to memory's write port, not the ALU.
   //   branch                  -> PC_IMM, because the ALU computes the target;
   //                              a separate comparator decides taken/not-taken.
-  function automatic alu_src_t exp_alu_src(input logic [6:0] op);
+  function automatic alu_operands_t exp_alu_operands(input logic [6:0] op);
     case (op)
-      7'b0110011: return ALU_SRC_RS1_RS2;  // R-type
+      7'b0110011: return ALU_OPERANDS_RS1_RS2;  // R-type
       7'b0010011, 7'b0000011, 7'b0100011, 7'b1100111:
-      return ALU_SRC_RS1_IMM;  // I-ALU, load, store, jalr
-      7'b1100011, 7'b1101111, 7'b0010111: return ALU_SRC_PC_IMM;  // branch, jal, auipc
-      default: return ALU_SRC_RS1_RS2;  // don't-care
+      return ALU_OPERANDS_RS1_IMM;  // I-ALU, load, store, jalr
+      7'b1100011, 7'b1101111, 7'b0010111: return ALU_OPERANDS_PC_IMM;  // branch, jal, auipc
+      default: return ALU_OPERANDS_RS1_RS2;  // don't-care
     endcase
   endfunction
 
-  // lui does not use the ALU at all -- the table marks its alu_src as x.
-  function automatic logic alu_src_matters(input logic [6:0] op);
+  // lui does not use the ALU at all -- the table marks its alu_operands as x.
+  function automatic logic alu_operands_matters(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111,
       7'b0010111:
@@ -177,17 +177,17 @@ module tb_main_decoder
   //                different destinations from one instruction, which is
   //                exactly what this mux exists to arbitrate.
   //   lui       -> IMM, bypassing the ALU entirely.
-  function automatic alu_result_src_t exp_alu_result_src(input logic [6:0] op);
+  function automatic execute_result_t exp_execute_result(input logic [6:0] op);
     case (op)
-      7'b1101111, 7'b1100111: return ALU_RES_PC_PLUS4;  // jal, jalr
-      7'b0110111:             return ALU_RES_IMM;  // lui
-      default:                return ALU_RES_ALU;
+      7'b1101111, 7'b1100111: return EXEC_RESULT_PC_PLUS4;  // jal, jalr
+      7'b0110111:             return EXEC_RESULT_IMM;  // lui
+      default:                return EXEC_RESULT_ALU;
     endcase
   endfunction
 
   // Loads select memory downstream, and stores/branches write nothing, so this
   // mux's value is unobservable for all three.
-  function automatic logic alu_result_src_matters(input logic [6:0] op);
+  function automatic logic execute_result_matters(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011, 7'b1101111, 7'b1100111, 7'b0110111, 7'b0010111: return 1'b1;
       default:                                                                return 1'b0;
@@ -195,18 +195,18 @@ module tb_main_decoder
   endfunction
 
   // Second level: the value chosen above, or memory. Only loads take memory.
-  function automatic result_src_t exp_result_src(input logic [6:0] op);
-    return (op == 7'b0000011) ? RESULT_MEM : RESULT_ALU;
+  function automatic writeback_result_t exp_writeback_result(input logic [6:0] op);
+    return (op == 7'b0000011) ? WB_RESULT_MEM : WB_RESULT_EXEC;
   endfunction
 
   // Stores and branches don't write rd, so nothing observes this.
-  function automatic logic result_src_matters(input logic [6:0] op);
+  function automatic logic writeback_result_matters(input logic [6:0] op);
     return exp_reg_write_en(op);
   endfunction
 
   // 0 = "just add" (addresses, jump targets), 1 = "decode the operation from
   // funct3/funct7". Only lui is a don't-care -- it never reaches the ALU.
-  function automatic logic exp_alu_op(input logic [6:0] op);
+  function automatic logic exp_alu_decode_en(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011: return 1'b1;
       default:                return 1'b0;
@@ -226,7 +226,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic logic alu_op_matters(input logic [6:0] op);
+  function automatic logic alu_decode_en_matters(input logic [6:0] op);
     case (op)
       7'b0110111: return 1'b0;  // lui
       default:    return 1'b1;
@@ -251,7 +251,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string imm_name(input imm_src_t s);
+  function automatic string imm_name(input imm_format_t s);
     case (s)
       IMM_I:   return "IMM_I";
       IMM_S:   return "IMM_S";
@@ -262,26 +262,26 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string alu_src_name(input alu_src_t s);
+  function automatic string alu_operands_name(input alu_operands_t s);
     case (s)
-      ALU_SRC_RS1_RS2: return "ALU_SRC_RS1_RS2";
-      ALU_SRC_RS1_IMM: return "ALU_SRC_RS1_IMM";
-      ALU_SRC_PC_IMM:  return "ALU_SRC_PC_IMM";
-      default:         return $sformatf("<%02b>", s);
+      ALU_OPERANDS_RS1_RS2: return "ALU_OPERANDS_RS1_RS2";
+      ALU_OPERANDS_RS1_IMM: return "ALU_OPERANDS_RS1_IMM";
+      ALU_OPERANDS_PC_IMM:  return "ALU_OPERANDS_PC_IMM";
+      default:              return $sformatf("<%02b>", s);
     endcase
   endfunction
 
-  function automatic string alu_res_name(input alu_result_src_t s);
+  function automatic string execute_result_name(input execute_result_t s);
     case (s)
-      ALU_RES_ALU:      return "ALU_RES_ALU";
-      ALU_RES_PC_PLUS4: return "ALU_RES_PC_PLUS4";
-      ALU_RES_IMM:      return "ALU_RES_IMM";
-      default:          return $sformatf("<%02b>", s);
+      EXEC_RESULT_ALU:      return "EXEC_RESULT_ALU";
+      EXEC_RESULT_PC_PLUS4: return "EXEC_RESULT_PC_PLUS4";
+      EXEC_RESULT_IMM:      return "EXEC_RESULT_IMM";
+      default:              return $sformatf("<%02b>", s);
     endcase
   endfunction
 
-  function automatic string result_name(input result_src_t s);
-    return (s == RESULT_MEM) ? "RESULT_MEM" : "RESULT_ALU";
+  function automatic string writeback_result_name(input writeback_result_t s);
+    return (s == WB_RESULT_MEM) ? "WB_RESULT_MEM" : "WB_RESULT_EXEC";
   endfunction
 
   // ------------------------------------------------------------- helpers --
@@ -333,19 +333,21 @@ module tb_main_decoder
     chk_bit(_mem_write_en, exp_mem_write_en(op), 1'b1, who, "mem_write_en");
     chk_bit(_branch, exp_branch(op), 1'b1, who, "branch");
     chk_bit(_jump, exp_jump(op), 1'b1, who, "jump");
-    chk_bit(_alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");
+    chk_bit(_alu_decode_en, exp_alu_decode_en(op), alu_decode_en_matters(op), who, "alu_decode_en");
     chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
     chk_bit(_main_op_illegal, exp_main_op_illegal(op), 1'b1, who, "main_op_illegal");
 
-    chk_enum(_imm_src, exp_imm_src(op), imm_src_matters(op), who, "imm_src", imm_name(_imm_src),
-             imm_name(exp_imm_src(op)));
-    chk_enum({1'b0, _alu_src}, {1'b0, exp_alu_src(op)}, alu_src_matters(op), who, "alu_src",
-             alu_src_name(_alu_src), alu_src_name(exp_alu_src(op)));
-    chk_enum({1'b0, _alu_result_src}, {1'b0, exp_alu_result_src(op)}, alu_result_src_matters(op),
-             who, "alu_result_src", alu_res_name(_alu_result_src), alu_res_name(
-             exp_alu_result_src(op)));
-    chk_enum({2'b0, _result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
-             "result_src", result_name(_result_src), result_name(exp_result_src(op)));
+    chk_enum(_imm_format, exp_imm_format(op), imm_format_matters(op), who, "imm_format", imm_name(
+             _imm_format), imm_name(exp_imm_format(op)));
+    chk_enum({1'b0, _alu_operands}, {1'b0, exp_alu_operands(op)}, alu_operands_matters(op), who,
+             "alu_operands", alu_operands_name(_alu_operands), alu_operands_name(
+             exp_alu_operands(op)));
+    chk_enum({1'b0, _execute_result}, {1'b0, exp_execute_result(op)}, execute_result_matters(op),
+             who, "execute_result", execute_result_name(_execute_result), execute_result_name(
+             exp_execute_result(op)));
+    chk_enum({2'b0, _writeback_result}, {2'b0, exp_writeback_result(op)}, writeback_result_matters(
+             op), who, "writeback_result", writeback_result_name(_writeback_result),
+             writeback_result_name(exp_writeback_result(op)));
   endtask
 
   // ---------------------------------------------------------------- tests --

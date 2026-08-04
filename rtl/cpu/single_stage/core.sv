@@ -68,7 +68,7 @@ module core
   assign _in_mem = _state == CORE_MEM;
   assign _in_halt = _state == CORE_HALT;
 
-  assign _is_load = _ctrl.result_src == RESULT_MEM;
+  assign _is_load = _ctrl.writeback_result == WB_RESULT_MEM;
   assign _is_store = _ctrl.mem_write_en;
   assign _is_mem_op = _is_load || _is_store;
   assign _illegal = _in_exec && _ctrl.illegal_instr;
@@ -160,9 +160,9 @@ module core
   );
 
   controller _controller (
-    .instr       (_current.instr),
+    .instr(_current.instr),
     .branch_flags(_branch_flags),
-    .ctrl        (_ctrl)
+    .ctrl(_ctrl)
   );
 
   datapath _datapath (
@@ -170,11 +170,11 @@ module core
     .instr(_current.instr),
     .pc(_current.pc),
     .reg_write_en(_reg_write_en),
-    .imm_src(_ctrl.imm_src),
-    .alu_src(_ctrl.alu_src),
-    .alu_result_src(_ctrl.alu_result_src),
-    .alu_select(_ctrl.alu_select),
-    .result_src(_ctrl.result_src),
+    .imm_format(_ctrl.imm_format),
+    .alu_operands(_ctrl.alu_operands),
+    .execute_result(_ctrl.execute_result),
+    .alu_op(_ctrl.alu_op),
+    .writeback_result(_ctrl.writeback_result),
     .sub_arith(_ctrl.sub_arith),
     .branch_sgnd(_ctrl.branch_sgnd),
     .read_data(_read_data),
@@ -183,5 +183,8 @@ module core
     .write_data(_write_data),
     .branch_flags(_branch_flags)
   );
+
+  logic _unused_csr_ctrl;
+  assign _unused_csr_ctrl = |{_ctrl.csr_en, _ctrl.csr_write_en, _ctrl.csr_op, _ctrl.csr_use_zimm};
 
 endmodule

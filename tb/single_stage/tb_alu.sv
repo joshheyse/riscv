@@ -43,7 +43,7 @@ module tb_alu
 
   word_t       _src_a;
   word_t       _src_b;
-  alu_select_t _alu_select;
+  alu_op_t     _alu_op;
   logic        _sub_arith;
   word_t       _alu_result;
 
@@ -54,7 +54,7 @@ module tb_alu
   alu _dut (
     .src_a(_src_a),
     .src_b(_src_b),
-    .alu_select(_alu_select),
+    .alu_op(_alu_op),
     .sub_arith(_sub_arith),
     .alu_result(_alu_result)
   );
@@ -64,12 +64,12 @@ module tb_alu
   // $display rather than $error: Verilator treats $error as $stop and aborts
   // on the first mismatch, which hides every later failure. Count here, and
   // call $fatal once at the end so `make sim` still exits non-zero.
-  task automatic check(input alu_select_t sel, input logic sa, input word_t a, input word_t b,
+  task automatic check(input alu_op_t sel, input logic sa, input word_t a, input word_t b,
                        input word_t exp, input string what);
-    _alu_select = sel;
-    _sub_arith  = sa;
-    _src_a      = a;
-    _src_b      = b;
+    _alu_op    = sel;
+    _sub_arith = sa;
+    _src_a     = a;
+    _src_b     = b;
     #1;
     checks++;
     if (_alu_result !== exp) begin
@@ -96,7 +96,7 @@ module tb_alu
   // reproduces the DUT's mistakes and agrees with it enthusiastically. The
   // signedness trap that made SRA behave as SRL is exactly the kind of bug a
   // lazily written model would share.
-  function automatic word_t ref_alu(input alu_select_t sel, input logic sa, input word_t a,
+  function automatic word_t ref_alu(input alu_op_t sel, input logic sa, input word_t a,
                                     input word_t b);
     word_t                 r;
     word_t                 addend;
@@ -306,7 +306,7 @@ module tb_alu
     // hand-written vector set can claim to cover.
     begin
       int unsigned errs_before;
-      alu_select_t sel;
+      alu_op_t     sel;
       logic        sa;
       word_t       a;
       word_t       b;
@@ -315,7 +315,7 @@ module tb_alu
       void'($urandom(RandomSeed));
 
       for (int unsigned t = 0; t < RandomVectors; t++) begin
-        sel = alu_select_t'(3'($urandom_range(0, 7)));
+        sel = alu_op_t'(3'($urandom_range(0, 7)));
         sa  = 1'($urandom_range(0, 1));
         a   = rand_operand();
         b   = rand_operand();

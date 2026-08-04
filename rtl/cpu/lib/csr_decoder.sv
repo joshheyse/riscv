@@ -5,11 +5,11 @@ module csr_decoder
 (
   input instr_u instr,
 
-  output logic csr_en,
-  output logic csr_write_en,
+  output logic    csr_en,
+  output logic    csr_write_en,
   output csr_op_t csr_op,
-  output logic csr_use_zimm,
-  output logic csr_op_illegal
+  output logic    csr_use_zimm,
+  output logic    csr_op_illegal
 );
 
   always_comb begin

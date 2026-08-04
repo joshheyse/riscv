@@ -10,26 +10,26 @@ module tb_writeback_mux
 
   localparam int unsigned TimeoutNs = 10_000;
 
-  result_src_t _result_src;
-  word_t       _execute_result;
-  word_t       _read_data;
-  word_t       _writeback_data;
+  writeback_result_t _writeback_result;
+  word_t             _execute_result;
+  word_t             _read_data;
+  word_t             _writeback_data;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
 
   writeback_mux _dut (
-    .result_src(_result_src),
+    .writeback_result(_writeback_result),
     .execute_result(_execute_result),
     .read_data(_read_data),
     .writeback_data(_writeback_data)
   );
 
-  task automatic check(input result_src_t result_src, input word_t execute_result,
+  task automatic check(input writeback_result_t writeback_result, input word_t execute_result,
                        input word_t read_data, input word_t exp, input string what);
-    _result_src     = result_src;
-    _execute_result = execute_result;
-    _read_data      = read_data;
+    _writeback_result = writeback_result;
+    _execute_result   = execute_result;
+    _read_data        = read_data;
     #1;
     checks++;
     if (_writeback_data !== exp) begin
@@ -39,8 +39,8 @@ module tb_writeback_mux
   endtask
 
   initial begin
-    check(RESULT_ALU, 32'h1111_2222, 32'haaaa_bbbb, 32'h1111_2222, "execute result");
-    check(RESULT_MEM, 32'h1111_2222, 32'haaaa_bbbb, 32'haaaa_bbbb, "memory read data");
+    check(WB_RESULT_EXEC, 32'h1111_2222, 32'haaaa_bbbb, 32'h1111_2222, "execute result");
+    check(WB_RESULT_MEM, 32'h1111_2222, 32'haaaa_bbbb, 32'haaaa_bbbb, "memory read data");
 
     if (errors == 0) begin
       $display("tb_writeback_mux: PASS (%0d checks)", checks);

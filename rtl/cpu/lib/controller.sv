@@ -20,7 +20,7 @@ module controller
 
   logic _branch;
   logic _jump;
-  logic _alu_op;
+  logic _alu_decode_en;
   logic _main_op_illegal;
   logic _alu_op_illegal;
   logic _mem_op_illegal;
@@ -38,29 +38,29 @@ module controller
     .instr(instr),
     .reg_write_en(_main_reg_write_en),
     .mem_write_en(ctrl.mem_write_en),
-    .imm_src(ctrl.imm_src),
-    .alu_src(ctrl.alu_src),
-    .alu_result_src(ctrl.alu_result_src),
-    .result_src(ctrl.result_src),
+    .imm_format(ctrl.imm_format),
+    .alu_operands(ctrl.alu_operands),
+    .execute_result(ctrl.execute_result),
+    .writeback_result(ctrl.writeback_result),
     .branch(_branch),
     .jump(_jump),
-    .alu_op(_alu_op),
+    .alu_decode_en(_alu_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
     .main_op_illegal(_main_op_illegal)
   );
 
   branch_logic _branch_logic (
     .branch(_branch),
-    .jump  (_jump),
-    .flags (branch_flags),
+    .jump(_jump),
+    .flags(branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );
 
   alu_decoder _alu_decoder (
-    .alu_op(_alu_op),
+    .alu_decode_en(_alu_decode_en),
     .instr(instr),
-    .alu_select(ctrl.alu_select),
+    .alu_op(ctrl.alu_op),
     .sub_arith(ctrl.sub_arith),
     .alu_op_illegal(_alu_op_illegal)
   );

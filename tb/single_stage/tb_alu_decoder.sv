@@ -4,7 +4,7 @@
 //
 // Purely combinational: drive inputs, settle, compare. No clock.
 //
-// The decoder is a function of exactly four things -- alu_op, funct3,
+// The decoder is a function of exactly four things -- alu_decode_en, funct3,
 // funct7[5] and opcode[5] -- which is 2 x 8 x 2 x 2 = 64 combinations. The
 // sweep covers all of them, and fills every *other* instruction bit with fresh
 // random values on each pass, so a decoder that peeks at rs1, rs2, rd, the rest
@@ -51,9 +51,9 @@ module tb_alu_decoder
   localparam logic [6:0] F7Zero = 7'b0000000;
   localparam logic [6:0] F7Alt = 7'b0100000;  // sub, sra, srai
 
-  logic        _alu_op;
+  logic        _alu_decode_en;
   instr_u      _instr;
-  alu_select_t _alu_select;
+  alu_op_t     _alu_op;
   logic        _sub_arith;
   logic        _alu_op_illegal;
 
@@ -62,9 +62,9 @@ module tb_alu_decoder
   int unsigned printed = 0;
 
   alu_decoder _dut (
-    .alu_op(_alu_op),
+    .alu_decode_en(_alu_decode_en),
     .instr(_instr),
-    .alu_select(_alu_select),
+    .alu_op(_alu_op),
     .sub_arith(_sub_arith),
     .alu_op_illegal(_alu_op_illegal)
   );
@@ -80,19 +80,19 @@ module tb_alu_decoder
   // $display rather than $error: Verilator treats $error as $stop and aborts on
   // the first mismatch, hiding every later failure. Count here, $fatal once at
   // the end so `make sim` still exits non-zero.
-  task automatic check(input logic op, input instr_t word, input alu_select_t exp_sel,
+  task automatic check(input logic op, input instr_t word, input alu_op_t exp_sel,
                        input logic exp_sub, input logic exp_illegal, input string what);
-    _alu_op = op;
+    _alu_decode_en = op;
     _instr.raw = word;
     #1;
     checks++;
-    if (_alu_select !== exp_sel || _sub_arith !== exp_sub || _alu_op_illegal !== exp_illegal) begin
+    if (_alu_op !== exp_sel || _sub_arith !== exp_sub || _alu_op_illegal !== exp_illegal) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display(
-            "  FAIL %-36s alu_op=%b instr=0x%08h (f7=%07b f3=%03b op=%07b) -> %s/%b illegal=%b, expected %s/%b illegal=%b",
-            what, op, word, word[31:25], word[14:12], word[6:0], _alu_select.name(), _sub_arith,
+            "  FAIL %-36s alu_decode_en=%b instr=0x%08h (f7=%07b f3=%03b op=%07b) -> %s/%b illegal=%b, expected %s/%b illegal=%b",
+            what, op, word, word[31:25], word[14:12], word[6:0], _alu_op.name(), _sub_arith,
             _alu_op_illegal, exp_sel.name(), exp_sub, exp_illegal);
       end else if (printed == MaxPrintedFailures) begin
         printed++;
@@ -103,13 +103,13 @@ module tb_alu_decoder
 
   // ------------------------------------------------------- reference model --
 
-  // An explicit funct3 -> alu_select_t mapping, written from the ISA table.
-  // The DUT gets this for free by casting, because alu_select_t was numbered to
+  // An explicit funct3 -> alu_op_t mapping, written from the ISA table.
+  // The DUT gets this for free by casting, because alu_op_t was numbered to
   // mirror funct3 -- so the model must NOT cast, or it would agree with the DUT
   // by construction and prove nothing. Spelling the eight rows out is the whole
-  // point: if anyone renumbers alu_select_t, these disagree and this testbench
+  // point: if anyone renumbers alu_op_t, these disagree and this testbench
   // is what tells you.
-  function automatic alu_select_t ref_select(input logic op, input funct3_t f3);
+  function automatic alu_op_t ref_select(input logic op, input funct3_t f3);
     if (!op) return ALU_ADDSUB;  // address / target arithmetic
     case (f3)
       3'b000:  return ALU_ADDSUB;
@@ -256,7 +256,7 @@ module tb_alu_decoder
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3Or, 5'd1, OP_R), ALU_OR, 1'b0, 1'b0, "or");
     check(1'b1, encode(F7Zero, 5'd3, 5'd2, F3And, 5'd1, OP_R), ALU_AND, 1'b0, 1'b0, "and");
 
-    // ---- alu_op = 0 forces add, whatever funct3 says ------------------------
+    // ---- alu_decode_en = 0 forces add, whatever funct3 says ------------------------
     // These are the instructions whose funct3 means something entirely
     // different -- a width for loads and stores, a branch condition for
     // BRANCH. A decoder that consults funct3 unconditionally computes SLT for
@@ -275,7 +275,7 @@ module tb_alu_decoder
     check(1'b0, encode(F7Zero, 5'd0, 5'd2, 3'b000, 5'd1, OP_JALR), ALU_ADDSUB, 1'b0, 1'b0, "jalr");
     check(1'b0, encode(F7Zero, 5'd0, 5'd0, 3'b000, 5'd1, OP_AUIPC), ALU_ADDSUB, 1'b0, 1'b0,
           "auipc");
-    // alu_op=0 must also suppress sub_arith even when bit 30 happens to be set
+    // alu_decode_en=0 must also suppress sub_arith even when bit 30 happens to be set
     // -- a store with a negative offset, for instance.
     check(1'b0, encode(7'b1111111, 5'b11111, 5'd2, 3'b010, 5'd1, OP_STORE), ALU_ADDSUB, 1'b0, 1'b0,
           "sw with negative offset: bit 30 set, still an add");

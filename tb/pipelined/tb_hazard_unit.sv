@@ -11,31 +11,31 @@ module tb_hazard_unit
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic        _if_id_valid;
-  instr_u      _if_id_instr;
-  logic        _id_ex_valid;
-  logic        _id_ex_reg_write_en;
-  regaddr_t    _id_ex_rd;
-  logic        _ex_mem_valid;
-  logic        _ex_mem_reg_write_en;
-  regaddr_t    _ex_mem_rd;
-  result_src_t _ex_mem_result_src;
-  logic        _stall;
+  logic              _if_id_valid;
+  instr_u            _if_id_instr;
+  logic              _id_ex_valid;
+  logic              _id_ex_reg_write_en;
+  regaddr_t          _id_ex_rd;
+  logic              _ex_mem_valid;
+  logic              _ex_mem_reg_write_en;
+  regaddr_t          _ex_mem_rd;
+  writeback_result_t _ex_mem_writeback_result;
+  logic              _stall;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
 
   hazard_unit _dut (
-    .if_id_valid        (_if_id_valid),
-    .if_id_instr        (_if_id_instr),
-    .id_ex_valid        (_id_ex_valid),
-    .id_ex_reg_write_en (_id_ex_reg_write_en),
-    .id_ex_rd           (_id_ex_rd),
-    .ex_mem_valid       (_ex_mem_valid),
+    .if_id_valid(_if_id_valid),
+    .if_id_instr(_if_id_instr),
+    .id_ex_valid(_id_ex_valid),
+    .id_ex_reg_write_en(_id_ex_reg_write_en),
+    .id_ex_rd(_id_ex_rd),
+    .ex_mem_valid(_ex_mem_valid),
     .ex_mem_reg_write_en(_ex_mem_reg_write_en),
-    .ex_mem_rd          (_ex_mem_rd),
-    .ex_mem_result_src  (_ex_mem_result_src),
-    .stall              (_stall)
+    .ex_mem_rd(_ex_mem_rd),
+    .ex_mem_writeback_result(_ex_mem_writeback_result),
+    .stall(_stall)
   );
 
   task automatic expect_stall(input logic exp, input string what);
@@ -56,7 +56,7 @@ module tb_hazard_unit
     _ex_mem_valid = 1'b0;
     _ex_mem_reg_write_en = 1'b0;
     _ex_mem_rd = '0;
-    _ex_mem_result_src = RESULT_ALU;
+    _ex_mem_writeback_result = WB_RESULT_EXEC;
   endtask
 
   task automatic set_consumer(input instr_t instr);
@@ -70,11 +70,11 @@ module tb_hazard_unit
     _id_ex_rd = rd;
   endtask
 
-  task automatic set_ex_mem_producer(input regaddr_t rd, input result_src_t result_src);
+  task automatic set_ex_mem_producer(input regaddr_t rd, input writeback_result_t writeback_result);
     _ex_mem_valid = 1'b1;
     _ex_mem_reg_write_en = 1'b1;
     _ex_mem_rd = rd;
-    _ex_mem_result_src = result_src;
+    _ex_mem_writeback_result = writeback_result;
   endtask
 
   initial begin
@@ -93,18 +93,18 @@ module tb_hazard_unit
 
     clear_inputs();
     set_consumer(32'h0010_8133);  // add x2, x1, x1
-    set_ex_mem_producer(5'd1, RESULT_ALU);
+    set_ex_mem_producer(5'd1, WB_RESULT_EXEC);
     expect_stall(1'b0, "R-type rs1/rs2 hazard against EX/MEM ALU forwards");
 
     clear_inputs();
     set_consumer(32'h0010_8133);  // add x2, x1, x1
-    set_ex_mem_producer(5'd1, RESULT_MEM);
+    set_ex_mem_producer(5'd1, WB_RESULT_MEM);
     expect_stall(1'b1, "R-type rs1/rs2 hazard against EX/MEM load stalls");
 
     clear_inputs();
     set_consumer(32'h0010_8133);  // add x2, x1, x1
     set_id_ex_producer(5'd3);
-    set_ex_mem_producer(5'd4, RESULT_ALU);
+    set_ex_mem_producer(5'd4, WB_RESULT_EXEC);
     expect_stall(1'b0, "unrelated producer registers do not stall");
 
     clear_inputs();
@@ -129,7 +129,7 @@ module tb_hazard_unit
 
     clear_inputs();
     set_consumer(32'h0000_8863);  // beq x1, x0, 16
-    set_ex_mem_producer(5'd1, RESULT_ALU);
+    set_ex_mem_producer(5'd1, WB_RESULT_EXEC);
     expect_stall(1'b0, "branch rs1 hazard against EX/MEM ALU forwards in execute");
 
     clear_inputs();
@@ -150,7 +150,7 @@ module tb_hazard_unit
     clear_inputs();
     set_consumer(32'h0000_0133);  // add x2, x0, x0
     set_id_ex_producer(5'd0);
-    set_ex_mem_producer(5'd0, RESULT_ALU);
+    set_ex_mem_producer(5'd0, WB_RESULT_EXEC);
     expect_stall(1'b0, "x0 producer does not stall");
 
     clear_inputs();

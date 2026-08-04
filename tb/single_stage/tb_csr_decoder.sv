@@ -12,15 +12,15 @@ module tb_csr_decoder
   localparam int unsigned TimeoutNs = 100_000;
   localparam int unsigned MaxPrintedFailures = 20;
 
-  instr_u  _instr;
-  logic    _csr_en;
-  logic    _csr_write_en;
-  csr_op_t _csr_op;
-  logic    _csr_use_zimm;
-  logic    _csr_op_illegal;
+  instr_u      _instr;
+  logic        _csr_en;
+  logic        _csr_write_en;
+  csr_op_t     _csr_op;
+  logic        _csr_use_zimm;
+  logic        _csr_op_illegal;
 
-  int unsigned errors  = 0;
-  int unsigned checks  = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
   int unsigned printed = 0;
 
   csr_decoder _dut (

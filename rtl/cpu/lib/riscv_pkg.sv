@@ -86,7 +86,7 @@ package riscv_pkg;
     ALU_SRL_SRA = 3'b101,
     ALU_OR      = 3'b110,
     ALU_AND     = 3'b111
-  } alu_select_t;
+  } alu_op_t;
 
   typedef enum logic [2:0] {
     MEM_BYTE  = 3'b000,  // LB / SB
@@ -108,7 +108,7 @@ package riscv_pkg;
 
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
-    alu_select_t alu;  // OP, OP-IMM
+    alu_op_t     alu;  // OP, OP-IMM
     br_funct3_t  br;   // BRANCH
     mem_funct3_t mem;  // LOAD, STORE
     csr_funct3_t csr;  // SYSTEM CSR
@@ -150,30 +150,30 @@ package riscv_pkg;
     IMM_B = 3'b010,
     IMM_J = 3'b011,
     IMM_U = 3'b100
-  } imm_src_t;
+  } imm_format_t;
 
   // Which pair of operands the ALU sees. Bit 1 selects SrcA (rs1 or PC), bit 0
   // selects SrcB (rs2 or the immediate); the names below spell out the pair.
   // PC + rs2 (2'b10) is never needed by any RV32I instruction.
   typedef enum logic [1:0] {
-    ALU_SRC_RS1_RS2 = 2'b00,  // R-type, and the branch comparison
-    ALU_SRC_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
-    ALU_SRC_PC_IMM  = 2'b11   // branch/jal target, auipc
-  } alu_src_t;
+    ALU_OPERANDS_RS1_RS2 = 2'b00,  // R-type, and the branch comparison
+    ALU_OPERANDS_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
+    ALU_OPERANDS_PC_IMM  = 2'b11   // branch/jal target, auipc
+  } alu_operands_t;
 
   // First level of the writeback mux. Three sources reach rd without touching
   // memory: the ALU's own output, the link address, and the raw immediate.
   typedef enum logic [1:0] {
-    ALU_RES_ALU      = 2'b00,  // R-type, I-type ALU, auipc (PC + imm)
-    ALU_RES_PC_PLUS4 = 2'b01,  // jal, jalr -- the return address
-    ALU_RES_IMM      = 2'b10   // lui, which bypasses the ALU entirely
-  } alu_result_src_t;
+    EXEC_RESULT_ALU      = 2'b00,  // R-type, I-type ALU, auipc (PC + imm)
+    EXEC_RESULT_PC_PLUS4 = 2'b01,  // jal, jalr -- the return address
+    EXEC_RESULT_IMM      = 2'b10   // lui, which bypasses the ALU entirely
+  } execute_result_t;
 
   // Second level of the writeback mux: the value chosen above, or memory.
   typedef enum logic {
-    RESULT_ALU = 1'b0,
-    RESULT_MEM = 1'b1   // loads
-  } result_src_t;
+    WB_RESULT_EXEC = 1'b0,
+    WB_RESULT_MEM  = 1'b1   // loads
+  } writeback_result_t;
 
   typedef struct packed {
     logic eq;
@@ -198,24 +198,24 @@ package riscv_pkg;
   } csr_op_t;
 
   typedef struct packed {
-    logic            reg_write_en;
-    logic            mem_write_en;
-    imm_src_t        imm_src;
-    alu_src_t        alu_src;
-    alu_result_src_t alu_result_src;
-    alu_select_t     alu_select;
-    result_src_t     result_src;
-    logic            sub_arith;
-    pc_src_t         pc_src;
-    logic            branch_sgnd;
-    mem_size_t       mem_size;
-    logic            mem_unsigned;
-    logic            clear_pc_lsb;
-    logic            illegal_instr;
-    logic            csr_en;
-    logic            csr_write_en;
-    csr_op_t         csr_op;
-    logic            csr_use_zimm;
+    logic              reg_write_en;      // write integer register rd
+    logic              mem_write_en;      // store to data bus
+    imm_format_t       imm_format;        // immediate format for extend
+    alu_operands_t     alu_operands;      // ALU operand pair
+    execute_result_t   execute_result;    // pre-memory result source
+    alu_op_t           alu_op;            // ALU operation
+    writeback_result_t writeback_result;  // writeback source
+    logic              sub_arith;         // subtract or arithmetic shift variant
+    pc_src_t           pc_src;            // next-PC source
+    logic              branch_sgnd;       // signed branch comparison
+    mem_size_t         mem_size;          // byte/half/word memory access width
+    logic              mem_unsigned;      // zero-extend load data
+    logic              clear_pc_lsb;      // clear JALR target bit 0
+    logic              illegal_instr;     // decoded illegal instruction
+    logic              csr_en;            // CSR instruction
+    logic              csr_write_en;      // write CSR storage
+    csr_op_t           csr_op;            // CSR read/write, set, or clear op
+    logic              csr_use_zimm;      // use immediate zimm instead of rs1 data
   } control_t;
 
   typedef enum logic [1:0] {

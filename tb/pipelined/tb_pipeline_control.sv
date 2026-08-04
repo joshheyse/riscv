@@ -12,28 +12,28 @@ module tb_pipeline_control
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic        _halted;
-  logic        _ex_mem_valid;
-  logic        _ex_mem_mem_write_en;
-  result_src_t _ex_mem_result_src;
-  logic        _dbus_ready;
-  logic        _data_stall;
-  logic        _mem_instr;
-  logic        _mem_wait;
-  stage_ctrl_t _fetch_ctrl;
-  stage_ctrl_t _if_id_ctrl;
-  stage_ctrl_t _id_ex_ctrl;
-  stage_ctrl_t _ex_mem_ctrl;
-  stage_ctrl_t _mem_wb_ctrl;
+  logic              _halted;
+  logic              _ex_mem_valid;
+  logic              _ex_mem_mem_write_en;
+  writeback_result_t _ex_mem_writeback_result;
+  logic              _dbus_ready;
+  logic              _data_stall;
+  logic              _mem_instr;
+  logic              _mem_wait;
+  stage_ctrl_t       _fetch_ctrl;
+  stage_ctrl_t       _if_id_ctrl;
+  stage_ctrl_t       _id_ex_ctrl;
+  stage_ctrl_t       _ex_mem_ctrl;
+  stage_ctrl_t       _mem_wb_ctrl;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned       errors = 0;
+  int unsigned       checks = 0;
 
   pipeline_control _dut (
     .halted(_halted),
     .ex_mem_valid(_ex_mem_valid),
     .ex_mem_mem_write_en(_ex_mem_mem_write_en),
-    .ex_mem_result_src(_ex_mem_result_src),
+    .ex_mem_writeback_result(_ex_mem_writeback_result),
     .dbus_ready(_dbus_ready),
     .data_stall(_data_stall),
     .mem_instr(_mem_instr),
@@ -79,7 +79,7 @@ module tb_pipeline_control
     _halted = 1'b0;
     _ex_mem_valid = 1'b0;
     _ex_mem_mem_write_en = 1'b0;
-    _ex_mem_result_src = RESULT_ALU;
+    _ex_mem_writeback_result = WB_RESULT_EXEC;
     _dbus_ready = 1'b0;
     _data_stall = 1'b0;
   endtask
@@ -113,7 +113,7 @@ module tb_pipeline_control
 
     clear_inputs();
     _ex_mem_valid = 1'b1;
-    _ex_mem_result_src = RESULT_MEM;
+    _ex_mem_writeback_result = WB_RESULT_MEM;
     _dbus_ready = 1'b0;
     expect_control(1'b1, 1'b1, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
                    "load waits for dbus ready");

@@ -3,11 +3,11 @@
 // ALU decoder.
 //
 // The main decoder first decides whether an instruction needs a real ALU
-// operation (`alu_op=1`) or just plain addition for an address/target
-// (`alu_op=0`). When `alu_op=1`, RV32I OP/OP-IMM funct3 maps directly to
-// `alu_select_t`; funct7[5] supplies subtraction/arithmetic-shift selection.
+// operation (`alu_decode_en=1`) or just plain addition for an address/target
+// (`alu_decode_en=0`). When `alu_decode_en=1`, RV32I OP/OP-IMM funct3 maps directly to
+// `alu_op_t`; funct7[5] supplies subtraction/arithmetic-shift selection.
 //
-//   instruction class       alu_select          sub_arith
+//   instruction class       alu_op          sub_arith
 //   -----------------       ------------------  ----------------------------
 //   load/store/branch/jump  ALU_ADDSUB          0
 //   add/addi                ALU_ADDSUB          0
@@ -19,14 +19,14 @@
 module alu_decoder
   import riscv_pkg::*;
 (
-  input  logic        alu_op,
-  input  instr_u      instr,
-  output alu_select_t alu_select,
-  output logic        sub_arith,
-  output logic        alu_op_illegal
+  input  logic    alu_decode_en,
+  input  instr_u  instr,
+  output alu_op_t alu_op,
+  output logic    sub_arith,
+  output logic    alu_op_illegal
 );
 
-  assign alu_select = alu_op ? instr.r.funct3.alu : ALU_ADDSUB;
+  assign alu_op = alu_decode_en ? instr.r.funct3.alu : ALU_ADDSUB;
 
   logic _funct7_zero;
   logic _funct7_alt;
@@ -37,7 +37,7 @@ module alu_decoder
   always_comb begin
     sub_arith = 1'b0;
     alu_op_illegal = 1'b0;
-    if (alu_op) begin
+    if (alu_decode_en) begin
       case (instr.r.opcode)
         OP_R: begin
           case (instr.r.funct3.alu)

@@ -6,7 +6,7 @@
 // The B/J immediates append an implicit zero LSB because branch/jump targets are
 // at least halfword-aligned by the ISA encoding.
 //
-//   imm_src  source bits                         result shape
+//   imm_format  source bits                         result shape
 //   -------  ----------------------------------  -----------------------------
 //   IMM_I    instr[31:20]                        sign-extend 12-bit immediate
 //   IMM_S    instr[31:25], instr[11:7]           sign-extend 12-bit immediate
@@ -17,14 +17,14 @@
 module extend
   import riscv_pkg::*;
 (
-  input  imm_src_t        imm_src,
-  input  logic     [31:7] instr,
-  output imm_t            imm_ext
+  input  imm_format_t        imm_format,
+  input  logic        [31:7] instr,
+  output imm_t               imm_ext
 );
 
   always_comb begin
     imm_ext = 'x;
-    unique case (imm_src)
+    unique case (imm_format)
       // verilog_format: off
       IMM_I: imm_ext = {{20{instr[31]}}, instr[31:20]};                                  // 12-bit signed
       IMM_S: imm_ext = {{20{instr[31]}}, instr[31:25], instr[11:7]};                     // 12-bit signed

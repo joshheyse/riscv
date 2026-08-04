@@ -108,7 +108,7 @@ module core
   assign _decode_branch_flags = '0;
   assign _execute_branch = _id_ex.instr.r.opcode == OP_BRANCH;
   assign _execute_jump = (_id_ex.instr.r.opcode == OP_JAL) || (_id_ex.instr.r.opcode == OP_JALR);
-  assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.result_src != RESULT_MEM);
+  assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
   assign _mem_wb_can_forward = _mem_wb.valid && _mem_wb.ctrl.reg_write_en && (_mem_wb.rd != 5'd0);
 
   // Forwarding
@@ -128,8 +128,8 @@ module core
       _rs2_value = _mem_wb.result;
     end
 
-    _src_a = _id_ex.ctrl.alu_src[1] ? _id_ex.pc : _rs1_value;
-    _src_b = _id_ex.ctrl.alu_src[0] ? _id_ex.imm : _rs2_value;
+    _src_a = _id_ex.ctrl.alu_operands[1] ? _id_ex.pc : _rs1_value;
+    _src_b = _id_ex.ctrl.alu_operands[0] ? _id_ex.imm : _rs2_value;
   end
 
   always_comb begin
@@ -177,7 +177,7 @@ module core
     .halted(halted),
     .ex_mem_valid(_ex_mem.valid),
     .ex_mem_mem_write_en(_ex_mem.ctrl.mem_write_en),
-    .ex_mem_result_src(_ex_mem.ctrl.result_src),
+    .ex_mem_writeback_result(_ex_mem.ctrl.writeback_result),
     .dbus_ready(dbus.rsp.ready),
     .data_stall(_data_stall),
     .mem_instr(_mem_instr),
@@ -278,14 +278,14 @@ module core
 
 
   controller _controller (
-    .instr       (_if_id.instr),
+    .instr(_if_id.instr),
     .branch_flags(_decode_branch_flags),
-    .ctrl        (_ctrl)
+    .ctrl(_ctrl)
   );
 
   extend _extend (
-    .imm_src(_ctrl.imm_src),
-    .instr  (_if_id.instr[31:7]),
+    .imm_format(_ctrl.imm_format),
+    .instr(_if_id.instr[31:7]),
     .imm_ext(_decode_imm)
   );
 
@@ -321,13 +321,13 @@ module core
   alu _alu (
     .src_a(_src_a),
     .src_b(_src_b),
-    .alu_select(_id_ex.ctrl.alu_select),
+    .alu_op(_id_ex.ctrl.alu_op),
     .sub_arith(_id_ex.ctrl.sub_arith),
     .alu_result(_alu_result)
   );
 
   execute_result_mux _execute_result_mux (
-    .alu_result_src(_id_ex.ctrl.alu_result_src),
+    .execute_result_kind(_id_ex.ctrl.execute_result),
     .pc(_id_ex.pc),
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
@@ -344,8 +344,8 @@ module core
 
   branch_logic _execute_branch_logic (
     .branch(_execute_branch),
-    .jump  (_execute_jump),
-    .flags (_execute_branch_flags),
+    .jump(_execute_jump),
+    .flags(_execute_branch_flags),
     .funct3(_id_ex.instr.r.funct3.br),
     .pc_src(_execute_pc_src)
   );
@@ -388,7 +388,7 @@ module core
   );
 
   writeback_mux _mem_result_mux (
-    .result_src(_ex_mem.ctrl.result_src),
+    .writeback_result(_ex_mem.ctrl.writeback_result),
     .execute_result(_ex_mem.execute_result),
     .read_data(_mem_read_data),
     .writeback_data(_mem_result_data)
@@ -404,7 +404,7 @@ module core
     .ex_mem_valid(_ex_mem.valid),
     .ex_mem_reg_write_en(_ex_mem.ctrl.reg_write_en),
     .ex_mem_rd(_ex_mem.rd),
-    .ex_mem_result_src(_ex_mem.ctrl.result_src),
+    .ex_mem_writeback_result(_ex_mem.ctrl.writeback_result),
     .stall(_data_stall)
   );
 

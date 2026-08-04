@@ -26,7 +26,7 @@ module tb_extend
   /* verilator lint_off UNUSEDSIGNAL */
   logic        [31:0] _instr;
   /* verilator lint_on UNUSEDSIGNAL */
-  imm_src_t           _imm_src;
+  imm_format_t        _imm_format;
   word_t              _imm_ext;
 
   int unsigned        errors = 0;
@@ -34,17 +34,17 @@ module tb_extend
 
   // extend only takes instr[31:7]; the opcode is decoded elsewhere.
   extend _dut (
-    .imm_src(_imm_src),
+    .imm_format(_imm_format),
     .instr(_instr[31:7]),
     .imm_ext(_imm_ext)
   );
 
   // ------------------------------------------------------------- helpers --
 
-  task automatic check(input logic [31:0] encoding, input imm_src_t src, input logic [31:0] exp,
+  task automatic check(input logic [31:0] encoding, input imm_format_t src, input logic [31:0] exp,
                        input string what);
-    _instr   = encoding;
-    _imm_src = src;
+    _instr = encoding;
+    _imm_format = src;
     #1;
     checks++;
     if (_imm_ext !== exp) begin

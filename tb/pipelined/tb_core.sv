@@ -29,12 +29,12 @@ module tb_core
   int unsigned _checks = 0;
 
   core _dut (
-    .clk   (_clk),
-    .rst   (_rst),
+    .clk(_clk),
+    .rst(_rst),
     .halted(_halted),
-    .pc    (_pc),
-    .ibus  (_ibus),
-    .dbus  (_dbus)
+    .pc(_pc),
+    .ibus(_ibus),
+    .dbus(_dbus)
   );
 
   initial begin
