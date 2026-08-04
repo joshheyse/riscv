@@ -20,11 +20,7 @@ module tb_pipeline_control
   logic              _data_stall;
   logic              _mem_instr;
   logic              _mem_wait;
-  stage_ctrl_t       _fetch_ctrl;
-  stage_ctrl_t       _if_id_ctrl;
-  stage_ctrl_t       _id_ex_ctrl;
-  stage_ctrl_t       _ex_mem_ctrl;
-  stage_ctrl_t       _mem_wb_ctrl;
+  pipeline_ctrl_t    _pipe_ctrl;
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
@@ -38,11 +34,7 @@ module tb_pipeline_control
     .data_stall(_data_stall),
     .mem_instr(_mem_instr),
     .mem_wait(_mem_wait),
-    .fetch_ctrl(_fetch_ctrl),
-    .if_id_ctrl(_if_id_ctrl),
-    .id_ex_ctrl(_id_ex_ctrl),
-    .ex_mem_ctrl(_ex_mem_ctrl),
-    .mem_wb_ctrl(_mem_wb_ctrl)
+    .pipe_ctrl(_pipe_ctrl)
   );
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -68,11 +60,11 @@ module tb_pipeline_control
     #1;
     expect_bit(_mem_instr, mem_instr, {what, " mem_instr"});
     expect_bit(_mem_wait, mem_wait, {what, " mem_wait"});
-    expect_stage(_fetch_ctrl, fetch_ctrl, {what, " fetch_ctrl"});
-    expect_stage(_if_id_ctrl, if_id_ctrl, {what, " if_id_ctrl"});
-    expect_stage(_id_ex_ctrl, id_ex_ctrl, {what, " id_ex_ctrl"});
-    expect_stage(_ex_mem_ctrl, ex_mem_ctrl, {what, " ex_mem_ctrl"});
-    expect_stage(_mem_wb_ctrl, mem_wb_ctrl, {what, " mem_wb_ctrl"});
+    expect_stage(_pipe_ctrl.fetch, fetch_ctrl, {what, " fetch_ctrl"});
+    expect_stage(_pipe_ctrl.if_id, if_id_ctrl, {what, " if_id_ctrl"});
+    expect_stage(_pipe_ctrl.id_ex, id_ex_ctrl, {what, " id_ex_ctrl"});
+    expect_stage(_pipe_ctrl.ex_mem, ex_mem_ctrl, {what, " ex_mem_ctrl"});
+    expect_stage(_pipe_ctrl.mem_wb, mem_wb_ctrl, {what, " mem_wb_ctrl"});
   endtask
 
   task automatic clear_inputs();

@@ -162,7 +162,7 @@ module tb_core
     expect_bit(_dbus.req.valid, 1'b1, "load requests data bus");
     expect_bit(_dbus.req.write_en, 1'b0, "load request is read");
     expect_word(_dbus.req.addr, 32'h1000_0000, "load request address");
-    expect_bit(_dut._fetch_ctrl == STAGE_HOLD, 1'b1, "load holds fetch while dbus not ready");
+    expect_bit(_dut._pipe_ctrl.fetch == STAGE_HOLD, 1'b1, "load holds fetch while dbus not ready");
     expect_bit(_ibus.req.valid, 1'b0, "load wait suppresses fetch");
 
     @(posedge _clk);

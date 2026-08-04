@@ -34,64 +34,49 @@ module core
 );
 
 
-  if_id_t        _if_id;
-  id_ex_t        _id_ex;
-  ex_mem_t       _ex_mem;
-  mem_wb_t       _mem_wb;
+  if_id_t         _if_id;
+  id_ex_t         _id_ex;
+  ex_mem_t        _ex_mem;
+  mem_wb_t        _mem_wb;
 
-  if_id_t        _if_id_next;
-  id_ex_t        _id_ex_next;
-  ex_mem_t       _ex_mem_next;
-  mem_wb_t       _mem_wb_next;
+  if_id_t         _if_id_next;
+  id_ex_t         _id_ex_next;
+  ex_mem_t        _ex_mem_next;
+  mem_wb_t        _mem_wb_next;
 
-  branch_flags_t _decode_branch_flags;
-  control_t      _ctrl;
+  branch_flags_t  _decode_branch_flags;
+  control_t       _ctrl;
 
-  reg_data_t     _decode_rs1_data;
-  reg_data_t     _decode_rs2_data;
-  reg_data_t     _decode_rs1_value;
-  reg_data_t     _decode_rs2_value;
-  imm_t          _decode_imm;
-  alu_data_t     _alu_result;
-  branch_flags_t _execute_branch_flags;
-  reg_data_t     _rs1_value;
-  reg_data_t     _rs2_value;
-  mem_data_t     _store_data;
-  reg_data_t     _execute_result;
-  mem_data_t     _mem_read_data;
-  reg_data_t     _mem_result_data;
-  logic          _mem_instr;
-  logic          _mem_wait;
-  if_id_t        _fetched;
-  logic          _redirect_en;
-  pc_t           _redirect_pc;
-  logic          _data_stall;
-  logic          _unused_mem_wait;
-  pc_src_t       _execute_pc_src;
+  reg_data_t      _decode_rs1_data;
+  reg_data_t      _decode_rs2_data;
+  reg_data_t      _decode_rs1_value;
+  reg_data_t      _decode_rs2_value;
+  imm_t           _decode_imm;
+  alu_data_t      _alu_result;
+  branch_flags_t  _execute_branch_flags;
+  reg_data_t      _rs1_value;
+  reg_data_t      _rs2_value;
+  mem_data_t      _store_data;
+  reg_data_t      _execute_result;
+  mem_data_t      _mem_read_data;
+  reg_data_t      _mem_result_data;
+  logic           _mem_instr;
+  logic           _mem_wait;
+  if_id_t         _fetched;
+  logic           _redirect_en;
+  pc_t            _redirect_pc;
+  logic           _data_stall;
+  logic           _unused_mem_wait;
+  pc_src_t        _execute_pc_src;
 
-  logic          _ex_mem_can_forward;
-  logic          _mem_wb_can_forward;
+  logic           _ex_mem_can_forward;
+  logic           _mem_wb_can_forward;
 
-  logic          _csr_en;
-  logic          _csr_write_en;
-  csr_addr_t     _csr_addr;
-  csr_data_t     _csr_write_data;
-  csr_data_t     _csr_result;
+  csr_pipe_t      _csr;
+  trap_pipe_t     _trap;
+  mtvec_t         _mtvec;
 
-  logic          _trap_valid;
-  mepc_t         _trap_mepc;
-  mcause_t       _trap_mcause;
-  mtval_t        _trap_mtval;
-  csr_data_t     _csr_read_data;
-  logic          _illegal_csr;
-  pc_t           _trap_pc;
-  mtvec_t        _mtvec;
-
-  stage_ctrl_t   _fetch_ctrl;
-  stage_ctrl_t   _if_id_ctrl;
-  stage_ctrl_t   _id_ex_ctrl;
-  stage_ctrl_t   _ex_mem_ctrl;
-  stage_ctrl_t   _mem_wb_ctrl;
+  pipeline_ctrl_t _pipe_ctrl;
 
   assign _mtvec = '0;
 
@@ -103,9 +88,9 @@ module core
   assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
   assign _mem_wb_can_forward = _mem_wb.valid && _mem_wb.ctrl.reg_write_en && (_mem_wb.rd != 5'd0);
 
-  assign _csr_en = _id_ex.valid && _id_ex.ctrl.csr_en;
-  assign _csr_addr = _id_ex.instr.i.imm;  // bits [31:20]
-  assign _csr_write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
+  assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en;
+  assign _csr.addr = _id_ex.instr.i.imm;  // bits [31:20]
+  assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
 
   // Forwarding
   always_comb begin
@@ -154,16 +139,16 @@ module core
   csr_file _csr_file (
     .clk(clk),
     .rst(rst),
-    .csr_en(_csr_en),
-    .csr_write_en(_csr_write_en),
-    .csr_addr(_csr_addr),
-    .csr_write_data(_csr_write_data),
-    .trap_valid(_trap_valid),
-    .trap_mepc(_trap_mepc),
-    .trap_mcause(_trap_mcause),
-    .trap_mtval(_trap_mtval),
-    .csr_read_data(_csr_read_data),
-    .illegal_csr(_illegal_csr)
+    .csr_en(_csr.en),
+    .csr_write_en(_csr.write_en),
+    .csr_addr(_csr.addr),
+    .csr_write_data(_csr.write_data),
+    .trap_valid(_trap.valid),
+    .trap_mepc(_trap.mepc),
+    .trap_mcause(_trap.mcause),
+    .trap_mtval(_trap.mtval),
+    .csr_read_data(_csr.read_data),
+    .illegal_csr(_csr.illegal)
   );
 
   // Pipeline control
@@ -176,11 +161,7 @@ module core
     .data_stall(_data_stall),
     .mem_instr(_mem_instr),
     .mem_wait(_mem_wait),
-    .fetch_ctrl(_fetch_ctrl),
-    .if_id_ctrl(_if_id_ctrl),
-    .id_ex_ctrl(_id_ex_ctrl),
-    .ex_mem_ctrl(_ex_mem_ctrl),
-    .mem_wb_ctrl(_mem_wb_ctrl)
+    .pipe_ctrl(_pipe_ctrl)
   );
 
   redirect_control _redirect_control (
@@ -197,18 +178,18 @@ module core
     .instr(_if_id.instr),
     .pc(_if_id.pc),
     .mtvec(_mtvec),
-    .trap_valid(_trap_valid),
-    .trap_mepc(_trap_mepc),
-    .trap_mcause(_trap_mcause),
-    .trap_mtval(_trap_mtval),
-    .trap_pc(_trap_pc)
+    .trap_valid(_trap.valid),
+    .trap_mepc(_trap.mepc),
+    .trap_mcause(_trap.mcause),
+    .trap_mtval(_trap.mtval),
+    .trap_pc(_trap.pc)
   );
 
   // Fetch
   always_comb begin
     _if_id_next = '0;
 
-    unique case (_if_id_ctrl)
+    unique case (_pipe_ctrl.if_id)
       STAGE_HOLD: begin
         _if_id_next = _if_id;
       end
@@ -230,7 +211,7 @@ module core
   ifu _ifu (
     .clk(clk),
     .rst(rst),
-    .fetch_en(_fetch_ctrl == STAGE_ADVANCE),
+    .fetch_en(_pipe_ctrl.fetch == STAGE_ADVANCE),
     .redirect_en(_redirect_en),
     .redirect_pc(_redirect_pc),
     .pc(pc),
@@ -242,7 +223,7 @@ module core
   always_comb begin
     _id_ex_next = '0;
 
-    unique case (_id_ex_ctrl)
+    unique case (_pipe_ctrl.id_ex)
       STAGE_HOLD: begin
         _id_ex_next = _id_ex;
       end
@@ -286,7 +267,7 @@ module core
   always_comb begin
     _ex_mem_next = '0;
 
-    unique case (_ex_mem_ctrl)
+    unique case (_pipe_ctrl.ex_mem)
       STAGE_HOLD: begin
         _ex_mem_next = _ex_mem;
       end
@@ -327,11 +308,11 @@ module core
   csr_execute _csr_execute (
     .csr_op(_id_ex.ctrl.csr_op),
     .csr_use_zimm(_id_ex.ctrl.csr_use_zimm),
-    .csr_read_data(_csr_read_data),
+    .csr_read_data(_csr.read_data),
     .rs1_data(_rs1_value),
     .zimm(_id_ex.instr.r.rs1),
-    .csr_result(_csr_result),
-    .csr_write_data(_csr_write_data)
+    .csr_result(_csr.result),
+    .csr_write_data(_csr.write_data)
   );
 
   execute_result_mux _execute_result_mux (
@@ -339,7 +320,7 @@ module core
     .pc(_id_ex.pc),
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
-    .csr_result(_csr_result),
+    .csr_result(_csr.result),
     .execute_result(_execute_result)
   );
 
@@ -347,7 +328,7 @@ module core
   always_comb begin
     _mem_wb_next = '0;
 
-    unique case (_mem_wb_ctrl)
+    unique case (_pipe_ctrl.mem_wb)
       STAGE_HOLD: begin
         _mem_wb_next = _mem_wb;
       end
@@ -408,7 +389,7 @@ module core
       _id_ex  <= '0;
       _ex_mem <= '0;
       _mem_wb <= '0;
-    end else if (_trap_valid) begin
+    end else if (_trap.valid) begin
       halted  <= 1'b1;
       _if_id  <= '0;
       _id_ex  <= '0;
@@ -426,7 +407,7 @@ module core
   assign _unused_pc = _ex_mem.pc;
 
   logic _unused_csr;
-  assign _unused_csr = |{_csr_read_data, _illegal_csr, _trap_pc};
+  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.pc};
 
   logic _unused_execute_branch_flags;
   assign _unused_execute_branch_flags = |{_execute_branch_flags};

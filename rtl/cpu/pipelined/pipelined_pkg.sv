@@ -52,4 +52,30 @@ package pipelined_pkg;
     STAGE_FLUSH   = 2'b10
   } stage_ctrl_t;
 
+  typedef struct packed {
+    stage_ctrl_t fetch;   // instruction fetch request control
+    stage_ctrl_t if_id;   // IF/ID register control
+    stage_ctrl_t id_ex;   // ID/EX register control
+    stage_ctrl_t ex_mem;  // EX/MEM register control
+    stage_ctrl_t mem_wb;  // MEM/WB register control
+  } pipeline_ctrl_t;
+
+  typedef struct packed {
+    logic      en;          // instruction accesses a CSR
+    logic      write_en;    // instruction writes CSR state
+    csr_addr_t addr;        // addressed CSR
+    csr_data_t read_data;   // current CSR value
+    csr_data_t write_data;  // next CSR value
+    csr_data_t result;      // value returned to integer writeback
+    logic      illegal;     // addressed CSR is unsupported or not writable
+  } csr_pipe_t;
+
+  typedef struct packed {
+    logic    valid;   // trap should be taken
+    mepc_t   mepc;    // trapped instruction PC
+    mcause_t mcause;  // trap cause
+    mtval_t  mtval;   // trap-specific value
+    pc_t     pc;      // trap vector target
+  } trap_pipe_t;
+
 endpackage

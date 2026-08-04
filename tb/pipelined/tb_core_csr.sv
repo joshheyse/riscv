@@ -13,14 +13,14 @@ module tb_core_csr
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 500;
   localparam int unsigned ProgramWords = 32;
-  localparam instr_t      Nop = 32'h0000_0013;  // addi x0, x0, 0
+  localparam instr_t Nop = 32'h0000_0013;  // addi x0, x0, 0
 
-  logic        _clk;
-  logic        _rst;
-  logic        _halted;
-  pc_t         _pc;
-  instr_t      _program[ProgramWords-1:0];
-  logic [31:0] _imem_index;
+  logic          _clk;
+  logic          _rst;
+  logic          _halted;
+  pc_t           _pc;
+  instr_t        _program    [ProgramWords-1:0];
+  logic   [31:0] _imem_index;
 
   ibus_if _ibus ();
   dbus_if _dbus ();
@@ -42,12 +42,8 @@ module tb_core_csr
     forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
-  function automatic instr_t csr_instr(
-    input csr_addr_t csr,
-    input regaddr_t rs1_or_zimm,
-    input csr_funct3_t funct3,
-    input regaddr_t rd
-  );
+  function automatic instr_t csr_instr(input csr_addr_t csr, input regaddr_t rs1_or_zimm,
+                                       input csr_funct3_t funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
