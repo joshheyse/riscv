@@ -198,24 +198,24 @@ package riscv_pkg;
   } csr_op_t;
 
   typedef struct packed {
-    logic              reg_write_en;      // write integer register rd
-    logic              mem_write_en;      // store to data bus
-    imm_format_t       imm_format;        // immediate format for extend
-    alu_operands_t     alu_operands;      // ALU operand pair
-    execute_result_t   execute_result;    // pre-memory result source
-    alu_op_t           alu_op;            // ALU operation
-    writeback_result_t writeback_result;  // writeback source
-    logic              sub_arith;         // subtract or arithmetic shift variant
-    pc_src_t           pc_src;            // next-PC source
-    logic              branch_sgnd;       // signed branch comparison
-    mem_size_t         mem_size;          // byte/half/word memory access width
-    logic              mem_unsigned;      // zero-extend load data
-    logic              clear_pc_lsb;      // clear JALR target bit 0
-    logic              illegal_instr;     // decoded illegal instruction
-    logic              csr_en;            // CSR instruction
-    logic              csr_write_en;      // write CSR storage
-    csr_op_t           csr_op;            // CSR read/write, set, or clear op
-    logic              csr_use_zimm;      // use immediate zimm instead of rs1 data
+    logic              reg_write_en;      // commit a value to integer register rd
+    logic              mem_write_en;      // issue a store on the data bus
+    imm_format_t       imm_format;        // instruction immediate encoding
+    alu_operands_t     alu_operands;      // values driven onto ALU src_a/src_b
+    execute_result_t   execute_result;    // execute-stage value before memory
+    alu_op_t           alu_op;            // ALU function selected by decode
+    writeback_result_t writeback_result;  // value committed to rd
+    logic              sub_arith;         // use SUB/SRA variant for shared ALU op
+    pc_src_t           pc_src;            // sequential PC or IEU-computed target
+    logic              branch_sgnd;       // compare branch operands as signed
+    mem_size_t         mem_size;          // byte/half/word memory transfer width
+    logic              mem_unsigned;      // zero-extend load instead of sign-extend
+    logic              clear_pc_lsb;      // force JALR target bit 0 to zero
+    logic              illegal_instr;     // instruction should trap as illegal
+    logic              csr_en;            // instruction accesses a CSR
+    logic              csr_write_en;      // instruction updates CSR state
+    csr_op_t           csr_op;            // CSR write/set/clear operation
+    logic              csr_use_zimm;      // CSR operand is zimm, not rs1 data
   } control_t;
 
   typedef enum logic [1:0] {
