@@ -81,9 +81,9 @@ module core
 
   assign _id_branch_flags = '0;
 
-  assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en;
   assign _csr.addr = _id_ex.instr.i.imm;  // bits [31:20]
-  assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
+  assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en && !_id_ex.trap.valid;
+  assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en && !_id_ex.trap.valid;
 
   assign _retire_trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
@@ -95,7 +95,7 @@ module core
     .rd_addr2(_if_id.instr.r.rs2),
     .wr_addr(_mem_wb.rd),
     .wr_data(_mem_wb.result),
-    .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en),
+    .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en && !_mem_wb.trap.valid),
     .rd_data1(_rf_rs1_read),
     .rd_data2(_rf_rs2_read)
   );

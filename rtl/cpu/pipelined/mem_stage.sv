@@ -16,11 +16,10 @@ module mem_stage
   reg_data_t _mem_result_data;
   logic      _mem_access;
 
-  assign _mem_access = ex_mem.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
+  assign _mem_access = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
   assign mem_wait = _mem_access && !dbus.rsp.ready;
   assign dbus.req.valid = _mem_access;
-  assign dbus.req.write_en = ex_mem.ctrl.mem_write_en;
-  assign dbus.req.addr = ex_mem.alu_result;
+  assign dbus.req.write_en = _mem_access && ex_mem.ctrl.mem_write_en;
 
   lsu _lsu (
     .addr(ex_mem.alu_result),
