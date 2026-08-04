@@ -47,15 +47,15 @@ module core
   branch_flags_t  _decode_branch_flags;
   control_t       _ctrl;
 
-  reg_data_t      _decode_rs1_data;
-  reg_data_t      _decode_rs2_data;
-  reg_data_t      _decode_rs1_value;
-  reg_data_t      _decode_rs2_value;
+  reg_data_t      _rf_rs1_read;
+  reg_data_t      _rf_rs2_read;
+  reg_data_t      _id_rs1_operand;
+  reg_data_t      _id_rs2_operand;
   imm_t           _decode_imm;
   alu_data_t      _alu_result;
   branch_flags_t  _execute_branch_flags;
-  reg_data_t      _rs1_value;
-  reg_data_t      _rs2_value;
+  reg_data_t      _ex_rs1_operand;
+  reg_data_t      _ex_rs2_operand;
   mem_data_t      _store_data;
   reg_data_t      _execute_result;
   mem_data_t      _mem_read_data;
@@ -68,9 +68,6 @@ module core
   logic           _data_stall;
   logic           _unused_mem_wait;
   pc_src_t        _execute_pc_src;
-
-  logic           _ex_mem_can_forward;
-  logic           _mem_wb_can_forward;
 
   csr_pipe_t      _csr;
   trap_pipe_t     _trap;
@@ -85,44 +82,10 @@ module core
   assign dbus.req.addr = _ex_mem.alu_result;
   assign _unused_mem_wait = _mem_wait;
   assign _decode_branch_flags = '0;
-  assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
-  assign _mem_wb_can_forward = _mem_wb.valid && _mem_wb.ctrl.reg_write_en && (_mem_wb.rd != 5'd0);
 
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en;
   assign _csr.addr = _id_ex.instr.i.imm;  // bits [31:20]
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en;
-
-  // Forwarding
-  always_comb begin
-    _rs1_value = _id_ex.rs1_data;
-    _rs2_value = _id_ex.rs2_data;
-
-    if (_ex_mem_can_forward && (_ex_mem.rd == _id_ex.instr.r.rs1)) begin
-      _rs1_value = _ex_mem.execute_result;
-    end else if (_mem_wb_can_forward && (_mem_wb.rd == _id_ex.instr.r.rs1)) begin
-      _rs1_value = _mem_wb.result;
-    end
-
-    if (_ex_mem_can_forward && (_ex_mem.rd == _id_ex.instr.r.rs2)) begin
-      _rs2_value = _ex_mem.execute_result;
-    end else if (_mem_wb_can_forward && (_mem_wb.rd == _id_ex.instr.r.rs2)) begin
-      _rs2_value = _mem_wb.result;
-    end
-
-  end
-
-  always_comb begin
-    _decode_rs1_value = _decode_rs1_data;
-    _decode_rs2_value = _decode_rs2_data;
-
-    if (_mem_wb_can_forward && (_mem_wb.rd == _if_id.instr.r.rs1)) begin
-      _decode_rs1_value = _mem_wb.result;
-    end
-
-    if (_mem_wb_can_forward && (_mem_wb.rd == _if_id.instr.r.rs2)) begin
-      _decode_rs2_value = _mem_wb.result;
-    end
-  end
 
   // Files
   reg_file _reg_file (
@@ -132,8 +95,8 @@ module core
     .wr_addr(_mem_wb.rd),
     .wr_data(_mem_wb.result),
     .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en),
-    .rd_data1(_decode_rs1_data),
-    .rd_data2(_decode_rs2_data)
+    .rd_data1(_rf_rs1_read),
+    .rd_data2(_rf_rs2_read)
   );
 
   csr_file _csr_file (
@@ -241,8 +204,8 @@ module core
               pc: _if_id.pc,
               instr: _if_id.instr,
               ctrl: _ctrl,
-              rs1_data: _decode_rs1_value,
-              rs2_data: _decode_rs2_value,
+              rs1_operand: _id_rs1_operand,
+              rs2_operand: _id_rs2_operand,
               imm: _decode_imm,
               rd: _if_id.instr.r.rd
           };
@@ -296,8 +259,8 @@ module core
     .ctrl(_id_ex.ctrl),
     .branch_funct3(_id_ex.instr.r.funct3.br),
     .pc(_id_ex.pc),
-    .rs1_data(_rs1_value),
-    .rs2_data(_rs2_value),
+    .rs1_data(_ex_rs1_operand),
+    .rs2_data(_ex_rs2_operand),
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .store_data(_store_data),
@@ -309,7 +272,7 @@ module core
     .csr_op(_id_ex.ctrl.csr_op),
     .csr_use_zimm(_id_ex.ctrl.csr_use_zimm),
     .csr_read_data(_csr.read_data),
-    .rs1_data(_rs1_value),
+    .rs1_data(_ex_rs1_operand),
     .zimm(_id_ex.instr.r.rs1),
     .csr_result(_csr.result),
     .csr_write_data(_csr.write_data)
@@ -380,6 +343,23 @@ module core
     .ex_mem_rd(_ex_mem.rd),
     .ex_mem_writeback_result(_ex_mem.ctrl.writeback_result),
     .stall(_data_stall)
+  );
+
+  forwarding_unit _forwarding_unit (
+    .id_ex(_id_ex),
+    .ex_mem(_ex_mem),
+    .mem_wb(_mem_wb),
+    .rs1_operand(_ex_rs1_operand),
+    .rs2_operand(_ex_rs2_operand)
+  );
+
+  decode_bypass_unit _decode_bypass_unit (
+    .if_id(_if_id),
+    .mem_wb(_mem_wb),
+    .rf_rs1_read(_rf_rs1_read),
+    .rf_rs2_read(_rf_rs2_read),
+    .id_rs1_operand(_id_rs1_operand),
+    .id_rs2_operand(_id_rs2_operand)
   );
 
   always_ff @(posedge clk) begin

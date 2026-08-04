@@ -19,14 +19,14 @@ package pipelined_pkg;
   } if_id_t;
 
   typedef struct packed {
-    logic     valid;     // slot contains an instruction
-    pc_t      pc;        // PC associated with instr
-    instr_u   instr;     // decoded instruction
-    control_t ctrl;      // decoded control signals
-    word_t    rs1_data;  // register source 1 value
-    word_t    rs2_data;  // register source 2 value
-    word_t    imm;       // decoded immediate value
-    regaddr_t rd;        // destination register address
+    logic     valid;        // slot contains an instruction
+    pc_t      pc;           // PC associated with instr
+    instr_u   instr;        // decoded instruction
+    control_t ctrl;         // decoded control signals
+    word_t    rs1_operand;  // register source 1 value
+    word_t    rs2_operand;  // register source 2 value
+    word_t    imm;          // decoded immediate value
+    regaddr_t rd;           // destination register address
   } id_ex_t;
 
   typedef struct packed {
@@ -77,5 +77,11 @@ package pipelined_pkg;
     mtval_t  mtval;   // trap-specific value
     pc_t     pc;      // trap vector target
   } trap_pipe_t;
+
+
+  function automatic logic writes_rd(input logic valid, input logic reg_write_en,
+                                     input regaddr_t rd);
+    return valid && reg_write_en && (rd != 5'd0);
+  endfunction
 
 endpackage
