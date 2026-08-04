@@ -20,6 +20,7 @@ module mem_stage
   assign mem_wait = _mem_access && !dbus.rsp.ready;
   assign dbus.req.valid = _mem_access;
   assign dbus.req.write_en = _mem_access && ex_mem.ctrl.mem_write_en;
+  assign dbus.req.addr = ex_mem.alu_result;
 
   lsu _lsu (
     .addr(ex_mem.alu_result),
