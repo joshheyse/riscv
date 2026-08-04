@@ -78,8 +78,7 @@ module datapath
     .src_a(_rd_data1),
     .src_b(_rd_data2),
     .sngd(branch_sgnd),
-    .eq(branch_flags.eq),
-    .lt(branch_flags.lt)
+    .branch_flags(branch_flags)
   );
 
   assign _src_a = alu_operands[1] ? pc : _rd_data1;

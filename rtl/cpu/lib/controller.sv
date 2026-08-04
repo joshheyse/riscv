@@ -5,7 +5,7 @@
 // This module is pure decode/glue:
 //   * main_decoder chooses broad datapath controls from opcode
 //   * alu_decoder refines the ALU operation from funct3/funct7
-//   * branch_logic turns _branch flags + funct3 into PC select
+//   * branch_logic turns decoded flow + branch flags + funct3 into PC select
 //
 // The datapath owns the comparator and supplies `branch_flags`; the controller
 // supplies `branch_sgnd` so the comparator can produce the correct `lt` flag.
@@ -18,8 +18,6 @@ module controller
   output control_t      ctrl
 );
 
-  logic _branch;
-  logic _jump;
   logic _alu_decode_en;
   logic _main_op_illegal;
   logic _alu_op_illegal;
@@ -42,16 +40,14 @@ module controller
     .alu_operands(ctrl.alu_operands),
     .execute_result(ctrl.execute_result),
     .writeback_result(ctrl.writeback_result),
-    .branch(_branch),
-    .jump(_jump),
+    .flow(ctrl.flow),
     .alu_decode_en(_alu_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
     .main_op_illegal(_main_op_illegal)
   );
 
   branch_logic _branch_logic (
-    .branch(_branch),
-    .jump(_jump),
+    .flow(ctrl.flow),
     .flags(branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)

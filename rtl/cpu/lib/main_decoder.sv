@@ -31,8 +31,7 @@ module main_decoder
   output alu_operands_t     alu_operands,
   output execute_result_t   execute_result,
   output writeback_result_t writeback_result,
-  output logic              branch,
-  output logic              jump,
+  output flow_t             flow,
   output logic              alu_decode_en,
   output logic              clear_pc_lsb,
   output logic              main_op_illegal
@@ -47,8 +46,7 @@ module main_decoder
     alu_operands     = ALU_OPERANDS_RS1_RS2;
     execute_result   = EXEC_RESULT_ALU;
     writeback_result = WB_RESULT_EXEC;
-    branch           = 1'b0;
-    jump             = 1'b0;
+    flow             = FLOW_NONE;
     alu_decode_en    = 1'b0;
     clear_pc_lsb     = 1'b0;
     main_op_illegal  = 1'b0;
@@ -80,7 +78,7 @@ module main_decoder
       end
 
       OP_BRANCH: begin
-        branch = 1'b1;
+        flow = FLOW_BRANCH;
         imm_format = IMM_B;
         // The ALU computes the target; a separate comparator decides whether
         // the branch is taken.
@@ -88,16 +86,16 @@ module main_decoder
       end
 
       OP_JAL: begin
+        flow           = FLOW_JUMP;
         reg_write_en   = 1'b1;
-        jump           = 1'b1;
         imm_format     = IMM_J;
         alu_operands   = ALU_OPERANDS_PC_IMM;  // target = pc + imm
         execute_result = EXEC_RESULT_PC_PLUS4;  // but rd gets the return address
       end
 
       OP_JALR: begin
+        flow           = FLOW_JUMP;
         reg_write_en   = 1'b1;
-        jump           = 1'b1;
         imm_format     = IMM_I;  // I-type, not J-type
         alu_operands   = ALU_OPERANDS_RS1_IMM;  // target = rs1 + imm
         execute_result = EXEC_RESULT_PC_PLUS4;

@@ -45,7 +45,6 @@ module core
   mem_wb_t       _mem_wb_next;
 
   branch_flags_t _decode_branch_flags;
-  branch_flags_t _execute_branch_flags;
   control_t      _ctrl;
 
   reg_data_t     _decode_rs1_data;
@@ -54,10 +53,10 @@ module core
   reg_data_t     _decode_rs2_value;
   imm_t          _decode_imm;
   alu_data_t     _alu_result;
-  alu_data_t     _src_a;
-  alu_data_t     _src_b;
+  branch_flags_t _execute_branch_flags;
   reg_data_t     _rs1_value;
   reg_data_t     _rs2_value;
+  mem_data_t     _store_data;
   reg_data_t     _execute_result;
   mem_data_t     _mem_read_data;
   reg_data_t     _mem_result_data;
@@ -68,8 +67,6 @@ module core
   pc_t           _redirect_pc;
   logic          _data_stall;
   logic          _unused_mem_wait;
-  logic          _execute_branch;
-  logic          _execute_jump;
   pc_src_t       _execute_pc_src;
 
   logic          _ex_mem_can_forward;
@@ -106,8 +103,6 @@ module core
   assign dbus.req.addr = _ex_mem.alu_result;
   assign _unused_mem_wait = _mem_wait;
   assign _decode_branch_flags = '0;
-  assign _execute_branch = _id_ex.instr.r.opcode == OP_BRANCH;
-  assign _execute_jump = (_id_ex.instr.r.opcode == OP_JAL) || (_id_ex.instr.r.opcode == OP_JALR);
   assign _ex_mem_can_forward = _ex_mem.valid && _ex_mem.ctrl.reg_write_en && (_ex_mem.rd != 5'd0) && (_ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
   assign _mem_wb_can_forward = _mem_wb.valid && _mem_wb.ctrl.reg_write_en && (_mem_wb.rd != 5'd0);
 
@@ -128,8 +123,6 @@ module core
       _rs2_value = _mem_wb.result;
     end
 
-    _src_a = _id_ex.ctrl.alu_operands[1] ? _id_ex.pc : _rs1_value;
-    _src_b = _id_ex.ctrl.alu_operands[0] ? _id_ex.imm : _rs2_value;
   end
 
   always_comb begin
@@ -276,7 +269,6 @@ module core
     endcase
   end
 
-
   controller _controller (
     .instr(_if_id.instr),
     .branch_flags(_decode_branch_flags),
@@ -310,7 +302,7 @@ module core
               ctrl: _id_ex.ctrl,
               alu_result: _alu_result,
               execute_result: _execute_result,
-              write_data: _rs2_value,
+              write_data: _store_data,
               rd: _id_ex.instr.r.rd
           };
         end
@@ -318,12 +310,17 @@ module core
     endcase
   end
 
-  alu _alu (
-    .src_a(_src_a),
-    .src_b(_src_b),
-    .alu_op(_id_ex.ctrl.alu_op),
-    .sub_arith(_id_ex.ctrl.sub_arith),
-    .alu_result(_alu_result)
+  integer_execute _integer_execute (
+    .ctrl(_id_ex.ctrl),
+    .branch_funct3(_id_ex.instr.r.funct3.br),
+    .pc(_id_ex.pc),
+    .rs1_data(_rs1_value),
+    .rs2_data(_rs2_value),
+    .imm(_id_ex.imm),
+    .alu_result(_alu_result),
+    .store_data(_store_data),
+    .branch_flags(_execute_branch_flags),
+    .pc_src(_execute_pc_src)
   );
 
   execute_result_mux _execute_result_mux (
@@ -334,21 +331,6 @@ module core
     .execute_result(_execute_result)
   );
 
-  comparator _execute_comparator (
-    .src_a(_rs1_value),
-    .src_b(_rs2_value),
-    .sngd(_id_ex.ctrl.branch_sgnd),
-    .eq(_execute_branch_flags.eq),
-    .lt(_execute_branch_flags.lt)
-  );
-
-  branch_logic _execute_branch_logic (
-    .branch(_execute_branch),
-    .jump(_execute_jump),
-    .flags(_execute_branch_flags),
-    .funct3(_id_ex.instr.r.funct3.br),
-    .pc_src(_execute_pc_src)
-  );
 
   // Memory
   always_comb begin
@@ -434,5 +416,8 @@ module core
 
   logic _unused_csr;
   assign _unused_csr = |{_csr_read_data, _illegal_csr, _trap_pc};
+
+  logic _unused_execute_branch_flags;
+  assign _unused_execute_branch_flags = |{_execute_branch_flags};
 
 endmodule

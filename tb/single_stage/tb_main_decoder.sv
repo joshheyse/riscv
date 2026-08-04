@@ -43,8 +43,7 @@ module tb_main_decoder
   alu_operands_t     _alu_operands;
   execute_result_t   _execute_result;
   writeback_result_t _writeback_result;
-  logic              _branch;
-  logic              _jump;
+  flow_t             _flow;
   logic              _alu_decode_en;
   logic              _clear_pc_lsb;
   logic              _main_op_illegal;
@@ -61,8 +60,7 @@ module tb_main_decoder
     .alu_operands(_alu_operands),
     .execute_result(_execute_result),
     .writeback_result(_writeback_result),
-    .branch(_branch),
-    .jump(_jump),
+    .flow(_flow),
     .alu_decode_en(_alu_decode_en),
     .clear_pc_lsb(_clear_pc_lsb),
     .main_op_illegal(_main_op_illegal)
@@ -100,16 +98,13 @@ module tb_main_decoder
     return (op == 7'b0100011);  // store
   endfunction
 
-  // Asserted for exactly one opcode each; a spurious branch or jump redirects
-  // control flow, so both are checked strictly everywhere.
-  function automatic logic exp_branch(input logic [6:0] op);
-    return (op == 7'b1100011);
-  endfunction
-
-  function automatic logic exp_jump(input logic [6:0] op);
+  // Decoded control-flow class. A spurious branch or jump redirects control
+  // flow, so this is checked strictly everywhere.
+  function automatic flow_t exp_flow(input logic [6:0] op);
     case (op)
-      7'b1101111, 7'b1100111: return 1'b1;  // jal, jalr
-      default:                return 1'b0;
+      7'b1100011:             return FLOW_BRANCH;
+      7'b1101111, 7'b1100111: return FLOW_JUMP;  // jal, jalr
+      default:                return FLOW_NONE;
     endcase
   endfunction
 
@@ -284,6 +279,14 @@ module tb_main_decoder
     return (s == WB_RESULT_MEM) ? "WB_RESULT_MEM" : "WB_RESULT_EXEC";
   endfunction
 
+  function automatic string flow_name(input flow_t s);
+    case (s)
+      FLOW_BRANCH: return "FLOW_BRANCH";
+      FLOW_JUMP:   return "FLOW_JUMP";
+      default:     return "FLOW_NONE";
+    endcase
+  endfunction
+
   // ------------------------------------------------------------- helpers --
 
   // $display, not $error: Verilator treats $error as $stop and would abort on
@@ -331,8 +334,6 @@ module tb_main_decoder
 
     chk_bit(_reg_write_en, exp_reg_write_en(op), 1'b1, who, "reg_write_en");
     chk_bit(_mem_write_en, exp_mem_write_en(op), 1'b1, who, "mem_write_en");
-    chk_bit(_branch, exp_branch(op), 1'b1, who, "branch");
-    chk_bit(_jump, exp_jump(op), 1'b1, who, "jump");
     chk_bit(_alu_decode_en, exp_alu_decode_en(op), alu_decode_en_matters(op), who, "alu_decode_en");
     chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
     chk_bit(_main_op_illegal, exp_main_op_illegal(op), 1'b1, who, "main_op_illegal");
@@ -348,6 +349,8 @@ module tb_main_decoder
     chk_enum({2'b0, _writeback_result}, {2'b0, exp_writeback_result(op)}, writeback_result_matters(
              op), who, "writeback_result", writeback_result_name(_writeback_result),
              writeback_result_name(exp_writeback_result(op)));
+    chk_enum({1'b0, _flow}, {1'b0, exp_flow(op)}, 1'b1, who, "flow", flow_name(_flow), flow_name(
+             exp_flow(op)));
   endtask
 
   // ---------------------------------------------------------------- tests --

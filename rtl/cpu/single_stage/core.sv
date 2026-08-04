@@ -187,4 +187,7 @@ module core
   logic _unused_csr_ctrl;
   assign _unused_csr_ctrl = |{_ctrl.csr_en, _ctrl.csr_write_en, _ctrl.csr_op, _ctrl.csr_use_zimm};
 
+  logic _unused_flow_ctrl;
+  assign _unused_flow_ctrl = |{_ctrl.flow};
+
 endmodule

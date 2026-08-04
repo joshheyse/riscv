@@ -39,22 +39,20 @@ module tb_comparator
   localparam int unsigned RandomSeed = 32'h00c0_ffee;
   localparam int unsigned MaxPrintedFailures = 20;
 
-  word_t       _src_a;
-  word_t       _src_b;
-  logic        _sngd;
-  logic        _eq;
-  logic        _lt;
+  word_t         _src_a;
+  word_t         _src_b;
+  logic          _sngd;
+  branch_flags_t _branch_flags;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
-  int unsigned printed = 0;
+  int unsigned   errors = 0;
+  int unsigned   checks = 0;
+  int unsigned   printed = 0;
 
   comparator _dut (
     .src_a(_src_a),
     .src_b(_src_b),
     .sngd(_sngd),
-    .eq(_eq),
-    .lt(_lt)
+    .branch_flags(_branch_flags)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -80,14 +78,14 @@ module tb_comparator
     _src_b = b;
     #1;
     checks++;
-    if ({_eq, _lt} !== {exp_eq, exp_lt}) begin
+    if ({_branch_flags.eq, _branch_flags.lt} !== {exp_eq, exp_lt}) begin
       fail(what, $sformatf(
            "sngd=%b a=0x%08h b=0x%08h -> eq=%b lt=%b, expected eq=%b lt=%b",
            sgn,
            a,
            b,
-           _eq,
-           _lt,
+           _branch_flags.eq,
+           _branch_flags.lt,
            exp_eq,
            exp_lt
            ));
@@ -95,7 +93,7 @@ module tb_comparator
     // Holds for every input pair regardless of the expected values: a value
     // cannot be both equal to and less than another. A DUT that asserts both
     // is broken even if the individual bit under test happened to match.
-    if (_eq && _lt) begin
+    if (_branch_flags.eq && _branch_flags.lt) begin
       fail(what, $sformatf("eq and lt both asserted: sngd=%b a=0x%08h b=0x%08h", sgn, a, b));
     end
   endtask

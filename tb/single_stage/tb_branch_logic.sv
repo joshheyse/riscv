@@ -46,8 +46,7 @@ module tb_branch_logic
   localparam funct3_t F3Bltu = 3'b110;
   localparam funct3_t F3Bgeu = 3'b111;
 
-  logic          _branch;
-  logic          _jump;
+  flow_t         _flow;
   branch_flags_t _flags;
   funct3_t       _funct3;
   pc_src_t       _pc_src;
@@ -57,8 +56,7 @@ module tb_branch_logic
   int unsigned   printed = 0;
 
   branch_logic _dut (
-    .branch(_branch),
-    .jump(_jump),
+    .flow(_flow),
     .flags(_flags),
     .funct3(_funct3),
     .pc_src(_pc_src)
@@ -71,11 +69,10 @@ module tb_branch_logic
   // the end so `make sim` still exits non-zero.
   task automatic check(input logic br, input logic jmp, input logic f_eq, input logic f_lt,
                        input funct3_t f3, input pc_src_t exp, input string what);
-    _branch  = br;
-    _jump    = jmp;
+    _flow     = jmp ? FLOW_JUMP : (br ? FLOW_BRANCH : FLOW_NONE);
     _flags.eq = f_eq;
     _flags.lt = f_lt;
-    _funct3  = f3;
+    _funct3   = f3;
     #1;
     checks++;
     if (_pc_src !== exp) begin

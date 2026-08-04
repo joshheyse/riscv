@@ -109,6 +109,12 @@ module tb_controller
     return op == OP_JAL || op == OP_JALR;
   endfunction
 
+  function automatic flow_t exp_flow(input logic [6:0] op);
+    if (exp_branch(op)) return FLOW_BRANCH;
+    if (exp_jump(op)) return FLOW_JUMP;
+    return FLOW_NONE;
+  endfunction
+
   function automatic imm_format_t exp_imm_format(input logic [6:0] op);
     case (op)
       OP_I_ALU, OP_LOAD, OP_JALR: return IMM_I;
@@ -341,6 +347,8 @@ module tb_controller
             op, funct3
         ) || _ctrl.writeback_result !== exp_writeback_result(
             op
+        ) || _ctrl.flow !== exp_flow(
+            op
         ) || _ctrl.sub_arith !== exp_sub_arith(
             op, funct3, funct7_bit5
         ) || _ctrl.pc_src !== exp_pc_src(
@@ -360,22 +368,23 @@ module tb_controller
         $display("  FAIL %-38s instr=0x%08h op=%s f3=%03b f7b5=%b eq=%b lt=%b", what, word,
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
-            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr_en, _ctrl.csr_write_en,
             _ctrl.csr_op.name(), _ctrl.csr_use_zimm, _ctrl.imm_format.name(),
             _ctrl.alu_operands.name(), _ctrl.execute_result.name(), _ctrl.alu_op.name(),
-            _ctrl.writeback_result.name(), _ctrl.sub_arith, _ctrl.pc_src.name(), _ctrl.branch_sgnd,
-            _ctrl.mem_size.name(), _ctrl.mem_unsigned, _ctrl.clear_pc_lsb, _ctrl.illegal_instr);
+            _ctrl.writeback_result.name(), _ctrl.flow.name(), _ctrl.sub_arith, _ctrl.pc_src.name(),
+            _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned, _ctrl.clear_pc_lsb,
+            _ctrl.illegal_instr);
         $display(
-            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
             ).name(), exp_csr_use_zimm(op, funct3), exp_imm_format(op).name(), exp_alu_operands(op
             ).name(), exp_execute_result(op).name(), exp_alu_op(op, funct3).name(),
-            exp_writeback_result(op).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(
-            op, eq, lt, funct3).name(), exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3
-            ).name(), exp_mem_unsigned(op, funct3), exp_clear_pc_lsb(op), exp_illegal_instr(
-            op, funct3, funct7));
+            exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
+            op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
+            funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),
+            exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3, funct7));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");
