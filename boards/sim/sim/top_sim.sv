@@ -145,7 +145,9 @@ module top_sim
     forever begin
       uart_getc(ch);
       $write("%c", ch);
-      $display("top_sim: uart byte 0x%02h", ch);
+      if ($test$plusargs("uart-bytes")) begin
+        $display("top_sim: uart byte 0x%02h", ch);
+      end
     end
   end
 
