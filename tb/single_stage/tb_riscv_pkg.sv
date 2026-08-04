@@ -68,6 +68,8 @@ module tb_riscv_pkg
     expect_int($bits(cbie_t), 2, "cbie_t width");
     expect_int($bits(ext_status_t), 2, "ext_status_t width");
     expect_int($bits(mpp_t), 2, "mpp_t width");
+    expect_int($bits(sys_imm_t), 12, "sys_imm_t width");
+    expect_int($bits(imm12_u), 12, "imm12_u width");
 
     expect_bits(32'(CBIE_NONE), 32'h0000_0000, "CBIE none encoding");
     expect_bits(32'(CBIE_FLUSH), 32'h0000_0001, "CBIE flush encoding");
@@ -86,6 +88,10 @@ module tb_riscv_pkg
     expect_bits(32'(MTVEC_MODE_DIRECT), 32'h0000_0000, "mtvec direct encoding");
     expect_bits(32'(MTVEC_MODE_VECTORED), 32'h0000_0001, "mtvec vectored encoding");
     expect_bits(32'(MCAUSE_ILLEGAL_INSTR), 32'h0000_0002, "illegal instruction cause encoding");
+    expect_bits(32'(SYS_IMM_ECALL), 32'h0000_0000, "SYS_IMM_ECALL encoding");
+    expect_bits(32'(SYS_IMM_EBREAK), 32'h0000_0001, "SYS_IMM_EBREAK encoding");
+    expect_bits(32'(SYS_IMM_WFI), 32'h0000_0105, "SYS_IMM_WFI encoding");
+    expect_bits(32'(SYS_IMM_MRET), 32'h0000_0302, "SYS_IMM_MRET encoding");
 
     expect_bits(32'(CSR_SSTATUS), 32'h0000_0100, "CSR_SSTATUS address");
     expect_bits(32'(CSR_SENVCFG), 32'h0000_010a, "CSR_SENVCFG address");

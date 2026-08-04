@@ -107,6 +107,18 @@ package riscv_pkg;
     SYS_F3_RCI  = 3'b111   // csrrci
   } sys_funct3_t;
 
+  typedef enum logic [11:0] {
+    SYS_IMM_ECALL  = 12'h000,
+    SYS_IMM_EBREAK = 12'h001,
+    SYS_IMM_WFI    = 12'h105,
+    SYS_IMM_MRET   = 12'h302
+  } sys_imm_t;
+
+  typedef union packed {
+    logic [11:0] raw;  // the bits, uninterpreted
+    sys_imm_t    sys;  // SYSTEM privileged instruction immediate
+  } imm12_u;
+
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
     alu_op_t     alu;  // OP, OP-IMM
@@ -127,11 +139,11 @@ package riscv_pkg;
   } r_type_t;
 
   typedef struct packed {
-    logic [11:0] imm;     // [31:20]
-    logic [4:0]  rs1;     // [19:15]
-    funct3_u     funct3;  // [14:12]
-    logic [4:0]  rd;      // [11:7]
-    opcode_t     opcode;  // [6:0]
+    imm12_u     imm;     // [31:20]
+    logic [4:0] rs1;     // [19:15]
+    funct3_u    funct3;  // [14:12]
+    logic [4:0] rd;      // [11:7]
+    opcode_t    opcode;  // [6:0]
   } i_type_t;
 
   typedef union packed {
