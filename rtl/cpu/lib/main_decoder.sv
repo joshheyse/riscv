@@ -117,7 +117,7 @@ module main_decoder
         alu_result_src = ALU_RES_ALU;
       end
 
-      OP_FENCE: begin
+      OP_FENCE, OP_SYSTEM: begin
         main_op_illegal = 1'b0;
       end
 

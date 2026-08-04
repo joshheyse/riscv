@@ -22,6 +22,7 @@ module csr_decoder
     if (instr.r.opcode == OP_SYSTEM) begin
       case (instr.r.funct3.csr)
         CSR_F3_PRIV: begin
+          csr_op_illegal = 1'b1;
         end
         CSR_F3_RW: begin
           csr_en = 1'b1;
