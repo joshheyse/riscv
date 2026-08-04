@@ -104,7 +104,7 @@ module tb_core_trap
     expect_word(_dut._trap.payload.mcause, 32'h0000_0002, "trap mcause is illegal instruction");
     expect_word(_dut._trap.payload.mtval, 32'h0010_0073, "trap mtval is illegal instruction bits");
     expect_word(_dut._trap.payload.pc, 32'h0000_0000, "temporary zero mtvec traps to zero");
-    expect_bit(_halted, 1'b0, "trap is visible before halt flop updates");
+    expect_bit(_halted, 1'b0, "trap is visible before retirement");
 
     @(posedge _clk);
     #1;
@@ -114,9 +114,7 @@ module tb_core_trap
 
     repeat (3) @(posedge _clk);
     #1;
-    expect_bit(_halted, 1'b1, "retired trap sets halted");
-    expect_bit(_dut._pipe_ctrl.fetch == STAGE_HOLD, 1'b1, "halt holds fetch");
-    expect_bit(_ibus.req.valid, 1'b0, "halt suppresses fetch request");
+    expect_bit(_halted, 1'b0, "retired trap does not halt");
     expect_bit(_dut._if_id.valid, 1'b0, "trap clears IF/ID");
     expect_bit(_dut._id_ex.valid, 1'b0, "trap clears ID/EX");
     expect_bit(_dut._ex_mem.valid, 1'b0, "trap clears EX/MEM");

@@ -95,8 +95,8 @@ module tb_pipeline_control
     _flow.take_trap = 1'b1;
     _flow.flush_if_id = 1'b1;
     _flow.flush_id_ex = 1'b1;
-    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
-                   "new trap drains older stages");
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH,
+                   "retired trap flushes pipe");
 
     clear_inputs();
     _trap_in_flight = 1'b1;

@@ -39,7 +39,7 @@ module top_sim
                           && _sim_halt_selected;
 
 `ifdef CPU_DESIGN_pipelined
-  assign _retire = _core._ex_mem.valid && !_core._mem_wait;
+  assign _retire = _core._ex_mem.valid && !_core._dbus_wait;
 `else
   assign _retire = _core._retire;
 `endif

@@ -24,6 +24,7 @@ module tb_csr_file
   mtval_t      _trap_mtval;
   csr_data_t   _csr_read_data;
   logic        _illegal_csr;
+  csr_status_t _status;
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -40,7 +41,8 @@ module tb_csr_file
     .trap_mcause(_trap_mcause),
     .trap_mtval(_trap_mtval),
     .csr_read_data(_csr_read_data),
-    .illegal_csr(_illegal_csr)
+    .illegal_csr(_illegal_csr),
+    .status(_status)
   );
 
   initial begin
@@ -188,6 +190,10 @@ module tb_csr_file
     // Normal writable CSR path.
     write_csr(CSR_MTVEC, 32'h0000_1001, "write mtvec");
     read_csr(CSR_MTVEC, 32'h0000_1001, "read mtvec");
+    expect_bits(_status.mtvec, 32'h0000_1001, "status exposes mtvec");
+    expect_bits(_status.mstatus, 32'h0000_0000, "status exposes mstatus");
+    expect_bits(_status.mie, 32'h0000_0000, "status exposes mie");
+    expect_bits(_status.mip, 32'h0000_0000, "status exposes mip");
 
     write_csr(CSR_MEPC, 32'h0000_0040, "write mepc");
     read_csr(CSR_MEPC, 32'h0000_0040, "read mepc");

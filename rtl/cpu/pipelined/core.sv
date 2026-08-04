@@ -71,13 +71,11 @@ module core
   flow_ctrl_t     _flow;
 
   csr_pipe_t      _csr;
-  mtvec_t         _mtvec;
+  csr_status_t    _csr_status;
 
   pipeline_ctrl_t _pipe_ctrl;
   logic           _retire_trap;
   logic           _trap_in_flight;
-
-  assign _mtvec = '0;
 
   assign _id_branch_flags = '0;
 
@@ -112,7 +110,8 @@ module core
     .trap_mcause(_mem_wb.trap.payload.mcause),
     .trap_mtval(_mem_wb.trap.payload.mtval),
     .csr_read_data(_csr.read_data),
-    .illegal_csr(_csr.illegal)
+    .illegal_csr(_csr.illegal),
+    .status(_csr_status)
   );
 
   // Pipeline control
@@ -128,13 +127,13 @@ module core
     .illegal_instr(_if_id.valid && _ctrl.illegal_instr),
     .instr(_if_id.instr),
     .pc(_if_id.pc),
-    .mtvec(_mtvec),
+    .mtvec(_csr_status.mtvec),
     .trap(_trap)
   );
 
   flow_control _flow_control (
     .redirect(_redirect),
-    .trap(_trap),
+    .trap(_mem_wb.trap),
     .flow(_flow)
   );
 
@@ -347,12 +346,6 @@ module core
       _id_ex  <= '0;
       _ex_mem <= '0;
       _mem_wb <= '0;
-    end else if (_mem_wb.valid && _mem_wb.trap.valid) begin
-      halted  <= 1'b1;
-      _if_id  <= '0;
-      _id_ex  <= '0;
-      _ex_mem <= '0;
-      _mem_wb <= '0;
     end else begin
       _if_id  <= _if_id_next;
       _id_ex  <= _id_ex_next;
@@ -365,7 +358,7 @@ module core
   assign _unused_pc = _ex_mem.pc;
 
   logic _unused_csr;
-  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.payload.pc};
+  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.payload.pc, _csr_status.mstatus, _csr_status.mie, _csr_status.mip};
 
   logic _unused_ex_branch_flags;
   assign _unused_ex_branch_flags = |{_ex_branch_flags};

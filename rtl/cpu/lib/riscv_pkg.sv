@@ -423,5 +423,11 @@ package riscv_pkg;
     trap_t payload;  // architectural trap payload
   } trap_stage_t;
 
+  typedef struct packed {
+    mtvec_t   mtvec;
+    mstatus_t mstatus;
+    mie_t     mie;
+    mip_t     mip;
+  } csr_status_t;
 
 endpackage

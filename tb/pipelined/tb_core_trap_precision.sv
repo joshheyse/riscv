@@ -126,25 +126,26 @@ module tb_core_trap_precision
 
     @(posedge _clk);
     #1;
-    expect_bit(_dut._fetched.valid, 1'b0, {what, " response is squashed"});
-    expect_word(_dut._fetched.instr.raw, 32'h0000_0000, {what, " squashed instr does not enter IFU output"});
+    expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response may enter IFU output"});
+    expect_word(_dut._fetched.instr.raw, instr, {what, " speculative response is visible before trap redirect"});
 
     @(negedge _clk);
     _ibus.rsp = '0;
   endtask
 
-  task automatic drain_until_halted();
+  task automatic drain_until_trap_entry();
     int unsigned waits;
     waits = 0;
 
     #1;
-    while (!_halted && waits < 20) begin
+    while ((_dut._csr_file._mcause != 32'h0000_0002) && waits < 20) begin
       waits++;
       @(posedge _clk);
       #1;
     end
 
-    expect_bit(_halted, 1'b1, "trap eventually halts at retirement");
+    expect_bit(_halted, 1'b0, "trap entry does not halt");
+    expect_word(_dut._csr_file._mcause, 32'h0000_0002, "trap eventually writes mcause");
   endtask
 
   initial begin
@@ -164,7 +165,7 @@ module tb_core_trap_precision
     fetch_instr(32'h0000_0004, EBREAK, "illegal instruction");
     offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, "younger addi");
 
-    drain_until_halted();
+    drain_until_trap_entry();
 
     expect_word(_dut._reg_file._regs[1], 32'h0000_0007, "older instruction commits before trap");
     expect_word(_dut._reg_file._regs[2], 32'h0000_0000, "younger instruction is squashed");

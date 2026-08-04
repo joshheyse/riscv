@@ -44,7 +44,13 @@ module pipeline_control
           ex_mem: STAGE_HOLD,
           mem_wb: STAGE_HOLD
       };
-    end else if (flow.take_trap || trap_in_flight) begin
+    end else if (flow.take_trap) begin
+      pipe_ctrl.fetch  = STAGE_HOLD;
+      pipe_ctrl.if_id  = STAGE_FLUSH;
+      pipe_ctrl.id_ex  = STAGE_FLUSH;
+      pipe_ctrl.ex_mem = STAGE_FLUSH;
+      pipe_ctrl.mem_wb = STAGE_FLUSH;
+    end else if (trap_in_flight) begin
       pipe_ctrl.fetch = STAGE_HOLD;
       pipe_ctrl.if_id = STAGE_FLUSH;
     end else if (flow.flush_if_id || flow.flush_id_ex) begin

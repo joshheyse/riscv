@@ -14,8 +14,9 @@ module csr_file
   input mcause_t   trap_mcause,
   input mtval_t    trap_mtval,
 
-  output csr_data_t csr_read_data,
-  output logic      illegal_csr
+  output csr_data_t   csr_read_data,
+  output logic        illegal_csr,
+  output csr_status_t status
 );
 
   mstatus_t _mstatus;
@@ -32,6 +33,8 @@ module csr_file
   localparam mimpid_t    MIMPID    = '0;
   localparam mhartid_t   MHARTID   = '0;
   // verilog_format: on
+
+  assign status = '{mtvec: _mtvec, mstatus: _mstatus, mie: _mie, mip: _mip};
 
   always_ff @(posedge clk) begin
     if (rst) begin
