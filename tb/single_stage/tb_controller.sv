@@ -64,7 +64,7 @@ module tb_controller
   function automatic logic exp_csr_en(input logic [6:0] op, input funct3_t funct3);
     if (op != OP_SYSTEM) return 1'b0;
     case (funct3)
-      CSR_F3_RW, CSR_F3_RS, CSR_F3_RC, CSR_F3_RWI, CSR_F3_RSI, CSR_F3_RCI: return 1'b1;
+      SYS_F3_RW, SYS_F3_RS, SYS_F3_RC, SYS_F3_RWI, SYS_F3_RSI, SYS_F3_RCI: return 1'b1;
       default: return 1'b0;
     endcase
   endfunction
@@ -82,8 +82,8 @@ module tb_controller
                                             input logic [4:0] rs1);
     if (!exp_csr_en(op, funct3)) return 1'b0;
     case (funct3)
-      CSR_F3_RW, CSR_F3_RWI: return 1'b1;
-      CSR_F3_RS, CSR_F3_RC, CSR_F3_RSI, CSR_F3_RCI: return rs1 != 5'd0;
+      SYS_F3_RW, SYS_F3_RWI: return 1'b1;
+      SYS_F3_RS, SYS_F3_RC, SYS_F3_RSI, SYS_F3_RCI: return rs1 != 5'd0;
       default: return 1'b0;
     endcase
   endfunction
@@ -91,14 +91,14 @@ module tb_controller
   function automatic csr_op_t exp_csr_op(input logic [6:0] op, input funct3_t funct3);
     if (op != OP_SYSTEM) return CSR_OP_RW;
     case (funct3)
-      CSR_F3_RS, CSR_F3_RSI: return CSR_OP_RS;
-      CSR_F3_RC, CSR_F3_RCI: return CSR_OP_RC;
+      SYS_F3_RS, SYS_F3_RSI: return CSR_OP_RS;
+      SYS_F3_RC, SYS_F3_RCI: return CSR_OP_RC;
       default: return CSR_OP_RW;
     endcase
   endfunction
 
   function automatic logic exp_csr_use_zimm(input logic [6:0] op, input funct3_t funct3);
-    return op == OP_SYSTEM && (funct3 == CSR_F3_RWI || funct3 == CSR_F3_RSI || funct3 == CSR_F3_RCI);
+    return op == OP_SYSTEM && (funct3 == SYS_F3_RWI || funct3 == SYS_F3_RSI || funct3 == SYS_F3_RCI);
   endfunction
 
   function automatic logic exp_branch(input logic [6:0] op);
@@ -289,7 +289,7 @@ module tb_controller
     if (op != OP_SYSTEM) return 1'b0;
 
     case (funct3)
-      CSR_F3_RW, CSR_F3_RS, CSR_F3_RC, CSR_F3_RWI, CSR_F3_RSI, CSR_F3_RCI: return 1'b0;
+      SYS_F3_RW, SYS_F3_RS, SYS_F3_RC, SYS_F3_RWI, SYS_F3_RSI, SYS_F3_RCI: return 1'b0;
       default: return 1'b1;
     endcase
   endfunction

@@ -98,21 +98,21 @@ package riscv_pkg;
   } mem_funct3_t;
 
   typedef enum logic [2:0] {
-    CSR_F3_PRIV = 3'b000,  // ecall, ebreak, mret, wfi, etc.
-    CSR_F3_RW   = 3'b001,  // csrrw
-    CSR_F3_RS   = 3'b010,  // csrrs
-    CSR_F3_RC   = 3'b011,  // csrrc
-    CSR_F3_RWI  = 3'b101,  // csrrwi
-    CSR_F3_RSI  = 3'b110,  // csrrsi
-    CSR_F3_RCI  = 3'b111   // csrrci
-  } csr_funct3_t;
+    SYS_F3_PRIV = 3'b000,  // ecall, ebreak, mret, wfi, etc.
+    SYS_F3_RW   = 3'b001,  // csrrw
+    SYS_F3_RS   = 3'b010,  // csrrs
+    SYS_F3_RC   = 3'b011,  // csrrc
+    SYS_F3_RWI  = 3'b101,  // csrrwi
+    SYS_F3_RSI  = 3'b110,  // csrrsi
+    SYS_F3_RCI  = 3'b111   // csrrci
+  } sys_funct3_t;
 
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
     alu_op_t     alu;  // OP, OP-IMM
     br_funct3_t  br;   // BRANCH
     mem_funct3_t mem;  // LOAD, STORE
-    csr_funct3_t csr;  // SYSTEM CSR
+    sys_funct3_t sys;  // SYSTEM
   } funct3_u;
 
   // --------------------------------------------------- instruction formats --
@@ -199,6 +199,22 @@ package riscv_pkg;
     CSR_OP_RS,
     CSR_OP_RC
   } csr_op_t;
+
+  typedef struct packed {
+    logic    en;
+    logic    write_en;
+    csr_op_t op;
+    logic    use_zimm;
+  } csr_ctrl_t;
+
+  typedef struct packed {
+    logic en;
+    logic mret;
+    logic ecall;
+    logic ebreak;
+    logic wfi;
+    logic illegal;
+  } system_ctrl_t;
 
   // Decoded control-flow class. Branch and jump are mutually exclusive; the
   // branch condition itself is resolved later from funct3 and branch flags.

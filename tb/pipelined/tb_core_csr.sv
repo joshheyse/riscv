@@ -43,7 +43,7 @@ module tb_core_csr
   end
 
   function automatic instr_t csr_instr(input csr_addr_t csr, input regaddr_t rs1_or_zimm,
-                                       input csr_funct3_t funct3, input regaddr_t rd);
+                                       input sys_funct3_t funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
@@ -68,13 +68,13 @@ module tb_core_csr
       _program[i] = Nop;
     end
 
-    _program[0]  = csr_instr(CSR_MSTATUS, 5'd1, CSR_F3_RW, 5'd5);
-    _program[3]  = csr_instr(CSR_MSTATUS, 5'd2, CSR_F3_RS, 5'd6);
-    _program[6]  = csr_instr(CSR_MSTATUS, 5'd3, CSR_F3_RC, 5'd7);
-    _program[9]  = csr_instr(CSR_MSTATUS, 5'd31, CSR_F3_RWI, 5'd8);
-    _program[12] = csr_instr(CSR_MSTATUS, 5'd0, CSR_F3_RSI, 5'd9);
-    _program[15] = csr_instr(CSR_MSTATUS, 5'd0, CSR_F3_RC, 5'd10);
-    _program[18] = csr_instr(CSR_MSTATUS, 5'd4, CSR_F3_RW, 5'd0);
+    _program[0]  = csr_instr(CSR_MSTATUS, 5'd1, SYS_F3_RW, 5'd5);
+    _program[3]  = csr_instr(CSR_MSTATUS, 5'd2, SYS_F3_RS, 5'd6);
+    _program[6]  = csr_instr(CSR_MSTATUS, 5'd3, SYS_F3_RC, 5'd7);
+    _program[9]  = csr_instr(CSR_MSTATUS, 5'd31, SYS_F3_RWI, 5'd8);
+    _program[12] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RSI, 5'd9);
+    _program[15] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RC, 5'd10);
+    _program[18] = csr_instr(CSR_MSTATUS, 5'd4, SYS_F3_RW, 5'd0);
   end
 
   assign _dbus.rsp.ready = _dbus.req.valid;
