@@ -46,10 +46,8 @@ module tb_main_decoder
   logic            _branch;
   logic            _jump;
   logic            _alu_op;
-  mem_size_t       _mem_size;
-  logic            _mem_unsigned;
   logic            _clear_pc_lsb;
-  logic            _illegal_main;
+  logic            _main_op_illegal;
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
@@ -66,10 +64,8 @@ module tb_main_decoder
     .branch(_branch),
     .jump(_jump),
     .alu_op(_alu_op),
-    .mem_size(_mem_size),
-    .mem_unsigned(_mem_unsigned),
     .clear_pc_lsb(_clear_pc_lsb),
-    .illegal_main(_illegal_main)
+    .main_op_illegal(_main_op_illegal)
   );
 
   // ------------------------------------------------------------ expected --
@@ -217,31 +213,14 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic mem_size_t exp_mem_size(input logic [6:0] op, input funct3_t funct3);
-    if (op != 7'b0000011 && op != 7'b0100011) return MEM_SIZE_WORD;
-    case (funct3)
-      3'b000, 3'b100: return MEM_SIZE_BYTE;
-      3'b001, 3'b101: return MEM_SIZE_HALF;
-      default:        return MEM_SIZE_WORD;
-    endcase
-  endfunction
-
-  function automatic logic exp_mem_unsigned(input logic [6:0] op, input funct3_t funct3);
-    return op == 7'b0000011 && (funct3 == 3'b100 || funct3 == 3'b101);
-  endfunction
-
-  function automatic logic mem_unsigned_matters(input logic [6:0] op);
-    return op == 7'b0000011;
-  endfunction
-
   function automatic logic exp_clear_pc_lsb(input logic [6:0] op);
     return op == 7'b1100111;
   endfunction
 
-  function automatic logic exp_illegal_main(input logic [6:0] op);
+  function automatic logic exp_main_op_illegal(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111,
-      7'b0110111, 7'b0010111, 7'b0001111:
+      7'b0110111, 7'b0010111, 7'b0001111, 7'b1110011:
       return 1'b0;
       default: return 1'b1;
     endcase
@@ -289,15 +268,6 @@ module tb_main_decoder
       ALU_SRC_RS1_IMM: return "ALU_SRC_RS1_IMM";
       ALU_SRC_PC_IMM:  return "ALU_SRC_PC_IMM";
       default:         return $sformatf("<%02b>", s);
-    endcase
-  endfunction
-
-  function automatic string mem_size_name(input mem_size_t s);
-    case (s)
-      MEM_SIZE_BYTE: return "MEM_SIZE_BYTE";
-      MEM_SIZE_HALF: return "MEM_SIZE_HALF";
-      MEM_SIZE_WORD: return "MEM_SIZE_WORD";
-      default:       return $sformatf("<%02b>", s);
     endcase
   endfunction
 
@@ -365,9 +335,7 @@ module tb_main_decoder
     chk_bit(_jump, exp_jump(op), 1'b1, who, "jump");
     chk_bit(_alu_op, exp_alu_op(op), alu_op_matters(op), who, "alu_op");
     chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
-    chk_bit(_illegal_main, exp_illegal_main(op), 1'b1, who, "illegal_main");
-    chk_bit(_mem_unsigned, exp_mem_unsigned(op, _instr.r.funct3.raw), mem_unsigned_matters(op), who,
-            "mem_unsigned");
+    chk_bit(_main_op_illegal, exp_main_op_illegal(op), 1'b1, who, "main_op_illegal");
 
     chk_enum(_imm_src, exp_imm_src(op), imm_src_matters(op), who, "imm_src", imm_name(_imm_src),
              imm_name(exp_imm_src(op)));
@@ -378,9 +346,6 @@ module tb_main_decoder
              exp_alu_result_src(op)));
     chk_enum({2'b0, _result_src}, {2'b0, exp_result_src(op)}, result_src_matters(op), who,
              "result_src", result_name(_result_src), result_name(exp_result_src(op)));
-    chk_enum({1'b0, _mem_size}, {1'b0, exp_mem_size(op, _instr.r.funct3.raw)}, 1'b1, who,
-             "mem_size", mem_size_name(_mem_size), mem_size_name(
-             exp_mem_size(op, _instr.r.funct3.raw)));
   endtask
 
   // ---------------------------------------------------------------- tests --

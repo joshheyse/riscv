@@ -6,7 +6,10 @@
 # recursively to build the cross-file symbol table.
 
 source_dirs:
-  - rtl
+  - rtl/lib
+  - rtl/cpu/lib
+  - rtl/cpu/pipelined
+  - rtl/periph
   - boards
   - tb
 
@@ -42,10 +45,9 @@ verilator:
       - -Irtl/lib
       - -Irtl/periph
       - -Irtl/cpu/lib
-      - -Irtl/cpu/single_stage
       - -Irtl/cpu/pipelined
       - -Iboards/lfe5um5g_85f_evn/rtl
-      - -Itb/single_stage
+      - -Itb/pipelined
       - rtl/cpu/lib/riscv_pkg.sv
       - rtl/cpu/pipelined/pipelined_pkg.sv
       - boards/lfe5um5g_85f_evn/rtl/board_constants_pkg.sv

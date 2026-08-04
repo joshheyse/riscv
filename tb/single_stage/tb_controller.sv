@@ -156,11 +156,26 @@ module tb_controller
   endfunction
 
   function automatic mem_size_t exp_mem_size(input logic [6:0] op, input funct3_t funct3);
-    if (op != OP_LOAD && op != OP_STORE) return MEM_SIZE_WORD;
-    case (funct3)
-      3'b000, 3'b100: return MEM_SIZE_BYTE;
-      3'b001, 3'b101: return MEM_SIZE_HALF;
-      default:        return MEM_SIZE_WORD;
+    case (op)
+      OP_LOAD: begin
+        case (funct3)
+          3'b000, 3'b100: return MEM_SIZE_BYTE;
+          3'b001, 3'b101: return MEM_SIZE_HALF;
+          default:        return MEM_SIZE_WORD;
+        endcase
+      end
+
+      OP_STORE: begin
+        case (funct3)
+          3'b000:  return MEM_SIZE_BYTE;
+          3'b001:  return MEM_SIZE_HALF;
+          default: return MEM_SIZE_WORD;
+        endcase
+      end
+
+      default: begin
+        return MEM_SIZE_WORD;
+      end
     endcase
   endfunction
 
@@ -178,8 +193,8 @@ module tb_controller
 
   function automatic logic exp_main_illegal(input logic [6:0] op);
     case (op)
-      OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_FENCE:
-      return 1'b0;
+      OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_FENCE,
+      OP_SYSTEM: return 1'b0;
       default: return 1'b1;
     endcase
   endfunction
@@ -204,9 +219,41 @@ module tb_controller
     endcase
   endfunction
 
+  function automatic logic exp_mem_illegal(input logic [6:0] op, input funct3_t funct3);
+    case (op)
+      OP_LOAD: begin
+        case (funct3)
+          3'b000, 3'b001, 3'b010, 3'b100, 3'b101: return 1'b0;
+          default:                                return 1'b1;
+        endcase
+      end
+
+      OP_STORE: begin
+        case (funct3)
+          3'b000, 3'b001, 3'b010: return 1'b0;
+          default:                return 1'b1;
+        endcase
+      end
+
+      default: begin
+        return 1'b0;
+      end
+    endcase
+  endfunction
+
+  function automatic logic exp_csr_illegal(input logic [6:0] op, input funct3_t funct3);
+    if (op != OP_SYSTEM) return 1'b0;
+
+    case (funct3)
+      CSR_F3_RW, CSR_F3_RS, CSR_F3_RC, CSR_F3_RWI, CSR_F3_RSI, CSR_F3_RCI: return 1'b0;
+      default: return 1'b1;
+    endcase
+  endfunction
+
   function automatic logic exp_illegal_instr(input logic [6:0] op, input funct3_t funct3,
                                              input logic [6:0] funct7);
-    return exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7);
+    return exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) || exp_mem_illegal(
+        op, funct3) || exp_csr_illegal(op, funct3);
   endfunction
 
   task automatic check(input instr_t word, input logic eq, input logic lt, input string what);

@@ -96,11 +96,22 @@ package riscv_pkg;
     MEM_HALFU = 3'b101   // LHU
   } mem_funct3_t;
 
+  typedef enum logic [2:0] {
+    CSR_F3_PRIV = 3'b000,  // ecall, ebreak, mret, wfi, etc.
+    CSR_F3_RW   = 3'b001,  // csrrw
+    CSR_F3_RS   = 3'b010,  // csrrs
+    CSR_F3_RC   = 3'b011,  // csrrc
+    CSR_F3_RWI  = 3'b101,  // csrrwi
+    CSR_F3_RSI  = 3'b110,  // csrrsi
+    CSR_F3_RCI  = 3'b111   // csrrci
+  } csr_funct3_t;
+
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
     alu_select_t alu;  // OP, OP-IMM
     br_funct3_t  br;   // BRANCH
     mem_funct3_t mem;  // LOAD, STORE
+    csr_funct3_t csr;  // SYSTEM CSR
   } funct3_u;
 
   // --------------------------------------------------- instruction formats --
@@ -180,6 +191,12 @@ package riscv_pkg;
     MEM_SIZE_WORD
   } mem_size_t;
 
+  typedef enum logic [1:0] {
+    CSR_OP_RW,
+    CSR_OP_RS,
+    CSR_OP_RC
+  } csr_op_t;
+
   typedef struct packed {
     logic            reg_write_en;
     logic            mem_write_en;
@@ -195,6 +212,10 @@ package riscv_pkg;
     logic            mem_unsigned;
     logic            clear_pc_lsb;
     logic            illegal_instr;
+    logic            csr_en;
+    logic            csr_write_en;
+    csr_op_t         csr_op;
+    logic            csr_use_zimm;
   } control_t;
 
   typedef enum logic [1:0] {
@@ -348,7 +369,7 @@ package riscv_pkg;
   } mtvec_mode_t;
 
   typedef struct packed {
-    logic [29:0] base;  // [31:2] trap-vector base address
+    logic [29:0] base;  // [31:2] trap-vector base addres
     mtvec_mode_t mode;  // [1:0] trap-vector mode
   } mtvec_t;
 

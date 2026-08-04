@@ -23,7 +23,7 @@ module alu_decoder
   input  instr_u      instr,
   output alu_select_t alu_select,
   output logic        sub_arith,
-  output logic        illegal_alu
+  output logic        alu_op_illegal
 );
 
   assign alu_select = alu_op ? instr.r.funct3.alu : ALU_ADDSUB;
@@ -35,30 +35,30 @@ module alu_decoder
   assign _funct7_alt  = instr.r.funct7 == 7'b0100000;
 
   always_comb begin
-    sub_arith   = 1'b0;
-    illegal_alu = 1'b0;
+    sub_arith = 1'b0;
+    alu_op_illegal = 1'b0;
     if (alu_op) begin
-      unique case (instr.r.opcode)
+      case (instr.r.opcode)
         OP_R: begin
-          unique case (instr.r.funct3.alu)
+          case (instr.r.funct3.alu)
             ALU_ADDSUB, ALU_SRL_SRA: begin
-              illegal_alu = !(_funct7_zero || _funct7_alt);
-              sub_arith   = instr.r.funct7[5];
+              alu_op_illegal = !(_funct7_zero || _funct7_alt);
+              sub_arith = instr.r.funct7[5];
             end
             default: begin
-              illegal_alu = !_funct7_zero;
+              alu_op_illegal = !_funct7_zero;
             end
           endcase
         end
 
         OP_I_ALU: begin
-          unique case (instr.r.funct3.alu)
+          case (instr.r.funct3.alu)
             ALU_SLL: begin
-              illegal_alu = !_funct7_zero;
+              alu_op_illegal = !_funct7_zero;
             end
             ALU_SRL_SRA: begin
-              illegal_alu = !(_funct7_zero || _funct7_alt);
-              sub_arith   = instr.r.funct7[5];
+              alu_op_illegal = !(_funct7_zero || _funct7_alt);
+              sub_arith = instr.r.funct7[5];
             end
             default: begin
             end
@@ -66,7 +66,7 @@ module alu_decoder
         end
 
         default: begin
-          illegal_alu = 1'b1;
+          alu_op_illegal = 1'b1;
         end
       endcase
     end

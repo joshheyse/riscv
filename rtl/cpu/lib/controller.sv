@@ -21,14 +21,22 @@ module controller
   logic _branch;
   logic _jump;
   logic _alu_op;
-  logic _illegal_main;
-  logic _illegal_alu;
-  assign ctrl.branch_sgnd   = ~instr.r.funct3.br.unsgnd;
-  assign ctrl.illegal_instr = _illegal_main | _illegal_alu;
+  logic _main_op_illegal;
+  logic _alu_op_illegal;
+  logic _mem_op_illegal;
+  logic _csr_op_illegal;
+  logic _main_reg_write_en;
+  logic _csr_reg_write_en;
+
+  assign ctrl.branch_sgnd = ~instr.r.funct3.br.unsgnd;
+  assign ctrl.illegal_instr = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _csr_op_illegal;
+
+  assign _csr_reg_write_en = ctrl.csr_en && (instr.r.rd != 5'd0);
+  assign ctrl.reg_write_en = _main_reg_write_en | _csr_reg_write_en;
 
   main_decoder _main_decoder (
     .instr(instr),
-    .reg_write_en(ctrl.reg_write_en),
+    .reg_write_en(_main_reg_write_en),
     .mem_write_en(ctrl.mem_write_en),
     .imm_src(ctrl.imm_src),
     .alu_src(ctrl.alu_src),
@@ -37,16 +45,14 @@ module controller
     .branch(_branch),
     .jump(_jump),
     .alu_op(_alu_op),
-    .mem_size(ctrl.mem_size),
-    .mem_unsigned(ctrl.mem_unsigned),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
-    .illegal_main(_illegal_main)
+    .main_op_illegal(_main_op_illegal)
   );
 
   branch_logic _branch_logic (
     .branch(_branch),
-    .jump(_jump),
-    .flags(branch_flags),
+    .jump  (_jump),
+    .flags (branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );
@@ -56,7 +62,23 @@ module controller
     .instr(instr),
     .alu_select(ctrl.alu_select),
     .sub_arith(ctrl.sub_arith),
-    .illegal_alu(_illegal_alu)
+    .alu_op_illegal(_alu_op_illegal)
+  );
+
+  mem_decoder _mem_decoder (
+    .instr(instr),
+    .mem_size(ctrl.mem_size),
+    .mem_unsigned(ctrl.mem_unsigned),
+    .mem_op_illegal(_mem_op_illegal)
+  );
+
+  csr_decoder _csr_decoder (
+    .instr(instr),
+    .csr_en(ctrl.csr_en),
+    .csr_write_en(ctrl.csr_write_en),
+    .csr_op(ctrl.csr_op),
+    .csr_use_zimm(ctrl.csr_use_zimm),
+    .csr_op_illegal(_csr_op_illegal)
   );
 
 endmodule

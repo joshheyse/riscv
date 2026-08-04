@@ -55,7 +55,7 @@ module tb_alu_decoder
   instr_u      _instr;
   alu_select_t _alu_select;
   logic        _sub_arith;
-  logic        _illegal_alu;
+  logic        _alu_op_illegal;
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -66,7 +66,7 @@ module tb_alu_decoder
     .instr(_instr),
     .alu_select(_alu_select),
     .sub_arith(_sub_arith),
-    .illegal_alu(_illegal_alu)
+    .alu_op_illegal(_alu_op_illegal)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -86,14 +86,14 @@ module tb_alu_decoder
     _instr.raw = word;
     #1;
     checks++;
-    if (_alu_select !== exp_sel || _sub_arith !== exp_sub || _illegal_alu !== exp_illegal) begin
+    if (_alu_select !== exp_sel || _sub_arith !== exp_sub || _alu_op_illegal !== exp_illegal) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display(
             "  FAIL %-36s alu_op=%b instr=0x%08h (f7=%07b f3=%03b op=%07b) -> %s/%b illegal=%b, expected %s/%b illegal=%b",
             what, op, word, word[31:25], word[14:12], word[6:0], _alu_select.name(), _sub_arith,
-            _illegal_alu, exp_sel.name(), exp_sub, exp_illegal);
+            _alu_op_illegal, exp_sel.name(), exp_sub, exp_illegal);
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

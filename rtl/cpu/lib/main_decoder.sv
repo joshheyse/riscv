@@ -34,28 +34,24 @@ module main_decoder
   output logic            branch,
   output logic            jump,
   output logic            alu_op,
-  output mem_size_t       mem_size,
-  output logic            mem_unsigned,
   output logic            clear_pc_lsb,
-  output logic            illegal_main
+  output logic            main_op_illegal
 );
 
   always_comb begin
     // Defaults fail safe: an opcode this decoder does not recognise commits
     // nothing -- no register write, no memory write, no change of control flow.
-    reg_write_en   = 1'b0;
-    imm_src        = IMM_I;
-    mem_write_en   = 1'b0;
-    alu_src        = ALU_SRC_RS1_RS2;
-    alu_result_src = ALU_RES_ALU;
-    result_src     = RESULT_ALU;
-    branch         = 1'b0;
-    jump           = 1'b0;
-    alu_op         = 1'b0;
-    mem_size       = MEM_SIZE_WORD;
-    mem_unsigned   = 1'b0;
-    clear_pc_lsb   = 1'b0;
-    illegal_main   = 1'b0;
+    reg_write_en    = 1'b0;
+    imm_src         = IMM_I;
+    mem_write_en    = 1'b0;
+    alu_src         = ALU_SRC_RS1_RS2;
+    alu_result_src  = ALU_RES_ALU;
+    result_src      = RESULT_ALU;
+    branch          = 1'b0;
+    jump            = 1'b0;
+    alu_op          = 1'b0;
+    clear_pc_lsb    = 1'b0;
+    main_op_illegal = 1'b0;
 
     case (instr.r.opcode)
       OP_R: begin
@@ -121,47 +117,14 @@ module main_decoder
         alu_result_src = ALU_RES_ALU;
       end
 
-      // ecall/ebreak are not implemented; they fall through to the safe
-      // defaults, same as an illegal opcode.
-      OP_SYSTEM: begin
-        illegal_main = 1'b1;
-      end
-
       OP_FENCE: begin
-        illegal_main = 1'b0;
+        main_op_illegal = 1'b0;
       end
 
       default: begin
-        illegal_main = 1'b1;
+        main_op_illegal = 1'b1;
       end
     endcase
-
-    if ((instr.r.opcode == OP_LOAD) || (instr.r.opcode == OP_STORE)) begin
-      // Invalid store funct3 values are not trapped yet; illegal-instruction handling
-      // will tighten this later.
-      unique case (instr.r.funct3.mem)
-        MEM_BYTE: begin
-          mem_size = MEM_SIZE_BYTE;
-          mem_unsigned = 1'b0;
-        end
-        MEM_HALF: begin
-          mem_size = MEM_SIZE_HALF;
-          mem_unsigned = 1'b0;
-        end
-        MEM_WORD: begin
-          mem_size = MEM_SIZE_WORD;
-          mem_unsigned = 1'b0;
-        end
-        MEM_BYTEU: begin
-          mem_size     = MEM_SIZE_BYTE;
-          mem_unsigned = instr.r.opcode == OP_LOAD ? 1'b1 : 1'b0;
-        end
-        MEM_HALFU: begin
-          mem_size     = MEM_SIZE_HALF;
-          mem_unsigned = instr.r.opcode == OP_LOAD ? 1'b1 : 1'b0;
-        end
-      endcase
-    end
   end
 
 endmodule
