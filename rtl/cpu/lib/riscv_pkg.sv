@@ -18,6 +18,7 @@ package riscv_pkg;
   typedef word_t csr_data_t;  // CSR read/write payload
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
+  typedef logic [4:0] csr_zimm_t;  // CSR immediate operand field
   typedef logic [11:0] csr_addr_t;  // CSR address field
 
   typedef logic [2:0] funct3_t;
