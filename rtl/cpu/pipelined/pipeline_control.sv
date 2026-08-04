@@ -11,10 +11,10 @@ module pipeline_control
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
-  input logic halted,
-  input logic mem_wait,
-  input logic data_stall,
-
+  input  logic           halted,
+  input  logic           mem_wait,
+  input  logic           data_stall,
+  input  flow_ctrl_t     flow,
   output pipeline_ctrl_t pipe_ctrl
 );
 
@@ -43,11 +43,22 @@ module pipeline_control
           ex_mem: STAGE_HOLD,
           mem_wb: STAGE_HOLD
       };
+    end else if (flow.flush_if_id || flow.flush_id_ex) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: STAGE_FLUSH,
+          ex_mem: STAGE_HOLD,
+          mem_wb: STAGE_HOLD
+      };
     end else if (data_stall) begin
       pipe_ctrl.fetch = STAGE_HOLD;
       pipe_ctrl.if_id = STAGE_HOLD;
       pipe_ctrl.id_ex = STAGE_FLUSH;
     end
   end
+
+  logic _unused_flow_bits;
+  assign _unused_flow_bits = |{flow.redirect, flow.take_trap};
 
 endmodule

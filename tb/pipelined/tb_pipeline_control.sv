@@ -15,6 +15,7 @@ module tb_pipeline_control
   logic           _halted;
   logic           _data_stall;
   logic           _mem_wait;
+  flow_ctrl_t     _flow;
   pipeline_ctrl_t _pipe_ctrl;
 
   int unsigned    errors = 0;
@@ -24,6 +25,7 @@ module tb_pipeline_control
     .halted(_halted),
     .mem_wait(_mem_wait),
     .data_stall(_data_stall),
+    .flow(_flow),
     .pipe_ctrl(_pipe_ctrl)
   );
 
@@ -58,6 +60,7 @@ module tb_pipeline_control
     _halted = 1'b0;
     _data_stall = 1'b0;
     _mem_wait = 1'b0;
+    _flow = '0;
   endtask
 
   initial begin

@@ -16,8 +16,7 @@ module tb_ifu
   logic   _clk;
   logic   _rst;
   logic   _fetch_en;
-  logic   _redirect_en;
-  pc_t    _redirect_pc;
+  redirect_t _redirect;
   pc_t    _pc;
   if_id_t _fetched;
 
@@ -33,8 +32,7 @@ module tb_ifu
     .clk(_clk),
     .rst(_rst),
     .fetch_en(_fetch_en),
-    .redirect_en(_redirect_en),
-    .redirect_pc(_redirect_pc),
+    .redirect(_redirect),
     .pc(_pc),
     .fetched(_fetched),
     .ibus(_ibus)
@@ -69,8 +67,7 @@ module tb_ifu
 
     _ibus.rsp = '0;
     _fetch_en = 1'b1;
-    _redirect_en = 1'b0;
-    _redirect_pc = '0;
+    _redirect = '0;
     _rst = 1'b1;
 
     @(posedge _clk);
@@ -141,8 +138,8 @@ module tb_ifu
     expect_word(_pc, 32'h0000_000c, "wrong-path request advances pc before redirect");
 
     @(negedge _clk);
-    _redirect_en = 1'b1;
-    _redirect_pc = 32'h0000_0040;
+    _redirect.valid = 1'b1;
+    _redirect.pc = 32'h0000_0040;
     _ibus.rsp.ready = 1'b0;
     _ibus.rsp.instr.raw = 32'hffff_ffff;
 
@@ -153,7 +150,7 @@ module tb_ifu
     expect_word(_ibus.req.addr, 32'h0000_0040, "redirect request uses target pc");
 
     @(negedge _clk);
-    _redirect_en = 1'b0;
+    _redirect.valid = 1'b0;
     _ibus.rsp.ready = 1'b1;
     _ibus.rsp.instr.raw = 32'hffff_ffff;
 

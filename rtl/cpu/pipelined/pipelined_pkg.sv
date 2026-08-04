@@ -71,13 +71,16 @@ package pipelined_pkg;
   } csr_pipe_t;
 
   typedef struct packed {
-    logic    valid;   // trap should be taken
-    mepc_t   mepc;    // trapped instruction PC
-    mcause_t mcause;  // trap cause
-    mtval_t  mtval;   // trap-specific value
-    pc_t     pc;      // trap vector target
-  } trap_pipe_t;
+    logic valid;
+    pc_t  pc;
+  } redirect_t;
 
+  typedef struct packed {
+    redirect_t redirect;
+    logic      take_trap;
+    logic      flush_if_id;
+    logic      flush_id_ex;
+  } flow_ctrl_t;
 
   function automatic logic writes_rd(input logic valid, input logic reg_write_en,
                                      input regaddr_t rd);

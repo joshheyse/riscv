@@ -12,8 +12,8 @@
 // - `_mem_wait` holds every pipeline register while a data-bus transaction is
 //   outstanding.
 // - `_data_stall` freezes fetch/decode and injects a bubble into execute.
-// - `_redirect_en` flushes the fetched/decode-side wrong-path instruction and
-//   redirects the IFU to the branch or jump target.
+// - `_flow.redirect.valid` redirects the IFU to the priority-resolved trap,
+//   branch, or jump target.
 //
 // This core resolves control flow in execute and forwards ALU/writeback results
 // into execute operands. Load-use hazards still stall because load data is not
@@ -60,16 +60,17 @@ module core
   mem_data_t      _store_data;
   reg_data_t      _execute_result;
   if_id_t         _fetched;
-  logic           _redirect_en;
-  pc_t            _redirect_pc;
   logic           _data_stall;
   pc_src_t        _execute_pc_src;
 
   logic           _mem_wait;
   mem_wb_t        _mem_wb_payload;
 
+  redirect_t      _redirect;
+  trap_t          _trap;
+  flow_ctrl_t     _flow;
+
   csr_pipe_t      _csr;
-  trap_pipe_t     _trap;
   mtvec_t         _mtvec;
 
   pipeline_ctrl_t _pipe_ctrl;
@@ -110,20 +111,12 @@ module core
   );
 
   // Pipeline control
-  pipeline_control _pipeline_control (
-    .halted(halted),
-    .mem_wait(_mem_wait),
-    .data_stall(_data_stall),
-    .pipe_ctrl(_pipe_ctrl)
-  );
-
   redirect_control _redirect_control (
     .id_ex_valid(_id_ex.valid),
     .id_ex_pc_src(_execute_pc_src),
     .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
     .alu_result(_alu_result),
-    .redirect_en(_redirect_en),
-    .redirect_pc(_redirect_pc)
+    .redirect(_redirect)
   );
 
   trap_control _trap_control (
@@ -131,11 +124,21 @@ module core
     .instr(_if_id.instr),
     .pc(_if_id.pc),
     .mtvec(_mtvec),
-    .trap_valid(_trap.valid),
-    .trap_mepc(_trap.mepc),
-    .trap_mcause(_trap.mcause),
-    .trap_mtval(_trap.mtval),
-    .trap_pc(_trap.pc)
+    .trap(_trap)
+  );
+
+  flow_control _flow_control (
+    .redirect(_redirect),
+    .trap(_trap),
+    .flow(_flow)
+  );
+
+  pipeline_control _pipeline_control (
+    .halted(halted),
+    .mem_wait(_mem_wait),
+    .data_stall(_data_stall),
+    .flow(_flow),
+    .pipe_ctrl(_pipe_ctrl)
   );
 
   // Fetch
@@ -152,7 +155,7 @@ module core
       end
 
       STAGE_ADVANCE: begin
-        if (_redirect_en) begin
+        if (_redirect.valid) begin
           _if_id_next = '0;
         end else if (_fetched.valid) begin
           _if_id_next = _fetched;
@@ -165,8 +168,7 @@ module core
     .clk(clk),
     .rst(rst),
     .fetch_en(_pipe_ctrl.fetch == STAGE_ADVANCE),
-    .redirect_en(_redirect_en),
-    .redirect_pc(_redirect_pc),
+    .redirect(_flow.redirect),
     .pc(pc),
     .fetched(_fetched),
     .ibus(ibus)
@@ -186,7 +188,7 @@ module core
       end
 
       STAGE_ADVANCE: begin
-        if (_redirect_en) begin
+        if (_redirect.valid) begin
           _id_ex_next = '0;
         end else if (_if_id.valid) begin
           _id_ex_next = '{

@@ -23,8 +23,7 @@ module ifu
   input logic clk,
   input logic rst,
   input logic fetch_en,
-  input logic redirect_en,
-  input pc_t  redirect_pc,
+  input redirect_t redirect,
 
   output pc_t    pc,
   output if_id_t fetched,
@@ -51,9 +50,9 @@ module ifu
       _request_pc <= '0;
       _drop_rsp <= 1'b0;
     end else begin
-      if (redirect_en) begin
+      if (redirect.valid) begin
         fetched <= '0;
-        pc <= redirect_pc;
+        pc <= redirect.pc;
         // If a request is already in flight and its response is not arriving
         // this cycle, remember to discard that stale response later.
         _drop_rsp <= _request_valid && !ibus.rsp.ready;

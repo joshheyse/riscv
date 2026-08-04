@@ -8,17 +8,17 @@
 //
 module redirect_control
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 (
   input logic      id_ex_valid,
   input pc_src_t   id_ex_pc_src,
   input logic      id_ex_clear_pc_lsb,
   input alu_data_t alu_result,
 
-  output logic redirect_en,
-  output pc_t  redirect_pc
+  output redirect_t redirect
 );
 
-  assign redirect_en = id_ex_valid && (id_ex_pc_src != PC_SRC_INC);
-  assign redirect_pc = id_ex_clear_pc_lsb ? {alu_result[31:1], 1'b0} : alu_result;
+  assign redirect.valid = id_ex_valid && (id_ex_pc_src != PC_SRC_INC);
+  assign redirect.pc = id_ex_clear_pc_lsb ? {alu_result[31:1], 1'b0} : alu_result;
 
 endmodule
