@@ -1,11 +1,11 @@
-// tb_trap_controller.sv - self-checking testbench for trap_controller.
+// tb_trap_control.sv - self-checking testbench for trap_control.
 //
-//   make sim  TB=trap_controller
-//   make wave TB=trap_controller
+//   make sim  TB=trap_control
+//   make wave TB=trap_control
 
 `timescale 1ns / 1ps
 
-module tb_trap_controller
+module tb_trap_control
   import riscv_pkg::*;
 ();
 
@@ -24,7 +24,7 @@ module tb_trap_controller
   int unsigned _errors = 0;
   int unsigned _checks = 0;
 
-  trap_controller _dut (
+  trap_control _dut (
     .illegal_instr(_illegal_instr),
     .instr(_instr),
     .pc(_pc),
@@ -73,7 +73,7 @@ module tb_trap_controller
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
-      $dumpvars(0, tb_trap_controller);
+      $dumpvars(0, tb_trap_control);
     end
 
     drive(1'b0, 32'h0000_0013, 32'h0000_0000, '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT});
@@ -92,17 +92,17 @@ module tb_trap_controller
                         "illegal instruction zero mtvec");
 
     if (_errors == 0) begin
-      $display("tb_trap_controller: PASS (%0d checks)", _checks);
+      $display("tb_trap_control: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_trap_controller: FAIL (%0d failures out of %0d checks)", _errors, _checks);
+      $display("tb_trap_control: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end
 
   initial begin
     #(TimeoutTicks);
-    $display("tb_trap_controller: TIMEOUT after %0d ticks", TimeoutTicks);
+    $display("tb_trap_control: TIMEOUT after %0d ticks", TimeoutTicks);
     $fatal(1);
   end
 

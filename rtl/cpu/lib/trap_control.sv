@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module trap_controller
+module trap_control
   import riscv_pkg::*;
 (
 

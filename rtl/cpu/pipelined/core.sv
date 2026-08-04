@@ -126,7 +126,7 @@ module core
     .redirect_pc(_redirect_pc)
   );
 
-  trap_controller _trap_control (
+  trap_control _trap_control (
     .illegal_instr(_if_id.valid && _ctrl.illegal_instr),
     .instr(_if_id.instr),
     .pc(_if_id.pc),
