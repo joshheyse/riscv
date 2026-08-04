@@ -51,6 +51,7 @@ module core
   reg_data_t      _rf_rs2_read;
   reg_data_t      _id_rs1_operand;
   reg_data_t      _id_rs2_operand;
+
   imm_t           _decode_imm;
   alu_data_t      _alu_result;
   branch_flags_t  _execute_branch_flags;
@@ -58,16 +59,14 @@ module core
   reg_data_t      _ex_rs2_operand;
   mem_data_t      _store_data;
   reg_data_t      _execute_result;
-  mem_data_t      _mem_read_data;
-  reg_data_t      _mem_result_data;
-  logic           _mem_instr;
-  logic           _mem_wait;
   if_id_t         _fetched;
   logic           _redirect_en;
   pc_t            _redirect_pc;
   logic           _data_stall;
-  logic           _unused_mem_wait;
   pc_src_t        _execute_pc_src;
+
+  logic           _mem_wait;
+  mem_wb_t        _mem_wb_payload;
 
   csr_pipe_t      _csr;
   trap_pipe_t     _trap;
@@ -77,10 +76,6 @@ module core
 
   assign _mtvec = '0;
 
-  assign dbus.req.valid = _mem_instr;
-  assign dbus.req.write_en = _ex_mem.ctrl.mem_write_en;
-  assign dbus.req.addr = _ex_mem.alu_result;
-  assign _unused_mem_wait = _mem_wait;
   assign _decode_branch_flags = '0;
 
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en;
@@ -117,13 +112,8 @@ module core
   // Pipeline control
   pipeline_control _pipeline_control (
     .halted(halted),
-    .ex_mem_valid(_ex_mem.valid),
-    .ex_mem_mem_write_en(_ex_mem.ctrl.mem_write_en),
-    .ex_mem_writeback_result(_ex_mem.ctrl.writeback_result),
-    .dbus_ready(dbus.rsp.ready),
-    .data_stall(_data_stall),
-    .mem_instr(_mem_instr),
     .mem_wait(_mem_wait),
+    .data_stall(_data_stall),
     .pipe_ctrl(_pipe_ctrl)
   );
 
@@ -301,34 +291,16 @@ module core
       end
 
       STAGE_ADVANCE: begin
-        if (_ex_mem.valid) begin
-          _mem_wb_next = '{
-              valid: 1'b1,
-              ctrl: _ex_mem.ctrl,
-              result: _mem_result_data,
-              rd: _ex_mem.rd
-          };
-        end
+        _mem_wb_next = _mem_wb_payload;
       end
     endcase
   end
 
-  lsu _lsu (
-    .addr(_ex_mem.alu_result),
-    .write_data(_ex_mem.write_data),
-    .mem_size(_ex_mem.ctrl.mem_size),
-    .mem_unsigned(_ex_mem.ctrl.mem_unsigned),
-    .read_data(_mem_read_data),
-    .mem_write_data(dbus.req.write_data),
-    .mem_read_data(dbus.rsp.read_data),
-    .write_mask(dbus.req.write_mask)
-  );
-
-  writeback_mux _mem_result_mux (
-    .writeback_result(_ex_mem.ctrl.writeback_result),
-    .execute_result(_ex_mem.execute_result),
-    .read_data(_mem_read_data),
-    .writeback_data(_mem_result_data)
+  mem_stage _mem_stage (
+    .ex_mem(_ex_mem),
+    .mem_wait(_mem_wait),
+    .mem_wb_payload(_mem_wb_payload),
+    .dbus(dbus)
   );
 
   // Writeback and hazards

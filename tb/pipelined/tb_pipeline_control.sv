@@ -12,28 +12,18 @@ module tb_pipeline_control
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic              _halted;
-  logic              _ex_mem_valid;
-  logic              _ex_mem_mem_write_en;
-  writeback_result_t _ex_mem_writeback_result;
-  logic              _dbus_ready;
-  logic              _data_stall;
-  logic              _mem_instr;
-  logic              _mem_wait;
-  pipeline_ctrl_t    _pipe_ctrl;
+  logic           _halted;
+  logic           _data_stall;
+  logic           _mem_wait;
+  pipeline_ctrl_t _pipe_ctrl;
 
-  int unsigned       errors = 0;
-  int unsigned       checks = 0;
+  int unsigned    errors = 0;
+  int unsigned    checks = 0;
 
   pipeline_control _dut (
     .halted(_halted),
-    .ex_mem_valid(_ex_mem_valid),
-    .ex_mem_mem_write_en(_ex_mem_mem_write_en),
-    .ex_mem_writeback_result(_ex_mem_writeback_result),
-    .dbus_ready(_dbus_ready),
-    .data_stall(_data_stall),
-    .mem_instr(_mem_instr),
     .mem_wait(_mem_wait),
+    .data_stall(_data_stall),
     .pipe_ctrl(_pipe_ctrl)
   );
 
@@ -53,13 +43,10 @@ module tb_pipeline_control
     end
   endtask
 
-  task automatic expect_control(input logic mem_instr, input logic mem_wait,
-                                input stage_ctrl_t fetch_ctrl, input stage_ctrl_t if_id_ctrl,
+  task automatic expect_control(input stage_ctrl_t fetch_ctrl, input stage_ctrl_t if_id_ctrl,
                                 input stage_ctrl_t id_ex_ctrl, input stage_ctrl_t ex_mem_ctrl,
                                 input stage_ctrl_t mem_wb_ctrl, input string what);
     #1;
-    expect_bit(_mem_instr, mem_instr, {what, " mem_instr"});
-    expect_bit(_mem_wait, mem_wait, {what, " mem_wait"});
     expect_stage(_pipe_ctrl.fetch, fetch_ctrl, {what, " fetch_ctrl"});
     expect_stage(_pipe_ctrl.if_id, if_id_ctrl, {what, " if_id_ctrl"});
     expect_stage(_pipe_ctrl.id_ex, id_ex_ctrl, {what, " id_ex_ctrl"});
@@ -69,11 +56,8 @@ module tb_pipeline_control
 
   task automatic clear_inputs();
     _halted = 1'b0;
-    _ex_mem_valid = 1'b0;
-    _ex_mem_mem_write_en = 1'b0;
-    _ex_mem_writeback_result = WB_RESULT_EXEC;
-    _dbus_ready = 1'b0;
     _data_stall = 1'b0;
+    _mem_wait = 1'b0;
   endtask
 
   initial begin
@@ -83,44 +67,23 @@ module tb_pipeline_control
     end
 
     clear_inputs();
-    expect_control(1'b0, 1'b0, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
-                   STAGE_ADVANCE, "empty pipe advances");
+    expect_control(STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "empty pipe advances");
 
     clear_inputs();
     _halted = 1'b1;
-    expect_control(1'b0, 1'b0, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
+    expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
                    "halted core stops pipe");
 
     clear_inputs();
     _data_stall = 1'b1;
-    expect_control(1'b0, 1'b0, STAGE_HOLD, STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
+    expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
                    "data stall holds fetch/decode and bubbles execute");
 
     clear_inputs();
-    _ex_mem_valid = 1'b1;
-    _ex_mem_mem_write_en = 1'b1;
-    _dbus_ready = 1'b0;
-    expect_control(1'b1, 1'b1, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
-                   "store waits for dbus ready");
-
-    clear_inputs();
-    _ex_mem_valid = 1'b1;
-    _ex_mem_writeback_result = WB_RESULT_MEM;
-    _dbus_ready = 1'b0;
-    expect_control(1'b1, 1'b1, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
-                   "load waits for dbus ready");
-
-    clear_inputs();
-    _ex_mem_valid = 1'b1;
-    _ex_mem_mem_write_en = 1'b1;
-    _dbus_ready = 1'b1;
-    expect_control(1'b1, 1'b0, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
-                   STAGE_ADVANCE, "ready store lets pipe advance");
-
-    clear_inputs();
-    _ex_mem_valid = 1'b1;
-    expect_control(1'b0, 1'b0, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
-                   STAGE_ADVANCE, "non-memory writeback does not wait");
+    _mem_wait = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_HOLD,
+                   "memory wait stops pipe");
 
     if (errors == 0) begin
       $display("tb_pipeline_control: PASS (%0d checks)", checks);
