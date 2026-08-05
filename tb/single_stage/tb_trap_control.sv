@@ -46,9 +46,9 @@ module tb_trap_control
 
   task automatic drive(input logic trap_valid, input trap_src_t trap_src, input mtval_t mtval,
                        input pc_t pc, input mtvec_t mtvec, input priv_mode_t priv_mode);
-    _trap_req = '{valid: trap_valid, src: trap_src, mtval: mtval};
-    _pc       = pc;
-    _mtvec    = mtvec;
+    _trap_req  = '{valid: trap_valid, src: trap_src, mtval: mtval};
+    _pc        = pc;
+    _mtvec     = mtvec;
     _priv_mode = priv_mode;
     #1;
   endtask
@@ -108,8 +108,7 @@ module tb_trap_control
 
     drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
           '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_USER);
-    expect_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
-                "ecall from user mode");
+    expect_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100, "ecall from user mode");
 
     drive(1'b1, TRAP_SRC_EBREAK, 32'h0000_0000, 32'h0000_0104,
           '{base: 30'h0000_0044, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);

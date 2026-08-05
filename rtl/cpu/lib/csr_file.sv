@@ -28,6 +28,8 @@ module csr_file
   mcause_t    _mcause;
   mtval_t     _mtval;
   priv_mode_t _priv_mode;
+  mstatus_t   _mstatus_write;
+  mtvec_t     _mtvec_write;
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
@@ -35,6 +37,28 @@ module csr_file
   localparam mimpid_t    MIMPID    = '0;
   localparam mhartid_t   MHARTID   = '0;
   // verilog_format: on
+
+  function automatic mstatus_t legalize_mstatus(input logic mie, input logic mpie,
+                                                input logic [1:0] mpp);
+    legalize_mstatus = '0;
+    legalize_mstatus.mie = mie;
+    legalize_mstatus.mpie = mpie;
+
+    // `mpp` is WARL. Keep legal privilege encodings; coerce the reserved
+    // encoding to machine mode so `mret` cannot restore an invalid live mode.
+    case (mpp)
+      2'b00:   legalize_mstatus.mpp = MPP_USER;
+      2'b01:   legalize_mstatus.mpp = MPP_SUPERVISOR;
+      2'b11:   legalize_mstatus.mpp = MPP_MACHINE;
+      default: legalize_mstatus.mpp = MPP_MACHINE;
+    endcase
+  endfunction
+
+  function automatic mtvec_t legalize_mtvec(input logic [29:0] base);
+    legalize_mtvec      = '0;
+    legalize_mtvec.base = base;
+    legalize_mtvec.mode = MTVEC_MODE_DIRECT;
+  endfunction
 
   assign status = '{
           mtvec: _mtvec,
@@ -44,6 +68,11 @@ module csr_file
           mepc: _mepc,
           priv_mode: _priv_mode
       };
+
+  always_comb begin
+    _mstatus_write = legalize_mstatus(csr_write_data[3], csr_write_data[7], csr_write_data[12:11]);
+    _mtvec_write   = legalize_mtvec(csr_write_data[31:2]);
+  end
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -71,9 +100,9 @@ module csr_file
     end else if (csr_en && csr_write_en && !illegal_csr) begin
       // slang lint_off case-enum-explicit
       case (csr_addr_e'(csr_addr))
-        CSR_MSTATUS: _mstatus <= csr_write_data;
+        CSR_MSTATUS: _mstatus <= _mstatus_write;
         CSR_MIE:     _mie <= csr_write_data;
-        CSR_MTVEC:   _mtvec <= csr_write_data;
+        CSR_MTVEC:   _mtvec <= _mtvec_write;
         CSR_MEPC:    _mepc <= csr_write_data;
         CSR_MCAUSE:  _mcause <= csr_write_data;
         CSR_MTVAL:   _mtval <= csr_write_data;
