@@ -66,8 +66,12 @@ module core
   mem_wb_t        _mem_wb_payload;
 
   redirect_t      _redirect;
-  trap_stage_t    _trap;
+  trap_stage_t    _id_trap;
+  trap_stage_t    _csr_trap;
+  trap_stage_t    _ex_trap;
   flow_ctrl_t     _flow;
+
+  trap_ctrl_t     _csr_illegal_trap_ctrl;
 
   /* verilator lint_off UNUSEDSIGNAL */
   csr_pipe_t      _csr;
@@ -86,7 +90,13 @@ module core
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
-  assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
+  assign _trap_in_flight = _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
+  assign _ex_trap = _id_ex.trap.valid ? _id_ex.trap : _csr_trap;
+
+  assign _csr_illegal_trap_ctrl = '{
+          valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr.illegal,
+          src: TRAP_SRC_ILLEGAL_CSR
+      };
 
   // Files
   reg_file _reg_file (
@@ -126,12 +136,20 @@ module core
     .redirect(_redirect)
   );
 
-  trap_control _trap_control (
-    .trap_ctrl('{valid: _if_id.valid && _ctrl.trap.valid, src: _ctrl.trap.src}),
+  trap_control _id_trap_control (
+    .trap_ctrl(_ctrl.trap),
     .instr(_if_id.instr),
     .pc(_if_id.pc),
     .mtvec(_csr_status.mtvec),
-    .trap(_trap)
+    .trap(_id_trap)
+  );
+
+  trap_control _ex_trap_control (
+    .trap_ctrl(_csr_illegal_trap_ctrl),
+    .instr(_id_ex.instr),
+    .pc(_id_ex.pc),
+    .mtvec(_csr_status.mtvec),
+    .trap(_csr_trap)
   );
 
   flow_control _flow_control (
@@ -206,7 +224,7 @@ module core
               rs2_operand: _id_rs2_operand,
               imm: _id_imm,
               rd: _if_id.instr.r.rd,
-              trap: _trap
+              trap: _id_trap
           };
         end
       end
@@ -248,7 +266,7 @@ module core
               execute_result: _ex_result,
               write_data: _store_data,
               rd: _id_ex.instr.r.rd,
-              trap: _id_ex.trap
+              trap: _ex_trap
           };
         end
       end
@@ -314,10 +332,10 @@ module core
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id(_if_id),
-    .id_ex(_id_ex),
+    .if_id (_if_id),
+    .id_ex (_id_ex),
     .ex_mem(_ex_mem),
-    .stall(_data_stall)
+    .stall (_data_stall)
   );
 
   forwarding_unit _forwarding_unit (

@@ -48,6 +48,7 @@ module controller
     if (_instr_illegal) begin
       ctrl.trap = '{valid: 1'b1, src: TRAP_SRC_ILLEGAL_INSTR};
     end else begin
+      // slang lint_off case-enum-explicit
       case (_system_ctrl.op)
         SYSTEM_OP_ECALL: begin
           ctrl.trap.valid = 1'b1;
@@ -60,6 +61,7 @@ module controller
         default: begin
         end
       endcase
+      // slang lint_on case-enum-explicit
     end
   end
 
@@ -78,8 +80,8 @@ module controller
   );
 
   branch_logic _branch_logic (
-    .flow(ctrl.flow),
-    .flags(branch_flags),
+    .flow  (ctrl.flow),
+    .flags (branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );

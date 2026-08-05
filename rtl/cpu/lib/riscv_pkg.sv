@@ -241,9 +241,10 @@ package riscv_pkg;
     FLOW_JUMP
   } flow_t;
 
-  typedef enum logic [1:0] {
+  typedef enum logic [2:0] {
     TRAP_SRC_NONE,
     TRAP_SRC_ILLEGAL_INSTR,
+    TRAP_SRC_ILLEGAL_CSR,
     TRAP_SRC_ECALL,
     TRAP_SRC_EBREAK
   } trap_src_t;

@@ -19,8 +19,13 @@ module trap_control
     trap.payload.mtval = '0;
     trap.payload.mepc  = pc;
     trap.payload.pc    = {mtvec.base, 2'b00};
+    // slang lint_off case-enum-explicit
     case (trap_ctrl.src)
       TRAP_SRC_ILLEGAL_INSTR: begin
+        trap.payload.mcause = '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR};
+        trap.payload.mtval  = instr.raw;
+      end
+      TRAP_SRC_ILLEGAL_CSR: begin
         trap.payload.mcause = '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR};
         trap.payload.mtval  = instr.raw;
       end
@@ -34,6 +39,7 @@ module trap_control
         trap.payload = '0;
       end
     endcase
+    // slang lint_on case-enum-explicit
   end
 
 endmodule
