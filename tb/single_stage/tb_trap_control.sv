@@ -44,12 +44,9 @@ module tb_trap_control
     end
   endtask
 
-  task automatic drive(input logic trap_valid, input instr_t instr, input pc_t pc,
-                       input mtvec_t mtvec);
-    _trap_ctrl = '{
-        valid: trap_valid,
-        src: trap_valid ? TRAP_SRC_ILLEGAL_INSTR : TRAP_SRC_NONE
-    };
+  task automatic drive(input logic trap_valid, input trap_src_t trap_src, input instr_t instr,
+                       input pc_t pc, input mtvec_t mtvec);
+    _trap_ctrl = '{valid: trap_valid, src: trap_src};
     _instr.raw = instr;
     _pc        = pc;
     _mtvec     = mtvec;
@@ -65,26 +62,48 @@ module tb_trap_control
     expect_bits(_trap.payload.pc, trap_pc, {what, " trap_pc"});
   endtask
 
+  task automatic expect_trap(input word_t mcause, input word_t mtval, input pc_t pc,
+                             input pc_t trap_pc, input string what);
+    expect_bool(_trap.valid, 1'b1, {what, " valid"});
+    expect_bits(_trap.payload.mepc, pc, {what, " mepc"});
+    expect_bits(_trap.payload.mcause, mcause, {what, " mcause"});
+    expect_bits(_trap.payload.mtval, mtval, {what, " mtval"});
+    expect_bits(_trap.payload.pc, trap_pc, {what, " trap_pc"});
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
       $dumpvars(0, tb_trap_control);
     end
 
-    drive(1'b0, 32'h0000_0013, 32'h0000_0000, '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT});
+    drive(1'b0, TRAP_SRC_NONE, 32'h0000_0013, 32'h0000_0000,
+          '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT});
     expect_bool(_trap.valid, 1'b0, "legal instruction has no trap");
 
-    drive(1'b1, 32'hffff_ffff, 32'h0000_0020, '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT});
+    drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0020,
+          '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT});
     expect_illegal_trap(32'hffff_ffff, 32'h0000_0020, 32'h0000_0400,
                         "illegal instruction direct mtvec");
 
-    drive(1'b1, 32'h0000_0000, 32'h0000_0084, '{base: 30'h0000_0200, mode: MTVEC_MODE_VECTORED});
+    drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h0000_0000, 32'h0000_0084,
+          '{base: 30'h0000_0200, mode: MTVEC_MODE_VECTORED});
     expect_illegal_trap(32'h0000_0000, 32'h0000_0084, 32'h0000_0800,
                         "illegal instruction vectored mtvec");
 
-    drive(1'b1, 32'h1234_5678, 32'h0000_00c0, '{base: 30'h0000_0000, mode: MTVEC_MODE_DIRECT});
+    drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h1234_5678, 32'h0000_00c0,
+          '{base: 30'h0000_0000, mode: MTVEC_MODE_DIRECT});
     expect_illegal_trap(32'h1234_5678, 32'h0000_00c0, 32'h0000_0000,
                         "illegal instruction zero mtvec");
+
+    drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0073, 32'h0000_0100,
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT});
+    expect_trap(32'h0000_000b, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
+                "ecall from machine mode");
+
+    drive(1'b1, TRAP_SRC_EBREAK, 32'h0010_0073, 32'h0000_0104,
+          '{base: 30'h0000_0044, mode: MTVEC_MODE_DIRECT});
+    expect_trap(32'h0000_0003, 32'h0000_0000, 32'h0000_0104, 32'h0000_0110, "ebreak");
 
     if (_errors == 0) begin
       $display("tb_trap_control: PASS (%0d checks)", _checks);

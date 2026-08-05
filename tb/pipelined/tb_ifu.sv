@@ -13,12 +13,12 @@ module tb_ifu
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 20;
 
-  logic   _clk;
-  logic   _rst;
-  logic   _fetch_en;
+  logic      _clk;
+  logic      _rst;
+  logic      _fetch_en;
   redirect_t _redirect;
-  pc_t    _pc;
-  if_id_t _fetched;
+  pc_t       _pc;
+  if_id_t    _fetched;
 
   ibus_if _ibus ();
 

@@ -13,7 +13,7 @@ module system_decoder
 
   always_comb begin
     csr_ctrl = '{en: 1'b0, write_en: 1'b0, op: CSR_OP_RW, use_zimm: 1'b0};
-    system_ctrl = '0;
+    system_ctrl = '{en: 1'b0, op: SYSTEM_OP_NONE};
     system_ctrl.en = instr.r.opcode == OP_SYSTEM;
 
     _priv_fields_valid = (instr.r.rs1 == 5'd0) && (instr.r.rd == 5'd0);
@@ -22,23 +22,23 @@ module system_decoder
       case (instr.r.funct3.sys)
         SYS_F3_PRIV: begin
           if (!_priv_fields_valid) begin
-            system_ctrl.illegal = 1'b1;
+            system_ctrl.op = SYSTEM_OP_ILLEGAL;
           end else begin
             case (instr.i.imm.sys)
               SYS_IMM_MRET: begin
-                system_ctrl.mret = 1'b1;
+                system_ctrl.op = SYSTEM_OP_MRET;
               end
               SYS_IMM_ECALL: begin
-                system_ctrl.ecall = 1'b1;
+                system_ctrl.op = SYSTEM_OP_ECALL;
               end
               SYS_IMM_EBREAK: begin
-                system_ctrl.ebreak = 1'b1;
+                system_ctrl.op = SYSTEM_OP_EBREAK;
               end
               SYS_IMM_WFI: begin
-                system_ctrl.wfi = 1'b1;
+                system_ctrl.op = SYSTEM_OP_WFI;
               end
               default: begin
-                system_ctrl.illegal = 1'b1;
+                system_ctrl.op = SYSTEM_OP_ILLEGAL;
               end
             endcase
           end
@@ -80,7 +80,7 @@ module system_decoder
           csr_ctrl.use_zimm = 1'b1;
         end
         default: begin
-          system_ctrl.illegal = 1'b1;
+          system_ctrl.op = SYSTEM_OP_ILLEGAL;
         end
       endcase
     end

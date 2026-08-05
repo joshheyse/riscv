@@ -93,6 +93,7 @@ def run_test(repo: Path, design: str, board: str, sim: str, test: AppTest) -> bo
         f"BOARD={board}",
         f"BOARD_SIM={sim}",
         f"APP={test.app}",
+        "RUN_ARGS=+uart-bytes",
     ]
 
     result = subprocess.run(

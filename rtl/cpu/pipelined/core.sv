@@ -86,7 +86,7 @@ module core
 
   assign _retire_trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
-  assign _retire_mret = _mem_wb.valid && _mem_wb.ctrl.system.mret && !_mem_wb.trap.valid;
+  assign _retire_mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
 
   // Files
   reg_file _reg_file (

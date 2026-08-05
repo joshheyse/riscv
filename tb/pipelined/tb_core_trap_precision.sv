@@ -127,7 +127,8 @@ module tb_core_trap_precision
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response may enter IFU output"});
-    expect_word(_dut._fetched.instr.raw, instr, {what, " speculative response is visible before trap redirect"});
+    expect_word(_dut._fetched.instr.raw, instr, {
+                what, " speculative response is visible before trap redirect"});
 
     @(negedge _clk);
     _ibus.rsp = '0;

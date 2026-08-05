@@ -46,14 +46,14 @@ module tb_execute_result_mux
   endtask
 
   initial begin
-    check(EXEC_RESULT_ALU, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h1111_2222,
-          "ALU result");
-    check(EXEC_RESULT_PC_PLUS4, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h0000_1004,
-          "PC plus 4");
-    check(EXEC_RESULT_IMM, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'haaaa_bbbb,
-          "immediate");
-    check(EXEC_RESULT_CSR, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444, 32'h3333_4444,
-          "CSR result");
+    check(EXEC_RESULT_ALU, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444,
+          32'h1111_2222, "ALU result");
+    check(EXEC_RESULT_PC_PLUS4, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444,
+          32'h0000_1004, "PC plus 4");
+    check(EXEC_RESULT_IMM, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444,
+          32'haaaa_bbbb, "immediate");
+    check(EXEC_RESULT_CSR, 32'h0000_1000, 32'haaaa_bbbb, 32'h1111_2222, 32'h3333_4444,
+          32'h3333_4444, "CSR result");
 
     if (errors == 0) begin
       $display("tb_execute_result_mux: PASS (%0d checks)", checks);

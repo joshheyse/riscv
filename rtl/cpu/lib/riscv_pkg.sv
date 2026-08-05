@@ -219,13 +219,18 @@ package riscv_pkg;
     logic    use_zimm;
   } csr_ctrl_t;
 
+  typedef enum logic [2:0] {
+    SYSTEM_OP_NONE,
+    SYSTEM_OP_MRET,
+    SYSTEM_OP_ECALL,
+    SYSTEM_OP_EBREAK,
+    SYSTEM_OP_WFI,
+    SYSTEM_OP_ILLEGAL
+  } system_op_t;
+
   typedef struct packed {
-    logic en;
-    logic mret;
-    logic ecall;
-    logic ebreak;
-    logic wfi;
-    logic illegal;
+    logic       en;
+    system_op_t op;
   } system_ctrl_t;
 
   // Decoded control-flow class. Branch and jump are mutually exclusive; the

@@ -23,20 +23,45 @@ module controller
   logic            _alu_op_illegal;
   logic            _mem_op_illegal;
   logic            _system_op_illegal;
-  logic            _trap_valid;
+  logic            _instr_illegal;
+
   logic            _main_reg_write_en;
   logic            _csr_reg_write_en;
   execute_result_t _main_execute_result;
+  csr_ctrl_t       _csr_ctrl;
+  system_ctrl_t    _system_ctrl;
 
+  assign _system_op_illegal = _system_ctrl.op == SYSTEM_OP_ILLEGAL;
+
+  assign ctrl.csr = _csr_ctrl;
+  assign ctrl.system = _system_ctrl;
+  assign ctrl.execute_result = _csr_ctrl.en ? EXEC_RESULT_CSR : _main_execute_result;
   assign ctrl.branch_sgnd = ~instr.r.funct3.br.unsgnd;
-  assign _trap_valid = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
-  assign ctrl.trap = '{
-      valid: _trap_valid,
-      src: _trap_valid ? TRAP_SRC_ILLEGAL_INSTR : TRAP_SRC_NONE
-  };
 
-  assign _csr_reg_write_en = ctrl.csr.en && (instr.r.rd != 5'd0);
+  assign _csr_reg_write_en = _csr_ctrl.en && (instr.r.rd != 5'd0);
   assign ctrl.reg_write_en = _main_reg_write_en | _csr_reg_write_en;
+
+  always_comb begin
+    ctrl.trap = '0;
+    _instr_illegal = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
+
+    if (_instr_illegal) begin
+      ctrl.trap = '{valid: 1'b1, src: TRAP_SRC_ILLEGAL_INSTR};
+    end else begin
+      case (_system_ctrl.op)
+        SYSTEM_OP_ECALL: begin
+          ctrl.trap.valid = 1'b1;
+          ctrl.trap.src   = TRAP_SRC_ECALL;
+        end
+        SYSTEM_OP_EBREAK: begin
+          ctrl.trap.valid = 1'b1;
+          ctrl.trap.src   = TRAP_SRC_EBREAK;
+        end
+        default: begin
+        end
+      endcase
+    end
+  end
 
   main_decoder _main_decoder (
     .instr(instr),
@@ -76,12 +101,9 @@ module controller
 
   system_decoder _system_decoder (
     .instr(instr),
-    .csr_ctrl(ctrl.csr),
-    .system_ctrl(ctrl.system)
+    .csr_ctrl(_csr_ctrl),
+    .system_ctrl(_system_ctrl)
   );
 
-  assign _system_op_illegal = ctrl.system.illegal;
-
-  assign ctrl.execute_result = ctrl.csr.en ? EXEC_RESULT_CSR : _main_execute_result;
 
 endmodule

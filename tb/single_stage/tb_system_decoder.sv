@@ -16,9 +16,9 @@ module tb_system_decoder
   csr_ctrl_t    _csr_ctrl;
   system_ctrl_t _system_ctrl;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
-  int unsigned printed = 0;
+  int unsigned  errors = 0;
+  int unsigned  checks = 0;
+  int unsigned  printed = 0;
 
   system_decoder _dut (
     .instr(_instr),
@@ -52,13 +52,9 @@ module tb_system_decoder
     checks++;
     if (_csr_ctrl.en !== exp_en || _csr_ctrl.write_en !== exp_write_en ||
         _csr_ctrl.op !== exp_op || _csr_ctrl.use_zimm !== exp_use_zimm ||
-        _system_ctrl.en !== exp_system_ctrl.en || _system_ctrl.mret !== exp_system_ctrl.mret ||
-        _system_ctrl.ecall !== exp_system_ctrl.ecall ||
-        _system_ctrl.ebreak !== exp_system_ctrl.ebreak ||
-        _system_ctrl.wfi !== exp_system_ctrl.wfi ||
-        _system_ctrl.illegal !== exp_system_ctrl.illegal) begin
+        _system_ctrl.en !== exp_system_ctrl.en || _system_ctrl.op !== exp_system_ctrl.op) begin
       fail($sformatf(
-           "%s opcode=%07b imm=%03h funct3=%03b rs1=%0d rd=%0d: got csr_en=%b write=%b op=%s zimm=%b system_en=%b mret=%b ecall=%b ebreak=%b wfi=%b illegal=%b, expected csr_en=%b write=%b op=%s zimm=%b system_en=%b mret=%b ecall=%b ebreak=%b wfi=%b illegal=%b",
+           "%s opcode=%07b imm=%03h funct3=%03b rs1=%0d rd=%0d: got csr_en=%b write=%b op=%s zimm=%b system_en=%b system_op=%s, expected csr_en=%b write=%b op=%s zimm=%b system_en=%b system_op=%s",
            what,
            opcode,
            imm,
@@ -70,21 +66,13 @@ module tb_system_decoder
            _csr_ctrl.op.name(),
            _csr_ctrl.use_zimm,
            _system_ctrl.en,
-           _system_ctrl.mret,
-           _system_ctrl.ecall,
-           _system_ctrl.ebreak,
-           _system_ctrl.wfi,
-           _system_ctrl.illegal,
+           _system_ctrl.op.name(),
            exp_en,
            exp_write_en,
            exp_op.name(),
            exp_use_zimm,
            exp_system_ctrl.en,
-           exp_system_ctrl.mret,
-           exp_system_ctrl.ecall,
-           exp_system_ctrl.ebreak,
-           exp_system_ctrl.wfi,
-           exp_system_ctrl.illegal
+           exp_system_ctrl.op.name()
            ));
     end
   endtask
@@ -94,61 +82,43 @@ module tb_system_decoder
           "non-system ignored");
 
     check(OP_SYSTEM, 12'h300, SYS_F3_RW, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrw");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrw");
     check(OP_SYSTEM, 12'h300, SYS_F3_RS, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RS, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrs writes");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrs writes");
     check(OP_SYSTEM, 12'h300, SYS_F3_RC, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RC, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrc writes");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrc writes");
     check(OP_SYSTEM, 12'h300, SYS_F3_RWI, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RW, 1'b1,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrwi");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrwi");
     check(OP_SYSTEM, 12'h300, SYS_F3_RSI, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RS, 1'b1,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrsi writes");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrsi writes");
     check(OP_SYSTEM, 12'h300, SYS_F3_RCI, 5'd2, 5'd1, 1'b1, 1'b1, CSR_OP_RC, 1'b1,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrci writes");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrci writes");
 
     check(OP_SYSTEM, 12'h300, SYS_F3_RS, 5'd0, 5'd1, 1'b1, 1'b0, CSR_OP_RS, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrs rs1=x0 read");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrs rs1=x0 read");
     check(OP_SYSTEM, 12'h300, SYS_F3_RC, 5'd0, 5'd1, 1'b1, 1'b0, CSR_OP_RC, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrc rs1=x0 read");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrc rs1=x0 read");
     check(OP_SYSTEM, 12'h300, SYS_F3_RSI, 5'd0, 5'd1, 1'b1, 1'b0, CSR_OP_RS, 1'b1,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrsi zimm=0 read");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrsi zimm=0 read");
     check(OP_SYSTEM, 12'h300, SYS_F3_RCI, 5'd0, 5'd1, 1'b1, 1'b0, CSR_OP_RC, 1'b1,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "csrrci zimm=0 read");
+          '{en: 1'b1, op: SYSTEM_OP_NONE}, "csrrci zimm=0 read");
 
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b1, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "mret");
+          '{en: 1'b1, op: SYSTEM_OP_MRET}, "mret");
     check(OP_SYSTEM, SYS_IMM_ECALL, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b1, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b0},
-          "ecall");
+          '{en: 1'b1, op: SYSTEM_OP_ECALL}, "ecall");
     check(OP_SYSTEM, SYS_IMM_EBREAK, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b1, wfi: 1'b0, illegal: 1'b0},
-          "ebreak");
+          '{en: 1'b1, op: SYSTEM_OP_EBREAK}, "ebreak");
     check(OP_SYSTEM, SYS_IMM_WFI, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b1, illegal: 1'b0},
-          "wfi");
+          '{en: 1'b1, op: SYSTEM_OP_WFI}, "wfi");
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd1, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b1},
-          "privileged system op with nonzero rs1");
+          '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "privileged system op with nonzero rs1");
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd0, 5'd1, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b1},
-          "privileged system op with nonzero rd");
+          '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "privileged system op with nonzero rd");
     check(OP_SYSTEM, 12'hfff, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b1},
-          "reserved privileged system immediate");
+          '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "reserved privileged system immediate");
     check(OP_SYSTEM, 12'h300, sys_funct3_t'(3'b100), 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
-          '{en: 1'b1, mret: 1'b0, ecall: 1'b0, ebreak: 1'b0, wfi: 1'b0, illegal: 1'b1},
-          "reserved system funct3");
+          '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "reserved system funct3");
 
     if (errors == 0) begin
       $display("tb_system_decoder: PASS (%0d checks)", checks);

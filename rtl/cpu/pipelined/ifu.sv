@@ -20,9 +20,9 @@ module ifu
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
-  input logic clk,
-  input logic rst,
-  input logic fetch_en,
+  input logic      clk,
+  input logic      rst,
+  input logic      fetch_en,
   input redirect_t redirect,
 
   output pc_t    pc,
