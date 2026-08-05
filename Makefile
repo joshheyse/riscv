@@ -240,17 +240,12 @@ $(BOARD_CONSTANTS_HDR) $(BOARD_CONSTANTS_PKG) &: $(BOARD_CONSTANTS) tools/gen_bo
 ## board-constants: regenerate the selected board's generated constants files
 board-constants: $(BOARD_CONSTANTS_HDR) $(BOARD_CONSTANTS_PKG)
 
-## filelist: regenerate verible.filelist (language server cross-file symbols)
-# Without this file verible-verilog-ls only sees the buffer being edited, so
-# types from riscv_pkg read as "Can't find typedef". Packages are listed first.
-# This is design-specific because different CPU design directories may define
-# the same module names, such as `core`.
+## filelist: list slang-server build filelists
+# slang-server reads .slang/server.json, which points at the checked-in build
+# filelists under .slang/builds. Each filelist is design-specific because
+# different CPU design directories define the same module names, such as `core`.
 filelist:
-	@printf '%s\n' $(CPU_PKG_SRCS) $(BOARD_PKG_SRCS) \
-		$(RTL_LIB_SRCS) $(CPU_LIB_SRCS) $(CPU_DESIGN_SRCS) \
-		$(PERIPH_SRCS) $(BOARD_LOCAL_SRCS) $(ALL_TB_SRCS) \
-		$(ALL_BOARD_TB_SRCS) $(ALL_BOARD_SRCS) > verible.filelist
-	@echo "verible.filelist: $$(wc -l < verible.filelist) files"
+	@ls .slang/builds/*.f
 
 $(COMPILE_COMMANDS): FORCE tools/gen_compile_commands.py $(BOARD_CONSTANTS_HDR)
 	tools/gen_compile_commands.py --board $(BOARD) --output $@

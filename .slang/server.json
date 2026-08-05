@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/hudson-trading/slang-server/master/schema.json",
+  "buildPattern": ".slang/builds/{}.f",
+  "buildRelativePaths": false,
+  "index": [
+    {
+      "dirs": [
+        "rtl",
+        "boards",
+        "tb"
+      ],
+      "excludeDirs": [
+        "build",
+        "obj_dir",
+        "riscof_work"
+      ]
+    }
+  ],
+  "inlayHints": {
+    "portTypes": true,
+    "orderedInstanceNames": true,
+    "wildcardNames": true,
+    "funcArgNames": 2,
+    "macroArgNames": 2
+  }
+}

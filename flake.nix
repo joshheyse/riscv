@@ -32,7 +32,7 @@
         rtlSim = [
           pkgs.verilator  # fast cycle-accurate C++ sim + linter
           pkgs.gtkwave    # waveform viewer
-          pkgs.verible    # verible-verilog-{ls,format,lint}
+          pkgs.verible    # verible-verilog-{format,lint}
           pkgs.asm-lsp    # assembly language server (RISC-V aware, see .asm-lsp.toml)
         ];
 

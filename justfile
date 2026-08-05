@@ -110,7 +110,7 @@ test:
     done; \
     exit $fail
 
-# Regenerate verible.filelist for the language server.
+# List slang-server build filelists.
 filelist:
     make filelist
 

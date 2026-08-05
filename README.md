@@ -6,7 +6,8 @@ the book built around the CORE-V Wally core).
 
 ## Environment
 
-Everything is provided by the Nix flake — no system installs:
+Project build, simulation, synthesis, and firmware tools are provided by the
+Nix flake — no system installs:
 
 ```sh
 nix develop
@@ -20,7 +21,7 @@ nix develop
 | `qemu-system-riscv64`           | Fast full-system emulation (boot Linux, etc.)                                                                            |
 | `verilator`                     | Cycle-accurate RTL simulation + lint                                                                                     |
 | `gtkwave`                       | Waveform viewer                                                                                                          |
-| `verible`                       | SystemVerilog formatter / linter / language server                                                                       |
+| `verible`                       | SystemVerilog formatter / style linter                                                                                   |
 | `riscof`                        | RISC-V architecture compliance framework (DUT vs. Sail)                                                                  |
 | `dtc`                           | Device tree compiler                                                                                                     |
 
@@ -75,6 +76,7 @@ examples/apps/        RV32I example firmware
 sw/smoke/             toolchain sanity check; not software for this core
 docs/                 diagrams and vendor references
 tools/                generated constants / tooling helpers
+.slang/               slang-server workspace config and design-specific build filelists
 ```
 
 `DESIGN` is the CPU variant. It defaults to `single_stage`; use
@@ -133,6 +135,17 @@ make lint DESIGN=pipelined TOP=soc
 make board-app-test DESIGN=pipelined BOARD=sim BOARD_SIM=top_sim
 just board-cpi top_sim sim
 ```
+
+## Editor Setup
+
+SystemVerilog semantic navigation and diagnostics use `slang-server`, installed
+through the Home Manager editor toolchain. The checked-in `.slang/server.json`
+discovers the design-specific filelists in `.slang/builds/`; select only one
+build view at a time in the editor to avoid duplicate module definitions between
+`single_stage` and `pipelined`.
+
+Verible remains the formatter/style-lint tool. It is intentionally not used as
+the semantic language server.
 
 ## References
 
