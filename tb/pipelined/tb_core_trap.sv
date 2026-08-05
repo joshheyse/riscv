@@ -88,8 +88,8 @@ module tb_core_trap
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, "IFU captures illegal response");
-    expect_word(_dut._fetched.pc, 32'h0000_0000, "IFU tags illegal response pc");
-    expect_word(_dut._fetched.instr.raw, IllegalInstr, "IFU captures illegal instruction");
+    expect_word(_dut._fetched.slot.pc, 32'h0000_0000, "IFU tags illegal response pc");
+    expect_word(_dut._fetched.slot.instr.raw, IllegalInstr, "IFU captures illegal instruction");
     expect_bit(_halted, 1'b0, "fetched illegal instruction does not halt yet");
 
     @(negedge _clk);
@@ -98,12 +98,13 @@ module tb_core_trap
     @(posedge _clk);
     #1;
     expect_bit(_dut._if_id.valid, 1'b1, "IF/ID captures illegal instruction");
-    expect_word(_dut._if_id.pc, 32'h0000_0000, "IF/ID carries illegal instruction pc");
-    expect_word(_dut._if_id.instr.raw, IllegalInstr, "IF/ID carries illegal instruction");
+    expect_word(_dut._if_id.slot.pc, 32'h0000_0000, "IF/ID carries illegal instruction pc");
+    expect_word(_dut._if_id.slot.instr.raw, IllegalInstr, "IF/ID carries illegal instruction");
     expect_bit(_dut._id_trap.valid, 1'b1, "illegal instruction asserts trap");
     expect_word(_dut._id_trap.payload.mepc, 32'h0000_0000, "trap mepc is illegal instruction pc");
     expect_word(_dut._id_trap.payload.mcause, 32'h0000_0002, "trap mcause is illegal instruction");
-    expect_word(_dut._id_trap.payload.mtval, IllegalInstr, "trap mtval is illegal instruction bits");
+    expect_word(_dut._id_trap.payload.mtval, IllegalInstr,
+                "trap mtval is illegal instruction bits");
     expect_word(_dut._id_trap.payload.pc, 32'h0000_0000, "temporary zero mtvec traps to zero");
     expect_bit(_halted, 1'b0, "trap is visible before retirement");
 

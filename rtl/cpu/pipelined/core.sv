@@ -84,7 +84,7 @@ module core
 
   assign _id_branch_flags = '0;
 
-  assign _csr.addr = _id_ex.instr.i.imm.raw;  // bits [31:20]
+  assign _csr.addr = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
 
@@ -101,8 +101,8 @@ module core
   // Files
   reg_file _reg_file (
     .clk(clk),
-    .rd_addr1(_if_id.instr.r.rs1),
-    .rd_addr2(_if_id.instr.r.rs2),
+    .rd_addr1(_if_id.slot.instr.r.rs1),
+    .rd_addr2(_if_id.slot.instr.r.rs2),
     .wr_addr(_mem_wb.rd),
     .wr_data(_mem_wb.result),
     .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en && !_mem_wb.trap.valid),
@@ -138,16 +138,16 @@ module core
 
   trap_control _id_trap_control (
     .trap_ctrl(_ctrl.trap),
-    .instr(_if_id.instr),
-    .pc(_if_id.pc),
+    .instr(_if_id.slot.instr),
+    .pc(_if_id.slot.pc),
     .mtvec(_csr_status.mtvec),
     .trap(_id_trap)
   );
 
   trap_control _ex_trap_control (
     .trap_ctrl(_csr_illegal_trap_ctrl),
-    .instr(_id_ex.instr),
-    .pc(_id_ex.pc),
+    .instr(_id_ex.slot.instr),
+    .pc(_id_ex.slot.pc),
     .mtvec(_csr_status.mtvec),
     .trap(_csr_trap)
   );
@@ -217,13 +217,11 @@ module core
         if (_if_id.valid) begin
           _id_ex_next = '{
               valid: 1'b1,
-              pc: _if_id.pc,
-              instr: _if_id.instr,
+              slot: _if_id.slot,
               ctrl: _ctrl,
               rs1_operand: _id_rs1_operand,
               rs2_operand: _id_rs2_operand,
               imm: _id_imm,
-              rd: _if_id.instr.r.rd,
               trap: _id_trap
           };
         end
@@ -232,14 +230,14 @@ module core
   end
 
   controller _controller (
-    .instr(_if_id.instr),
+    .instr(_if_id.slot.instr),
     .branch_flags(_id_branch_flags),
     .ctrl(_ctrl)
   );
 
   extend _extend (
     .imm_format(_ctrl.imm_format),
-    .instr(_if_id.instr[31:7]),
+    .instr(_if_id.slot.instr[31:7]),
     .imm_ext(_id_imm)
   );
 
@@ -260,12 +258,12 @@ module core
         if (_id_ex.valid) begin
           _ex_mem_next = '{
               valid: 1'b1,
-              pc: _id_ex.pc,
+              pc: _id_ex.slot.pc,
               ctrl: _id_ex.ctrl,
               alu_result: _alu_result,
               execute_result: _ex_result,
               write_data: _store_data,
-              rd: _id_ex.instr.r.rd,
+              rd: _id_ex.slot.instr.r.rd,
               trap: _ex_trap
           };
         end
@@ -275,8 +273,8 @@ module core
 
   integer_execute _integer_execute (
     .ctrl(_id_ex.ctrl),
-    .branch_funct3(_id_ex.instr.r.funct3.br),
-    .pc(_id_ex.pc),
+    .branch_funct3(_id_ex.slot.instr.r.funct3.br),
+    .pc(_id_ex.slot.pc),
     .rs1_data(_ex_rs1_operand),
     .rs2_data(_ex_rs2_operand),
     .imm(_id_ex.imm),
@@ -290,14 +288,14 @@ module core
     .csr_use_zimm(_id_ex.ctrl.csr.use_zimm),
     .csr_read_data(_csr.read_data),
     .rs1_data(_ex_rs1_operand),
-    .zimm(_id_ex.instr.r.rs1),
+    .zimm(_id_ex.slot.instr.r.rs1),
     .csr_result(_csr.result),
     .csr_write_data(_csr.write_data)
   );
 
   execute_result_mux _execute_result_mux (
     .execute_result_kind(_id_ex.ctrl.execute_result),
-    .pc(_id_ex.pc),
+    .pc(_id_ex.slot.pc),
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .csr_result(_csr.result),

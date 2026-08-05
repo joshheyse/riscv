@@ -91,7 +91,7 @@ module tb_core_system_trap
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, {what, " fetched valid"});
-    expect_word(_dut._fetched.instr.raw, instr, {what, " fetched instr"});
+    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " fetched instr"});
 
     @(negedge _clk);
     _ibus.rsp = '0;
@@ -106,13 +106,13 @@ module tb_core_system_trap
     issue_first_instr(instr, what);
 
     expect_bit(_dut._if_id.valid, 1'b1, {what, " IF/ID valid"});
-    expect_word(_dut._if_id.instr.raw, instr, {what, " IF/ID instr"});
+    expect_word(_dut._if_id.slot.instr.raw, instr, {what, " IF/ID instr"});
     expect_bit(_dut._ctrl.trap.valid, 1'b1, {what, " decoded trap valid"});
     expect_word(32'(_dut._ctrl.trap.src), 32'(src), {what, " decoded trap src"});
-    expect_bit(_dut._trap.valid, 1'b1, {what, " trap valid"});
-    expect_word(_dut._trap.payload.mepc, 32'h0000_0000, {what, " trap mepc"});
-    expect_word(_dut._trap.payload.mcause, mcause, {what, " trap mcause"});
-    expect_word(_dut._trap.payload.mtval, 32'h0000_0000, {what, " trap mtval"});
+    expect_bit(_dut._id_trap.valid, 1'b1, {what, " trap valid"});
+    expect_word(_dut._id_trap.payload.mepc, 32'h0000_0000, {what, " trap mepc"});
+    expect_word(_dut._id_trap.payload.mcause, mcause, {what, " trap mcause"});
+    expect_word(_dut._id_trap.payload.mtval, 32'h0000_0000, {what, " trap mtval"});
   endtask
 
   initial begin

@@ -23,15 +23,15 @@ module forwarding_unit
     _ex_mem_can_forward = ex_mem.valid && ex_mem.ctrl.reg_write_en && (ex_mem.rd != 5'd0) && (ex_mem.ctrl.writeback_result != WB_RESULT_MEM);
     _mem_wb_can_forward = writes_rd(mem_wb.valid, mem_wb.ctrl.reg_write_en, mem_wb.rd);
 
-    if (_ex_mem_can_forward && (ex_mem.rd == id_ex.instr.r.rs1)) begin
+    if (_ex_mem_can_forward && (ex_mem.rd == id_ex.slot.instr.r.rs1)) begin
       rs1_operand = ex_mem.execute_result;
-    end else if (_mem_wb_can_forward && (mem_wb.rd == id_ex.instr.r.rs1)) begin
+    end else if (_mem_wb_can_forward && (mem_wb.rd == id_ex.slot.instr.r.rs1)) begin
       rs1_operand = mem_wb.result;
     end
 
-    if (_ex_mem_can_forward && (ex_mem.rd == id_ex.instr.r.rs2)) begin
+    if (_ex_mem_can_forward && (ex_mem.rd == id_ex.slot.instr.r.rs2)) begin
       rs2_operand = ex_mem.execute_result;
-    end else if (_mem_wb_can_forward && (mem_wb.rd == id_ex.instr.r.rs2)) begin
+    end else if (_mem_wb_can_forward && (mem_wb.rd == id_ex.slot.instr.r.rs2)) begin
       rs2_operand = mem_wb.result;
     end
 

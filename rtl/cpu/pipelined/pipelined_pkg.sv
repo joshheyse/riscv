@@ -13,20 +13,17 @@ package pipelined_pkg;
   import riscv_pkg::*;
 
   typedef struct packed {
-    logic   valid;  // slot contains an instruction
-    pc_t    pc;     // PC associated with instr
-    instr_u instr;  // fetched instruction
+    logic        valid;  // slot contains an instruction
+    instr_slot_t slot;   // fetched instruction and PC
   } if_id_t;
 
   typedef struct packed {
     logic        valid;        // slot contains an instruction
-    pc_t         pc;           // PC associated with instr
-    instr_u      instr;        // decoded instruction
+    instr_slot_t slot;         // decoded instruction and PC
     control_t    ctrl;         // decoded control signals
     word_t       rs1_operand;  // register source 1 value
     word_t       rs2_operand;  // register source 2 value
     word_t       imm;          // decoded immediate value
-    regaddr_t    rd;           // destination register address
     trap_stage_t trap;
   } id_ex_t;
 

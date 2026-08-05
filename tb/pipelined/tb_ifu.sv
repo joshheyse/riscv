@@ -95,8 +95,8 @@ module tb_ifu
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b1, "ready response produces fetch");
-    expect_word(_fetched.pc, 32'h0000_0000, "first fetch records pc");
-    expect_word(_fetched.instr.raw, 32'h0050_0093, "first fetch records instruction");
+    expect_word(_fetched.slot.pc, 32'h0000_0000, "first fetch records pc");
+    expect_word(_fetched.slot.instr.raw, 32'h0050_0093, "first fetch records instruction");
     expect_word(_pc, 32'h0000_0004, "accepted fetch keeps next request pc");
     expect_word(_ibus.req.addr, 32'h0000_0004, "next request uses advanced pc");
 
@@ -109,8 +109,8 @@ module tb_ifu
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b1, "pipe disabled holds fetched output");
-    expect_word(_fetched.pc, 32'h0000_0000, "held fetch keeps pc");
-    expect_word(_fetched.instr.raw, 32'h0050_0093, "held fetch keeps instruction");
+    expect_word(_fetched.slot.pc, 32'h0000_0000, "held fetch keeps pc");
+    expect_word(_fetched.slot.instr.raw, 32'h0050_0093, "held fetch keeps instruction");
     expect_word(_pc, 32'h0000_0004, "pipe disabled holds pc");
 
     @(negedge _clk);
@@ -127,8 +127,8 @@ module tb_ifu
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b1, "second ready response produces fetch");
-    expect_word(_fetched.pc, 32'h0000_0004, "second fetch records held pc");
-    expect_word(_fetched.instr.raw, 32'h0031_00b3, "second fetch records instruction");
+    expect_word(_fetched.slot.pc, 32'h0000_0004, "second fetch records held pc");
+    expect_word(_fetched.slot.instr.raw, 32'h0031_00b3, "second fetch records instruction");
     expect_word(_pc, 32'h0000_0008, "second accepted fetch keeps next request pc");
 
     @(posedge _clk);
@@ -170,8 +170,8 @@ module tb_ifu
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b1, "post-redirect ready response produces fetch");
-    expect_word(_fetched.pc, 32'h0000_0040, "post-redirect fetch records target pc");
-    expect_word(_fetched.instr.raw, 32'h0000_0093, "post-redirect fetch records instruction");
+    expect_word(_fetched.slot.pc, 32'h0000_0040, "post-redirect fetch records target pc");
+    expect_word(_fetched.slot.instr.raw, 32'h0000_0093, "post-redirect fetch records instruction");
     expect_word(_pc, 32'h0000_0044, "post-redirect fetch keeps next request pc");
 
     @(negedge _clk);

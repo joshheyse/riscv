@@ -114,8 +114,8 @@ module tb_core
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
-    expect_word(_dut._fetched.pc, exp_addr, {what, " response pc"});
-    expect_word(_dut._fetched.instr.raw, instr, {what, " response instr"});
+    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
+    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
 
     @(negedge _clk);
     _ibus.rsp = '0;

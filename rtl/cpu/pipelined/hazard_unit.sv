@@ -29,6 +29,7 @@ module hazard_unit
 
   logic [4:0] _rs1_addr;
   logic [4:0] _rs2_addr;
+  logic [4:0] _id_ex_rd;
   logic       _uses_rs1;
   logic       _uses_rs2;
 
@@ -40,10 +41,11 @@ module hazard_unit
     _uses_rs1 = 1'b0;
     _uses_rs2 = 1'b0;
 
-    _rs1_addr = if_id.instr.r.rs1;
-    _rs2_addr = if_id.instr.r.rs2;
+    _rs1_addr = if_id.slot.instr.r.rs1;
+    _rs2_addr = if_id.slot.instr.r.rs2;
+    _id_ex_rd = id_ex.slot.instr.r.rd;
 
-    unique case (if_id.instr.r.opcode)
+    unique case (if_id.slot.instr.r.opcode)
       OP_R: begin
         _uses_rs1 = 1'b1;
         _uses_rs2 = 1'b1;
@@ -62,10 +64,13 @@ module hazard_unit
       end
     endcase
 
-    _ex_mem_can_stall = writes_rd(ex_mem.valid, ex_mem.ctrl.reg_write_en, ex_mem.rd) && (ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
+    _ex_mem_can_stall = writes_rd(ex_mem.valid, ex_mem.ctrl.reg_write_en, ex_mem.rd) &&
+        (ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
 
     if (if_id.valid && _uses_rs1) begin
-      if (writes_rd(id_ex.valid, id_ex.ctrl.reg_write_en, id_ex.rd) && (id_ex.rd == _rs1_addr)) begin
+      if (writes_rd(
+              id_ex.valid, id_ex.ctrl.reg_write_en, _id_ex_rd
+          ) && (_id_ex_rd == _rs1_addr)) begin
         stall = 1'b1;
       end
 
@@ -76,7 +81,9 @@ module hazard_unit
     end
 
     if (if_id.valid && _uses_rs2) begin
-      if (writes_rd(id_ex.valid, id_ex.ctrl.reg_write_en, id_ex.rd) && (id_ex.rd == _rs2_addr)) begin
+      if (writes_rd(
+              id_ex.valid, id_ex.ctrl.reg_write_en, _id_ex_rd
+          ) && (_id_ex_rd == _rs2_addr)) begin
         stall = 1'b1;
       end
 

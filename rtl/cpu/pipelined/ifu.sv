@@ -71,7 +71,7 @@ module ifu
         // Tag each returned instruction with the PC from the request cycle,
         // not the current next-request PC.
         if (ibus.rsp.ready && _request_valid) begin
-          fetched <= '{valid: 1'b1, pc: _request_pc, instr: ibus.rsp.instr};
+          fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.instr, pc: _request_pc}};
           _request_valid <= 1'b0;
         end
 

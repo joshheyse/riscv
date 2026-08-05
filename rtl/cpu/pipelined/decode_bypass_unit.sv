@@ -22,11 +22,11 @@ module decode_bypass_unit
     id_rs1_operand = rf_rs1_read;
     id_rs2_operand = rf_rs2_read;
 
-    if (_mem_wb_can_bypass && (mem_wb.rd == if_id.instr.r.rs1)) begin
+    if (_mem_wb_can_bypass && (mem_wb.rd == if_id.slot.instr.r.rs1)) begin
       id_rs1_operand = mem_wb.result;
     end
 
-    if (_mem_wb_can_bypass && (mem_wb.rd == if_id.instr.r.rs2)) begin
+    if (_mem_wb_can_bypass && (mem_wb.rd == if_id.slot.instr.r.rs2)) begin
       id_rs2_operand = mem_wb.result;
     end
   end

@@ -45,13 +45,13 @@ module tb_hazard_unit
 
   task automatic set_consumer(input instr_t instr);
     _if_id.valid = 1'b1;
-    _if_id.instr.raw = instr;
+    _if_id.slot.instr.raw = instr;
   endtask
 
   task automatic set_id_ex_producer(input regaddr_t rd);
     _id_ex.valid = 1'b1;
     _id_ex.ctrl.reg_write_en = 1'b1;
-    _id_ex.rd = rd;
+    _id_ex.slot.instr.r.rd = rd;
   endtask
 
   task automatic set_ex_mem_producer(input regaddr_t rd, input writeback_result_t writeback_result);
@@ -141,7 +141,7 @@ module tb_hazard_unit
     set_consumer(32'h0010_8133);  // add x2, x1, x1
     _id_ex.valid = 1'b1;
     _id_ex.ctrl.reg_write_en = 1'b0;
-    _id_ex.rd = 5'd1;
+    _id_ex.slot.instr.r.rd = 5'd1;
     expect_stall(1'b0, "non-writing producer does not stall");
 
     if (errors == 0) begin

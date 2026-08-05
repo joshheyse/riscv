@@ -15,8 +15,8 @@ module tb_core_csr_illegal
 
   localparam instr_t ADDI_X1_X0_7 = 32'h0070_0093;
   localparam instr_t ADDI_X2_X0_9 = 32'h0090_0113;
-  localparam word_t  X5Sentinel   = 32'ha5a5_5a5a;
-  localparam word_t  X3WriteValue = 32'hffff_ffff;
+  localparam word_t X5Sentinel = 32'ha5a5_5a5a;
+  localparam word_t X3WriteValue = 32'hffff_ffff;
 
   logic _clk;
   logic _rst;
@@ -117,8 +117,8 @@ module tb_core_csr_illegal
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
-    expect_word(_dut._fetched.pc, exp_addr, {what, " response pc"});
-    expect_word(_dut._fetched.instr.raw, instr, {what, " response instr"});
+    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
+    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
 
     @(negedge _clk);
     _ibus.rsp = '0;
@@ -137,7 +137,7 @@ module tb_core_csr_illegal
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response may enter IFU output"});
-    expect_word(_dut._fetched.instr.raw, instr, {what, " speculative response instr"});
+    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " speculative response instr"});
 
     @(negedge _clk);
     _ibus.rsp = '0;
