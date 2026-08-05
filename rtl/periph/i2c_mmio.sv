@@ -21,30 +21,22 @@ typedef enum logic {
 module i2c_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t   DataAddr         = '0,
-  parameter mem_addr_t   ControlAddr      = '0,
-  parameter mem_addr_t   StatusAddr       = '0,
-  parameter mem_addr_t   AddressAddr      = '0,
+  parameter mem_addr_t    DataAddr         = '0,
+  parameter mem_addr_t    ControlAddr      = '0,
+  parameter mem_addr_t    StatusAddr       = '0,
+  parameter mem_addr_t    AddressAddr      = '0,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
-  input  logic            clk,
-  input  logic            rst,
-  input  logic            mem_valid,
-  input  logic            mem_write_en,
-  input  mem_addr_t       mem_addr,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  mem_data_t       mem_write_data,
-  input  mem_write_mask_t mem_write_mask,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic            selected,
-  output logic            mem_ready,
-  output mem_data_t       mem_read_data,
-  input  logic            i2c_sda_in,
-  output logic            i2c_sda_drive_low,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  logic            i2c_scl_in,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic            i2c_scl_drive_low
+  input  logic             clk,
+  input  logic             rst,
+
+  input  logic             i2c_sda_in,
+  output logic             i2c_sda_drive_low,
+  input  logic             i2c_scl_in,
+  output logic             i2c_scl_drive_low,
+  output logic             selected,
+
+  mem_if.slave mem
 );
 
   i2c_state_t       _state;
@@ -63,12 +55,12 @@ module i2c_mmio
   byte_t            _i2c_byte;
   logic       [2:0] _bit_index;
 
-  assign _data_selected = mem_addr == DataAddr;
-  assign _control_selected = mem_addr == ControlAddr;
-  assign _status_selected = mem_addr == StatusAddr;
-  assign _address_selected = mem_addr == AddressAddr;
+  assign _data_selected = mem.req.addr == DataAddr;
+  assign _control_selected = mem.req.addr == ControlAddr;
+  assign _status_selected = mem.req.addr == StatusAddr;
+  assign _address_selected = mem.req.addr == AddressAddr;
   assign selected = _data_selected | _control_selected | _status_selected | _address_selected;
-  assign mem_ready = mem_valid && selected;
+  assign mem.rsp.ready = mem.req.valid && selected;
 
   logic _stg_en;
   logic _stg_clear;
@@ -99,16 +91,16 @@ module i2c_mmio
       _phase <= I2C_PHASE_LOW;
       _byte_type <= I2C_BYTE_ADDR;
     end else begin
-      if (mem_write_en) begin
+      if (mem.req.write_en) begin
         if (_data_selected) begin
-          _tx_data <= mem_write_data[7:0];
+          _tx_data <= mem.req.write_data[7:0];
         end else if (_address_selected) begin
-          _i2c_addr <= mem_write_data[6:0];
+          _i2c_addr <= mem.req.write_data[6:0];
         end
       end
       case (_state)
         I2C_IDLE: begin
-          if (mem_write_en && _control_selected) begin
+          if (mem.req.write_en && _control_selected) begin
             _state <= I2C_START;
             _phase <= I2C_PHASE_LOW;
             _ack_error <= 1'b0;
@@ -204,13 +196,13 @@ module i2c_mmio
     endcase
 
     if (_data_selected) begin
-      mem_read_data = {24'b0, _rx_data};
+      mem.rsp.read_data = {24'b0, _rx_data};
     end else if (_address_selected) begin
-      mem_read_data = {25'b0, _i2c_addr};
+      mem.rsp.read_data = {25'b0, _i2c_addr};
     end else if (_status_selected) begin
-      mem_read_data = {30'b0, _ack_error, _busy};
+      mem.rsp.read_data = {30'b0, _ack_error, _busy};
     end else begin
-      mem_read_data = 32'b0;
+      mem.rsp.read_data = 32'b0;
     end
 
   end

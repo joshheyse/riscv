@@ -3,34 +3,26 @@
 module gpio_mmio
   import riscv_pkg::*;
 #(
-  parameter logic        [31:0] GpioDataInAddr  = '0,
-  parameter logic        [31:0] GpioDataOutAddr = '0,
-  parameter logic        [31:0] GpioDirAddr     = '0,
-  parameter logic        [31:0] GpioSetAddr     = '0,
-  parameter logic        [31:0] GpioClearAddr   = '0,
-  parameter logic        [31:0] GpioToggleAddr  = '0,
-  parameter int unsigned        NumGpio         = 1
+  parameter mem_addr_t  GpioDataInAddr  = '0,
+  parameter mem_addr_t  GpioDataOutAddr = '0,
+  parameter mem_addr_t  GpioDirAddr     = '0,
+  parameter mem_addr_t  GpioSetAddr     = '0,
+  parameter mem_addr_t  GpioClearAddr   = '0,
+  parameter mem_addr_t  GpioToggleAddr  = '0,
+  parameter int unsigned NumGpio         = 1
 ) (
-  input logic clk,
-  input logic rst,
-
-  input  logic            mem_valid,
-  input  logic            mem_write_en,
-  input  mem_addr_t       mem_addr,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  mem_data_t       mem_write_data,
-  input  mem_write_mask_t mem_write_mask,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic            selected,
-  output logic            mem_ready,
-  output mem_data_t       mem_read_data,
+  input  logic               clk,
+  input  logic               rst,
 
   input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,
-  output logic [NumGpio-1:0] gpio_oe
+  output logic [NumGpio-1:0] gpio_oe,
+  output logic               selected,
+
+  mem_if.slave mem
 );
 
-  localparam int unsigned WordBits = $bits(mem_addr);
+  localparam int unsigned WordBits = $bits(mem_addr_t);
   initial begin
     assert (NumGpio < WordBits);
   end
@@ -38,36 +30,39 @@ module gpio_mmio
   logic [NumGpio-1:0] _read;
 
 
-  assign selected = mem_addr == GpioDataInAddr || mem_addr == GpioDataOutAddr || mem_addr == GpioDirAddr ||
-             mem_addr == GpioSetAddr || mem_addr == GpioClearAddr || mem_addr == GpioToggleAddr;
-  assign mem_ready = mem_valid && selected;
+  assign selected = mem.req.addr == GpioDataInAddr || mem.req.addr == GpioDataOutAddr || mem.req.addr == GpioDirAddr ||
+                   mem.req.addr == GpioSetAddr || mem.req.addr == GpioClearAddr || mem.req.addr == GpioToggleAddr;
+  assign mem.rsp.ready = mem.req.valid && selected;
 
   always_ff @(posedge clk) begin
     if (rst) begin
       gpio_out <= 0;
       gpio_oe  <= 0;
     end else begin
-      if (mem_write_en && selected) begin
-        if (mem_addr == GpioDataOutAddr) begin
-          gpio_out <= mem_write_data[NumGpio-1:0];
-        end else if (mem_addr == GpioDirAddr) begin
-          gpio_oe <= mem_write_data[NumGpio-1:0];
-        end else if (mem_addr == GpioSetAddr) begin
-          gpio_out <= gpio_out | mem_write_data[NumGpio-1:0];
-        end else if (mem_addr == GpioClearAddr) begin
-          gpio_out <= gpio_out & ~mem_write_data[NumGpio-1:0];
-        end else if (mem_addr == GpioToggleAddr) begin
-          gpio_out <= gpio_out ^ mem_write_data[NumGpio-1:0];
+      if (mem.req.write_en && selected) begin
+        if (mem.req.addr == GpioDataOutAddr) begin
+          gpio_out <= mem.req.write_data[NumGpio-1:0];
+        end else if (mem.req.addr == GpioDirAddr) begin
+          gpio_oe <= mem.req.write_data[NumGpio-1:0];
+        end else if (mem.req.addr == GpioSetAddr) begin
+          gpio_out <= gpio_out | mem.req.write_data[NumGpio-1:0];
+        end else if (mem.req.addr == GpioClearAddr) begin
+          gpio_out <= gpio_out & ~mem.req.write_data[NumGpio-1:0];
+        end else if (mem.req.addr == GpioToggleAddr) begin
+          gpio_out <= gpio_out ^ mem.req.write_data[NumGpio-1:0];
         end
       end
     end
   end
 
-  assign _read = mem_addr == GpioDataInAddr ? gpio_in :
-                   mem_addr == GpioDataOutAddr ? gpio_out :
-                   mem_addr == GpioDirAddr ? gpio_oe :
-                   8'h0;
+  assign _read = mem.req.addr == GpioDataInAddr ? gpio_in :
+                mem.req.addr == GpioDataOutAddr ? gpio_out :
+                mem.req.addr == GpioDirAddr ? gpio_oe :
+                {NumGpio{1'b0}};
 
-  assign mem_read_data = {{WordBits - NumGpio{1'b0}}, _read};
+  always_comb begin
+    mem.rsp.read_data = '0;
+    mem.rsp.read_data = {{WordBits - NumGpio{1'b0}}, _read};
+  end
 
 endmodule

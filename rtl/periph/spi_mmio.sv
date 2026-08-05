@@ -16,24 +16,16 @@ module spi_mmio
   parameter mem_addr_t   StatusAddr       = '0,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
-  input logic clk,
-  input logic rst,
-
-  input  logic            mem_valid,
-  input  logic            mem_write_en,
-  input  mem_addr_t       mem_addr,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  mem_data_t       mem_write_data,
-  input  mem_write_mask_t mem_write_mask,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic            selected,
-  output logic            mem_ready,
-  output mem_data_t       mem_read_data,
+  input  logic clk,
+  input  logic rst,
 
   output logic spi_sck,
   output logic spi_mosi,
   input  logic spi_miso,
-  output logic spi_cs_n
+  output logic spi_cs_n,
+  output logic selected,
+
+  mem_if.slave mem
 );
 
   spi_state_t       _state;
@@ -45,11 +37,11 @@ module spi_mmio
   byte_t            _rx_data;
   logic       [2:0] _bit_index;
 
-  assign _data_selected = mem_addr == DataAddr;
-  assign _control_selected = mem_addr == ControlAddr;
-  assign _status_selected = mem_addr == StatusAddr;
+  assign _data_selected = mem.req.addr == DataAddr;
+  assign _control_selected = mem.req.addr == ControlAddr;
+  assign _status_selected = mem.req.addr == StatusAddr;
   assign selected = _data_selected || _control_selected || _status_selected;
-  assign mem_ready = mem_valid && selected;
+  assign mem.rsp.ready = mem.req.valid && selected;
 
   logic _stg_en;
   logic _stg_clear;
@@ -75,12 +67,12 @@ module spi_mmio
       _rx_data <= 0;
       _bit_index <= 0;
     end else begin
-      if (mem_write_en && _data_selected) begin
-        _tx_data <= mem_write_data[7:0];
+      if (mem.req.write_en && _data_selected) begin
+        _tx_data <= mem.req.write_data[7:0];
       end
       unique case (_state)
         SPI_IDLE: begin
-          if (mem_write_en && _control_selected && mem_write_data[0]) begin
+          if (mem.req.write_en && _control_selected && mem.req.write_data[0]) begin
             _bit_index <= 3'b111;
             _rx_data <= 0;
             _state <= SPI_SETUP;
@@ -132,12 +124,13 @@ module spi_mmio
       spi_sck = 1'b1;
     end
 
+    mem.rsp.read_data = 32'h0;
     if (_data_selected) begin
-      mem_read_data = {24'b0, _rx_data};
+      mem.rsp.read_data = {24'b0, _rx_data};
     end else if (_status_selected) begin
-      mem_read_data = {31'b0, _busy};
+      mem.rsp.read_data = {31'b0, _busy};
     end else begin
-      mem_read_data = 32'b0;
+      mem.rsp.read_data = 32'b0;
     end
   end
 

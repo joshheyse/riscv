@@ -3,28 +3,20 @@
 module push_button_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t   PushButtonAddr = '0,
+  parameter mem_addr_t    PushButtonAddr = '0,
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
-  input  logic                                 clk,
-  input  logic                                 rst,
-  input  logic                                 mem_valid,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  logic                                 mem_write_en,
-  /* verilator lint_on UNUSEDSIGNAL */
-  input  mem_addr_t                            mem_addr,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  mem_data_t                            mem_write_data,
-  input  mem_write_mask_t                      mem_write_mask,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic                                 selected,
-  output logic                                 mem_ready,
-  output mem_data_t                            mem_read_data,
-  input  logic            [NumPushButtons-1:0] push_button
+  input  logic                    clk,
+  input  logic                    rst,
+
+  input  logic [NumPushButtons-1:0] push_button,
+  output logic                    selected,
+
+  mem_if.slave mem
 );
 
-  localparam int unsigned WordBits = $bits(mem_addr);
+  localparam int unsigned WordBits = $bits(mem_addr_t);
   localparam int unsigned DebounceCounterBits = $clog2(DebounceCycles + 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterMax = DebounceCounterBits'(DebounceCycles - 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterInc = DebounceCounterBits'(1);
@@ -39,9 +31,13 @@ module push_button_mmio
   logic [     NumPushButtons-1:0] _debounced_button;
   logic [DebounceCounterBits-1:0] _counter;
 
-  assign selected = (mem_addr == PushButtonAddr);
-  assign mem_ready = mem_valid && selected;
-  assign mem_read_data = {{(WordBits - NumPushButtons) {1'b0}}, _debounced_button};
+  assign selected = (mem.req.addr == PushButtonAddr);
+  assign mem.rsp.ready = mem.req.valid && selected;
+
+  always_comb begin
+    mem.rsp.read_data = '0;
+    mem.rsp.read_data = {{(WordBits - NumPushButtons) {1'b0}}, _debounced_button};
+  end
 
   always_ff @(posedge clk) begin
     if (rst) begin

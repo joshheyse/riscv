@@ -7,20 +7,13 @@ module uart_mmio
   parameter mem_addr_t   TxDataAddr   = '0,
   parameter mem_addr_t   StatusAddr   = '0
 ) (
-  input logic clk,
-  input logic rst,
+  input  logic clk,
+  input  logic rst,
 
-  input  logic            mem_valid,
-  input  logic            mem_write_en,
-  input  mem_addr_t       mem_addr,
-  /* verilator lint_off UNUSEDSIGNAL */
-  input  mem_data_t       mem_write_data,
-  input  mem_write_mask_t mem_write_mask,
-  /* verilator lint_on UNUSEDSIGNAL */
-  output logic            selected,
-  output logic            mem_ready,
-  output mem_data_t       mem_read_data,
-  output logic            tx
+  output logic tx,
+  output logic selected,
+
+  mem_if.slave mem
 );
 
   byte_t       _tx_data;
@@ -29,11 +22,14 @@ module uart_mmio
   logic        _tx_busy;
   logic        _tx_ready;
 
-  assign selected = (mem_addr == TxDataAddr | mem_addr == StatusAddr);
-  assign mem_ready = mem_valid && selected;
+  assign selected = (mem.req.addr == TxDataAddr | mem.req.addr == StatusAddr);
+  assign mem.rsp.ready = mem.req.valid && selected;
 
   assign _tx_ready = !_tx_busy;
-  assign mem_read_data = (mem_addr == StatusAddr) ? {31'b0, _tx_ready} : 32'h0;
+  always_comb begin
+    mem.rsp.read_data = 32'h0;
+    mem.rsp.read_data = (mem.req.addr == StatusAddr) ? {31'b0, _tx_ready} : 32'h0;
+  end
   assign _data_bit_idx = _bit_idx[2:0] - 3'd1;
 
   logic _stg_en;
@@ -58,9 +54,9 @@ module uart_mmio
       _tx_busy <= 1'b0;
       _tx_data <= 8'h0;
       _bit_idx <= '0;
-    end else if (mem_write_en && (mem_addr == TxDataAddr) && !_tx_busy) begin
+    end else if (mem.req.write_en && (mem.req.addr == TxDataAddr) && !_tx_busy) begin
       _tx_busy <= 1'b1;
-      _tx_data <= mem_write_data[7:0];
+      _tx_data <= mem.req.write_data[7:0];
       _bit_idx <= 0;
     end else if (_tx_busy) begin
       if (_stg_tick) begin
