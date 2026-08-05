@@ -19,7 +19,23 @@ package riscv_pkg;
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [4:0] csr_zimm_t;  // CSR immediate operand field
-  typedef logic [11:0] csr_addr_t;  // CSR address field
+
+  typedef enum logic [1:0] {
+    PRIV_USER       = 2'b00,
+    PRIV_SUPERVISOR = 2'b01,
+    PRIV_MACHINE    = 2'b11
+  } priv_mode_t;
+
+  typedef struct packed {
+    logic [1:0] rw;        // [11:10] read/write class; 2'b11 is read-only
+    priv_mode_t min_priv;  // [9:8] minimum privilege required by CSR address
+    logic [7:0] index;     // [7:0] CSR index within the privilege/class space
+  } csr_addr_fields_t;
+
+  typedef union packed {
+    logic [11:0]      raw;     // full 12-bit CSR address
+    csr_addr_fields_t fields;  // decoded CSR address fields
+  } csr_addr_t;
 
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
@@ -233,12 +249,6 @@ package riscv_pkg;
     system_op_t op;
   } system_ctrl_t;
 
-  typedef enum logic [1:0] {
-    PRIV_USER = 2'b00,
-    PRIV_SUPERVISOR = 2'b01,
-    PRIV_MACHINE = 2'b11
-  } priv_mode_t;
-
   // Decoded control-flow class. Branch and jump are mutually exclusive; the
   // branch condition itself is resolved later from funct3 and branch flags.
   typedef enum logic [1:0] {
@@ -304,7 +314,7 @@ package riscv_pkg;
     CBIE_INVAL    = 2'b11
   } cbie_t;
 
-  typedef enum csr_addr_t {
+  typedef enum logic [11:0] {
     CSR_SSTATUS  = 12'h100,
     CSR_SIE      = 12'h104,
     CSR_STVEC    = 12'h105,

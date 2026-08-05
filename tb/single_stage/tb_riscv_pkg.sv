@@ -22,6 +22,7 @@ module tb_riscv_pkg
   mip_t               _mip;
   mtvec_t             _mtvec;
   mcause_t            _mcause;
+  csr_addr_t          _csr_addr;
   logic        [31:0] _packed;
 
   task automatic expect_int(input int unsigned got, input int unsigned exp, input string what);
@@ -64,6 +65,7 @@ module tb_riscv_pkg
     expect_int($bits(mtvec_mode_t), 2, "mtvec_mode_t width");
     expect_int($bits(exception_code_t), 31, "exception_code_t width");
     expect_int($bits(csr_addr_t), 12, "csr_addr_t width");
+    expect_int($bits(csr_addr_fields_t), 12, "csr_addr_fields_t width");
     expect_int($bits(csr_addr_e), 12, "csr_addr_e width");
     expect_int($bits(cbie_t), 2, "cbie_t width");
     expect_int($bits(ext_status_t), 2, "ext_status_t width");
@@ -103,6 +105,21 @@ module tb_riscv_pkg
     expect_bits(32'(CSR_MCAUSE), 32'h0000_0342, "CSR_MCAUSE address");
     expect_bits(32'(CSR_MIP), 32'h0000_0344, "CSR_MIP address");
     expect_bits(32'(CSR_MHARTID), 32'h0000_0f14, "CSR_MHARTID address");
+
+    _csr_addr.raw = CSR_MSTATUS;
+    expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0000, "CSR_MSTATUS rw field");
+    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_MACHINE), "CSR_MSTATUS min privilege");
+    expect_bits(32'(_csr_addr.fields.index), 32'h0000_0000, "CSR_MSTATUS index field");
+
+    _csr_addr.raw = CSR_SSTATUS;
+    expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0000, "CSR_SSTATUS rw field");
+    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_SUPERVISOR), "CSR_SSTATUS min privilege");
+    expect_bits(32'(_csr_addr.fields.index), 32'h0000_0000, "CSR_SSTATUS index field");
+
+    _csr_addr.raw = CSR_MHARTID;
+    expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0003, "CSR_MHARTID read-only field");
+    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_MACHINE), "CSR_MHARTID min privilege");
+    expect_bits(32'(_csr_addr.fields.index), 32'h0000_0014, "CSR_MHARTID index field");
 
     _mstatus = '0;
     _mstatus.sd = 1'b1;

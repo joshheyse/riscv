@@ -43,7 +43,7 @@ module tb_core_csr_illegal
     forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
-  function automatic instr_t csr_instr(input csr_addr_t csr, input regaddr_t rs1_or_zimm,
+  function automatic instr_t csr_instr(input logic [11:0] csr, input regaddr_t rs1_or_zimm,
                                        input sys_funct3_t funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction

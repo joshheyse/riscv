@@ -85,11 +85,11 @@ module tb_csr_file
     _mret_valid = 1'b0;
   endtask
 
-  task automatic read_csr(input csr_addr_t addr, input csr_data_t exp, input string what);
+  task automatic read_csr(input logic [11:0] addr, input csr_data_t exp, input string what);
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b0;
-    _csr_addr = addr;
+    _csr_addr.raw = addr;
     _csr_write_data = '0;
     #1;
     expect_bool(_illegal_csr, 1'b0, {what, " legal read"});
@@ -99,11 +99,11 @@ module tb_csr_file
     _csr_addr = '0;
   endtask
 
-  task automatic write_csr(input csr_addr_t addr, input csr_data_t data, input string what);
+  task automatic write_csr(input logic [11:0] addr, input csr_data_t data, input string what);
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b1;
-    _csr_addr = addr;
+    _csr_addr.raw = addr;
     _csr_write_data = data;
     #1;
     expect_bool(_illegal_csr, 1'b0, {what, " legal write"});
@@ -114,11 +114,11 @@ module tb_csr_file
     _csr_write_data = '0;
   endtask
 
-  task automatic expect_illegal_read(input csr_addr_t addr, input string what);
+  task automatic expect_illegal_read(input logic [11:0] addr, input string what);
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b0;
-    _csr_addr = addr;
+    _csr_addr.raw = addr;
     #1;
     expect_bool(_illegal_csr, 1'b1, what);
     expect_bits(_csr_read_data, '0, {what, " data"});
@@ -127,12 +127,12 @@ module tb_csr_file
     _csr_addr = '0;
   endtask
 
-  task automatic expect_illegal_write(input csr_addr_t addr, input csr_data_t data,
+  task automatic expect_illegal_write(input logic [11:0] addr, input csr_data_t data,
                                       input string what);
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b1;
-    _csr_addr = addr;
+    _csr_addr.raw = addr;
     _csr_write_data = data;
     #1;
     expect_bool(_illegal_csr, 1'b1, what);
@@ -193,7 +193,7 @@ module tb_csr_file
     @(negedge _clk);
     _csr_en = 1'b0;
     _csr_write_en = 1'b1;
-    _csr_addr = 12'hfff;
+    _csr_addr.raw = 12'hfff;
     #1;
     expect_bool(_illegal_csr, 1'b0, "idle access is not illegal");
     _csr_write_en = 1'b0;
@@ -263,7 +263,7 @@ module tb_csr_file
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b1;
-    _csr_addr = CSR_MEPC;
+    _csr_addr.raw = CSR_MEPC;
     _csr_write_data = 32'hffff_ffff;
     _trap_valid = 1'b1;
     _trap_mepc = 32'h0000_00c0;

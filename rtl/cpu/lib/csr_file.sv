@@ -30,6 +30,7 @@ module csr_file
   priv_mode_t _priv_mode;
   mstatus_t   _mstatus_write;
   mtvec_t     _mtvec_write;
+  csr_addr_t  _csr_addr;
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
@@ -70,6 +71,7 @@ module csr_file
       };
 
   always_comb begin
+    _csr_addr      = csr_addr;
     _mstatus_write = legalize_mstatus(csr_write_data[3], csr_write_data[7], csr_write_data[12:11]);
     _mtvec_write   = legalize_mtvec(csr_write_data[31:2]);
   end
@@ -99,7 +101,7 @@ module csr_file
       _mstatus.mpp <= MPP_USER;
     end else if (csr_en && csr_write_en && !illegal_csr) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(csr_addr))
+      case (csr_addr_e'(_csr_addr.raw))
         CSR_MSTATUS: _mstatus <= _mstatus_write;
         CSR_MIE:     _mie <= csr_write_data;
         CSR_MTVEC:   _mtvec <= _mtvec_write;
@@ -120,7 +122,7 @@ module csr_file
 
     if (csr_en && csr_write_en) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(csr_addr))
+      case (csr_addr_e'(_csr_addr.raw))
         CSR_MSTATUS, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE, CSR_MTVAL, CSR_MIP: begin
         end
         default: illegal_csr = 1'b1;
@@ -130,7 +132,7 @@ module csr_file
 
     if (csr_en) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(csr_addr))
+      case (csr_addr_e'(_csr_addr.raw))
         CSR_MSTATUS:   csr_read_data = _mstatus;
         CSR_MIE:       csr_read_data = _mie;
         CSR_MTVEC:     csr_read_data = _mtvec;

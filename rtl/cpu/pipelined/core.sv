@@ -86,7 +86,7 @@ module core
 
   assign _id_branch_flags = '0;
 
-  assign _csr.addr = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
+  assign _csr.addr.raw = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
 
