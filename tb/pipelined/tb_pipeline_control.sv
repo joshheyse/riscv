@@ -92,9 +92,7 @@ module tb_pipeline_control
                    "memory wait stops pipe");
 
     clear_inputs();
-    _flow.take_trap   = 1'b1;
-    _flow.flush_if_id = 1'b1;
-    _flow.flush_id_ex = 1'b1;
+    _flow.action = FLOW_ACTION_TRAP;
     expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH,
                    "retired trap flushes pipe");
 
@@ -104,9 +102,8 @@ module tb_pipeline_control
                    "trap in flight drains to retirement");
 
     clear_inputs();
+    _flow.action = FLOW_ACTION_REDIRECT;
     _flow.redirect.valid = 1'b1;
-    _flow.flush_if_id = 1'b1;
-    _flow.flush_id_ex = 1'b1;
     expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
                    "redirect flushes younger stages");
 

@@ -45,15 +45,20 @@ module tb_flow_control
     end
   endtask
 
-  task automatic check(input string what, input logic exp_redirect_valid, input pc_t exp_pc,
-                       input logic exp_take_trap, input logic exp_flush_if_id,
-                       input logic exp_flush_id_ex);
+  task automatic expect_action(input flow_action_t got, input flow_action_t exp, input string what);
+    _checks++;
+    if (got !== exp) begin
+      _errors++;
+      $display("  FAIL %s: got %0d, expected %0d", what, got, exp);
+    end
+  endtask
+
+  task automatic check(input string what, input flow_action_t exp_action,
+                       input logic exp_redirect_valid, input pc_t exp_pc);
     #1;
+    expect_action(_flow.action, exp_action, {what, " action"});
     expect_bit(_flow.redirect.valid, exp_redirect_valid, {what, " redirect valid"});
     expect_word(_flow.redirect.pc, exp_pc, {what, " redirect pc"});
-    expect_bit(_flow.take_trap, exp_take_trap, {what, " take trap"});
-    expect_bit(_flow.flush_if_id, exp_flush_if_id, {what, " flush IF/ID"});
-    expect_bit(_flow.flush_id_ex, exp_flush_id_ex, {what, " flush ID/EX"});
   endtask
 
   initial begin
@@ -62,18 +67,18 @@ module tb_flow_control
     _mret_valid = 1'b0;
     _mepc = '0;
 
-    check("idle", 1'b0, '0, 1'b0, 1'b0, 1'b0);
+    check("idle", FLOW_ACTION_NONE, 1'b0, '0);
 
     _redirect = '{valid: 1'b1, pc: 32'h0000_0040};
-    check("redirect", 1'b1, 32'h0000_0040, 1'b0, 1'b1, 1'b1);
+    check("redirect", FLOW_ACTION_REDIRECT, 1'b1, 32'h0000_0040);
 
     _redirect = '0;
     _mret_valid = 1'b1;
     _mepc = 32'h0000_0080;
-    check("mret", 1'b1, 32'h0000_0080, 1'b0, 1'b1, 1'b1);
+    check("mret", FLOW_ACTION_MRET, 1'b1, 32'h0000_0080);
 
     _redirect = '{valid: 1'b1, pc: 32'h0000_0040};
-    check("mret beats redirect", 1'b1, 32'h0000_0080, 1'b0, 1'b1, 1'b1);
+    check("mret beats redirect", FLOW_ACTION_MRET, 1'b1, 32'h0000_0080);
 
     _trap.valid = 1'b1;
     _trap.payload = '{
@@ -82,7 +87,7 @@ module tb_flow_control
         mtval: 32'h0000_0000,
         pc: 32'h0000_0100
     };
-    check("trap beats mret and redirect", 1'b1, 32'h0000_0100, 1'b1, 1'b1, 1'b1);
+    check("trap beats mret and redirect", FLOW_ACTION_TRAP, 1'b1, 32'h0000_0100);
 
     if (_errors == 0) begin
       $display("tb_flow_control: PASS (%0d checks)", _checks);

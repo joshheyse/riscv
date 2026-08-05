@@ -78,12 +78,22 @@ package pipelined_pkg;
     pc_t  pc;
   } redirect_t;
 
+  typedef enum logic [1:0] {
+    FLOW_ACTION_NONE,
+    FLOW_ACTION_REDIRECT,
+    FLOW_ACTION_TRAP,
+    FLOW_ACTION_MRET
+  } flow_action_t;
+
   typedef struct packed {
-    redirect_t redirect;
-    logic      take_trap;
-    logic      flush_if_id;
-    logic      flush_id_ex;
+    flow_action_t action;
+    redirect_t    redirect;
   } flow_ctrl_t;
+
+  typedef struct packed {
+    logic trap;
+    logic mret;
+  } retire_ctrl_t;
 
   function automatic logic writes_rd(input logic valid, input logic reg_write_en,
                                      input regaddr_t rd);

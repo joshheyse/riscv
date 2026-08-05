@@ -12,14 +12,14 @@ module integer_execute
   input reg_data_t  rs2_data,
   input imm_t       imm,
 
-  output alu_data_t     alu_result,
-  output mem_data_t     store_data,
-  output branch_flags_t branch_flags,
-  output pc_src_t       pc_src
+  output alu_data_t alu_result,
+  output mem_data_t store_data,
+  output pc_src_t   pc_src
 );
 
-  alu_data_t _src_a;
-  alu_data_t _src_b;
+  alu_data_t     _src_a;
+  alu_data_t     _src_b;
+  branch_flags_t _branch_flags;
 
   assign _src_a = ctrl.alu_operands[1] ? pc : rs1_data;
   assign _src_b = ctrl.alu_operands[0] ? imm : rs2_data;
@@ -37,12 +37,12 @@ module integer_execute
     .src_a(rs1_data),
     .src_b(rs2_data),
     .sngd(ctrl.branch_sgnd),
-    .branch_flags(branch_flags)
+    .branch_flags(_branch_flags)
   );
 
   branch_logic _execute_branch_logic (
     .flow(ctrl.flow),
-    .flags(branch_flags),
+    .flags(_branch_flags),
     .funct3(branch_funct3),
     .pc_src(pc_src)
   );

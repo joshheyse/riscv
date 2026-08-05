@@ -16,16 +16,13 @@
 //
 module hazard_unit
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 (
-  input logic              if_id_valid,
-  input instr_u            if_id_instr,
-  input logic              id_ex_valid,
-  input logic              id_ex_reg_write_en,
-  input regaddr_t          id_ex_rd,
-  input logic              ex_mem_valid,
-  input logic              ex_mem_reg_write_en,
-  input regaddr_t          ex_mem_rd,
-  input writeback_result_t ex_mem_writeback_result,
+  /* verilator lint_off UNUSEDSIGNAL */
+  input if_id_t  if_id,
+  input id_ex_t  id_ex,
+  input ex_mem_t ex_mem,
+  /* verilator lint_on UNUSEDSIGNAL */
 
   output logic stall
 );
@@ -43,10 +40,10 @@ module hazard_unit
     _uses_rs1 = 1'b0;
     _uses_rs2 = 1'b0;
 
-    _rs1_addr = if_id_instr.r.rs1;
-    _rs2_addr = if_id_instr.r.rs2;
+    _rs1_addr = if_id.instr.r.rs1;
+    _rs2_addr = if_id.instr.r.rs2;
 
-    unique case (if_id_instr.r.opcode)
+    unique case (if_id.instr.r.opcode)
       OP_R: begin
         _uses_rs1 = 1'b1;
         _uses_rs2 = 1'b1;
@@ -65,25 +62,25 @@ module hazard_unit
       end
     endcase
 
-    _ex_mem_can_stall = ex_mem_valid && ex_mem_reg_write_en && (ex_mem_rd != 5'd0) && (ex_mem_writeback_result == WB_RESULT_MEM);
+    _ex_mem_can_stall = writes_rd(ex_mem.valid, ex_mem.ctrl.reg_write_en, ex_mem.rd) && (ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
 
-    if (if_id_valid && _uses_rs1) begin
-      if (id_ex_valid && id_ex_reg_write_en && (id_ex_rd != '0) && (id_ex_rd == _rs1_addr)) begin
+    if (if_id.valid && _uses_rs1) begin
+      if (writes_rd(id_ex.valid, id_ex.ctrl.reg_write_en, id_ex.rd) && (id_ex.rd == _rs1_addr)) begin
         stall = 1'b1;
       end
 
-      if (_ex_mem_can_stall && (ex_mem_rd == _rs1_addr)) begin
+      if (_ex_mem_can_stall && (ex_mem.rd == _rs1_addr)) begin
         stall = 1'b1;
       end
 
     end
 
-    if (if_id_valid && _uses_rs2) begin
-      if (id_ex_valid && id_ex_reg_write_en && (id_ex_rd != '0) && (id_ex_rd == _rs2_addr)) begin
+    if (if_id.valid && _uses_rs2) begin
+      if (writes_rd(id_ex.valid, id_ex.ctrl.reg_write_en, id_ex.rd) && (id_ex.rd == _rs2_addr)) begin
         stall = 1'b1;
       end
 
-      if (_ex_mem_can_stall && (ex_mem_rd == _rs2_addr)) begin
+      if (_ex_mem_can_stall && (ex_mem.rd == _rs2_addr)) begin
         stall = 1'b1;
       end
 

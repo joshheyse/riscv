@@ -54,9 +54,6 @@ module core
 
   imm_t           _id_imm;
   alu_data_t      _alu_result;
-  /* verilator lint_off UNUSEDSIGNAL */
-  branch_flags_t  _ex_branch_flags;
-  /* verilator lint_on UNUSEDSIGNAL */
   reg_data_t      _ex_rs1_operand;
   reg_data_t      _ex_rs2_operand;
   mem_data_t      _store_data;
@@ -78,9 +75,8 @@ module core
   /* verilator lint_on UNUSEDSIGNAL */
 
   pipeline_ctrl_t _pipe_ctrl;
-  logic           _retire_trap;
   logic           _trap_in_flight;
-  logic           _retire_mret;
+  retire_ctrl_t   _retire;
 
   assign _id_branch_flags = '0;
 
@@ -88,9 +84,9 @@ module core
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
 
-  assign _retire_trap = _mem_wb.valid && _mem_wb.trap.valid;
+  assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
+  assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
   assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
-  assign _retire_mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
 
   // Files
   reg_file _reg_file (
@@ -111,11 +107,11 @@ module core
     .csr_write_en(_csr.write_en),
     .csr_addr(_csr.addr),
     .csr_write_data(_csr.write_data),
-    .trap_valid(_retire_trap),
+    .trap_valid(_retire.trap),
     .trap_mepc(_mem_wb.trap.payload.mepc),
     .trap_mcause(_mem_wb.trap.payload.mcause),
     .trap_mtval(_mem_wb.trap.payload.mtval),
-    .mret_valid(_retire_mret),
+    .mret_valid(_retire.mret),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
     .status(_csr_status)
@@ -141,7 +137,7 @@ module core
   flow_control _flow_control (
     .redirect(_redirect),
     .trap(_mem_wb.trap),
-    .mret_valid(_retire_mret),
+    .mret_valid(_retire.mret),
     .mepc(_csr_status.mepc),
     .flow(_flow)
   );
@@ -268,7 +264,6 @@ module core
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .store_data(_store_data),
-    .branch_flags(_ex_branch_flags),
     .pc_src(_ex_pc_src)
   );
 
@@ -319,15 +314,9 @@ module core
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id_valid(_if_id.valid),
-    .if_id_instr(_if_id.instr),
-    .id_ex_valid(_id_ex.valid),
-    .id_ex_reg_write_en(_id_ex.ctrl.reg_write_en),
-    .id_ex_rd(_id_ex.rd),
-    .ex_mem_valid(_ex_mem.valid),
-    .ex_mem_reg_write_en(_ex_mem.ctrl.reg_write_en),
-    .ex_mem_rd(_ex_mem.rd),
-    .ex_mem_writeback_result(_ex_mem.ctrl.writeback_result),
+    .if_id(_if_id),
+    .id_ex(_id_ex),
+    .ex_mem(_ex_mem),
     .stall(_data_stall)
   );
 

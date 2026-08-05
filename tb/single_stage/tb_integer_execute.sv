@@ -11,19 +11,18 @@ module tb_integer_execute
 
   localparam int unsigned TimeoutNs = 10_000;
 
-  control_t      _ctrl;
-  br_funct3_t    _branch_funct3;
-  pc_t           _pc;
-  reg_data_t     _rs1_data;
-  reg_data_t     _rs2_data;
-  imm_t          _imm;
-  alu_data_t     _alu_result;
-  mem_data_t     _store_data;
-  branch_flags_t _branch_flags;
-  pc_src_t       _pc_src;
+  control_t    _ctrl;
+  br_funct3_t  _branch_funct3;
+  pc_t         _pc;
+  reg_data_t   _rs1_data;
+  reg_data_t   _rs2_data;
+  imm_t        _imm;
+  alu_data_t   _alu_result;
+  mem_data_t   _store_data;
+  pc_src_t     _pc_src;
 
-  int unsigned   _checks = 0;
-  int unsigned   _errors = 0;
+  int unsigned _checks = 0;
+  int unsigned _errors = 0;
 
   integer_execute _dut (
     .ctrl(_ctrl),
@@ -34,7 +33,6 @@ module tb_integer_execute
     .imm(_imm),
     .alu_result(_alu_result),
     .store_data(_store_data),
-    .branch_flags(_branch_flags),
     .pc_src(_pc_src)
   );
 
@@ -102,13 +100,10 @@ module tb_integer_execute
     _rs1_data = 32'h0000_0042;
     _rs2_data = 32'h0000_0042;
     settle();
-    expect_bit(_branch_flags.eq, 1'b1, "branch comparator eq");
-    expect_bit(_branch_flags.lt, 1'b0, "branch comparator lt");
     expect_pc_src(_pc_src, PC_SRC_IEU_ADR, "taken beq redirects");
 
     _rs2_data = 32'h0000_0043;
     settle();
-    expect_bit(_branch_flags.eq, 1'b0, "branch comparator not eq");
     expect_pc_src(_pc_src, PC_SRC_INC, "untaken beq does not redirect");
 
     _ctrl.flow = FLOW_JUMP;
@@ -122,12 +117,10 @@ module tb_integer_execute
     _rs1_data = 32'hffff_ffff;
     _rs2_data = 32'h0000_0001;
     settle();
-    expect_bit(_branch_flags.lt, 1'b1, "signed branch compare sees -1 < 1");
     expect_pc_src(_pc_src, PC_SRC_IEU_ADR, "taken signed blt redirects");
 
     _ctrl.branch_sgnd = 1'b0;
     settle();
-    expect_bit(_branch_flags.lt, 1'b0, "unsigned branch compare sees max > 1");
     expect_pc_src(_pc_src, PC_SRC_INC, "untaken unsigned bltu does not redirect");
 
     if (_errors == 0) begin

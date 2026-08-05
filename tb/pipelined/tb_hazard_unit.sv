@@ -7,34 +7,23 @@
 
 module tb_hazard_unit
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 ();
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic              _if_id_valid;
-  instr_u            _if_id_instr;
-  logic              _id_ex_valid;
-  logic              _id_ex_reg_write_en;
-  regaddr_t          _id_ex_rd;
-  logic              _ex_mem_valid;
-  logic              _ex_mem_reg_write_en;
-  regaddr_t          _ex_mem_rd;
-  writeback_result_t _ex_mem_writeback_result;
-  logic              _stall;
+  if_id_t      _if_id;
+  id_ex_t      _id_ex;
+  ex_mem_t     _ex_mem;
+  logic        _stall;
 
-  int unsigned       errors = 0;
-  int unsigned       checks = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
 
   hazard_unit _dut (
-    .if_id_valid(_if_id_valid),
-    .if_id_instr(_if_id_instr),
-    .id_ex_valid(_id_ex_valid),
-    .id_ex_reg_write_en(_id_ex_reg_write_en),
-    .id_ex_rd(_id_ex_rd),
-    .ex_mem_valid(_ex_mem_valid),
-    .ex_mem_reg_write_en(_ex_mem_reg_write_en),
-    .ex_mem_rd(_ex_mem_rd),
-    .ex_mem_writeback_result(_ex_mem_writeback_result),
+    .if_id (_if_id),
+    .id_ex (_id_ex),
+    .ex_mem(_ex_mem),
     .stall(_stall)
   );
 
@@ -48,33 +37,28 @@ module tb_hazard_unit
   endtask
 
   task automatic clear_inputs();
-    _if_id_valid = 1'b0;
-    _if_id_instr = '0;
-    _id_ex_valid = 1'b0;
-    _id_ex_reg_write_en = 1'b0;
-    _id_ex_rd = '0;
-    _ex_mem_valid = 1'b0;
-    _ex_mem_reg_write_en = 1'b0;
-    _ex_mem_rd = '0;
-    _ex_mem_writeback_result = WB_RESULT_EXEC;
+    _if_id = '0;
+    _id_ex = '0;
+    _ex_mem = '0;
+    _ex_mem.ctrl.writeback_result = WB_RESULT_EXEC;
   endtask
 
   task automatic set_consumer(input instr_t instr);
-    _if_id_valid = 1'b1;
-    _if_id_instr.raw = instr;
+    _if_id.valid = 1'b1;
+    _if_id.instr.raw = instr;
   endtask
 
   task automatic set_id_ex_producer(input regaddr_t rd);
-    _id_ex_valid = 1'b1;
-    _id_ex_reg_write_en = 1'b1;
-    _id_ex_rd = rd;
+    _id_ex.valid = 1'b1;
+    _id_ex.ctrl.reg_write_en = 1'b1;
+    _id_ex.rd = rd;
   endtask
 
   task automatic set_ex_mem_producer(input regaddr_t rd, input writeback_result_t writeback_result);
-    _ex_mem_valid = 1'b1;
-    _ex_mem_reg_write_en = 1'b1;
-    _ex_mem_rd = rd;
-    _ex_mem_writeback_result = writeback_result;
+    _ex_mem.valid = 1'b1;
+    _ex_mem.ctrl.reg_write_en = 1'b1;
+    _ex_mem.rd = rd;
+    _ex_mem.ctrl.writeback_result = writeback_result;
   endtask
 
   initial begin
@@ -155,9 +139,9 @@ module tb_hazard_unit
 
     clear_inputs();
     set_consumer(32'h0010_8133);  // add x2, x1, x1
-    _id_ex_valid = 1'b1;
-    _id_ex_reg_write_en = 1'b0;
-    _id_ex_rd = 5'd1;
+    _id_ex.valid = 1'b1;
+    _id_ex.ctrl.reg_write_en = 1'b0;
+    _id_ex.rd = 5'd1;
     expect_stall(1'b0, "non-writing producer does not stall");
 
     if (errors == 0) begin

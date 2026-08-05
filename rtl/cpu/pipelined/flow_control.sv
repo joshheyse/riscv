@@ -17,21 +17,16 @@ module flow_control
   always_comb begin
     flow = '0;
     if (trap.valid) begin
+      flow.action         = FLOW_ACTION_TRAP;
       flow.redirect.valid = 1'b1;
       flow.redirect.pc    = trap.payload.pc;
-      flow.take_trap      = 1'b1;
-      flow.flush_if_id    = 1'b1;
-      flow.flush_id_ex    = 1'b1;
     end else if (mret_valid) begin
+      flow.action         = FLOW_ACTION_MRET;
       flow.redirect.valid = 1'b1;
       flow.redirect.pc    = mepc;
-      flow.flush_if_id    = 1'b1;
-      flow.flush_id_ex    = 1'b1;
     end else if (redirect.valid) begin
-      flow.redirect    = redirect;
-      flow.take_trap   = 1'b0;
-      flow.flush_if_id = 1'b1;
-      flow.flush_id_ex = 1'b1;
+      flow.action   = FLOW_ACTION_REDIRECT;
+      flow.redirect = redirect;
     end
   end
 
