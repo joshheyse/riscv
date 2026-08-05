@@ -154,6 +154,7 @@ module core
     .trap_req(_ctrl.trap),
     .pc(_if_id.slot.pc),
     .mtvec(_csr_status.mtvec),
+    .priv_mode(_csr_status.priv_mode),
     .trap(_id_trap)
   );
 
@@ -161,6 +162,7 @@ module core
     .trap_req(_csr_illegal_trap_req),
     .pc(_id_ex.slot.pc),
     .mtvec(_csr_status.mtvec),
+    .priv_mode(_csr_status.priv_mode),
     .trap(_csr_trap)
   );
 
@@ -168,6 +170,7 @@ module core
     .trap_req(_redirect_trap_req),
     .pc(_id_ex.slot.pc),
     .mtvec(_csr_status.mtvec),
+    .priv_mode(_csr_status.priv_mode),
     .trap(_redirect_trap)
   );
 
@@ -343,6 +346,7 @@ module core
   mem_stage _mem_stage (
     .ex_mem(_ex_mem),
     .mtvec(_csr_status.mtvec),
+    .priv_mode(_csr_status.priv_mode),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(dbus)

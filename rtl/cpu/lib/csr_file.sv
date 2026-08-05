@@ -20,13 +20,14 @@ module csr_file
   output csr_status_t status
 );
 
-  mstatus_t _mstatus;
-  mie_t     _mie;
-  mip_t     _mip;
-  mtvec_t   _mtvec;
-  mepc_t    _mepc;
-  mcause_t  _mcause;
-  mtval_t   _mtval;
+  mstatus_t   _mstatus;
+  mie_t       _mie;
+  mip_t       _mip;
+  mtvec_t     _mtvec;
+  mepc_t      _mepc;
+  mcause_t    _mcause;
+  mtval_t     _mtval;
+  priv_mode_t _priv_mode;
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
@@ -35,7 +36,14 @@ module csr_file
   localparam mhartid_t   MHARTID   = '0;
   // verilog_format: on
 
-  assign status = '{mtvec: _mtvec, mstatus: _mstatus, mie: _mie, mip: _mip, mepc: _mepc};
+  assign status = '{
+          mtvec: _mtvec,
+          mstatus: _mstatus,
+          mie: _mie,
+          mip: _mip,
+          mepc: _mepc,
+          priv_mode: _priv_mode
+      };
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -46,17 +54,20 @@ module csr_file
       _mepc <= '0;
       _mcause <= '0;
       _mtval <= '0;
+      _priv_mode <= PRIV_MACHINE;
     end else if (trap_valid) begin
       _mepc <= trap_mepc;
       _mcause <= trap_mcause;
       _mtval <= trap_mtval;
       _mstatus.mpie <= _mstatus.mie;
       _mstatus.mie <= 1'b0;
-      _mstatus.mpp <= MPP_MACHINE;  // TODO: use MPP_MACHINE/MPP_SUPERVISOR correctly
+      _mstatus.mpp <= mpp_t'(_priv_mode);
+      _priv_mode <= PRIV_MACHINE;
     end else if (mret_valid) begin
-      _mstatus.mie  <= _mstatus.mpie;
+      _mstatus.mie <= _mstatus.mpie;
       _mstatus.mpie <= 1'b1;
-      _mstatus.mpp  <= MPP_USER;  // TODO: use MPP_USER/MPP_SUPERVISOR correctly
+      _priv_mode <= priv_mode_t'(_mstatus.mpp);
+      _mstatus.mpp <= MPP_USER;
     end else if (csr_en && csr_write_en && !illegal_csr) begin
       // slang lint_off case-enum-explicit
       case (csr_addr_e'(csr_addr))

@@ -14,6 +14,7 @@ module tb_trap_control
   trap_req_t   _trap_req;
   pc_t         _pc;
   mtvec_t      _mtvec;
+  priv_mode_t  _priv_mode;
   trap_stage_t _trap;
 
   int unsigned _errors = 0;
@@ -23,6 +24,7 @@ module tb_trap_control
     .trap_req(_trap_req),
     .pc(_pc),
     .mtvec(_mtvec),
+    .priv_mode(_priv_mode),
     .trap(_trap)
   );
 
@@ -43,10 +45,11 @@ module tb_trap_control
   endtask
 
   task automatic drive(input logic trap_valid, input trap_src_t trap_src, input mtval_t mtval,
-                       input pc_t pc, input mtvec_t mtvec);
+                       input pc_t pc, input mtvec_t mtvec, input priv_mode_t priv_mode);
     _trap_req = '{valid: trap_valid, src: trap_src, mtval: mtval};
     _pc       = pc;
     _mtvec    = mtvec;
+    _priv_mode = priv_mode;
     #1;
   endtask
 
@@ -75,45 +78,55 @@ module tb_trap_control
     end
 
     drive(1'b0, TRAP_SRC_NONE, 32'h0000_0000, 32'h0000_0000,
-          '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_bool(_trap.valid, 1'b0, "legal instruction has no trap");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0020,
-          '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_illegal_trap(32'hffff_ffff, 32'h0000_0020, 32'h0000_0400,
                         "illegal instruction direct mtvec");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h0000_0000, 32'h0000_0084,
-          '{base: 30'h0000_0200, mode: MTVEC_MODE_VECTORED});
+          '{base: 30'h0000_0200, mode: MTVEC_MODE_VECTORED}, PRIV_MACHINE);
     expect_illegal_trap(32'h0000_0000, 32'h0000_0084, 32'h0000_0800,
                         "illegal instruction vectored mtvec");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h1234_5678, 32'h0000_00c0,
-          '{base: 30'h0000_0000, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0000, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_illegal_trap(32'h1234_5678, 32'h0000_00c0, 32'h0000_0000,
                         "illegal instruction zero mtvec");
 
     drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_000b, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
                 "ecall from machine mode");
 
+    drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_SUPERVISOR);
+    expect_trap(32'h0000_0009, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
+                "ecall from supervisor mode");
+
+    drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_USER);
+    expect_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
+                "ecall from user mode");
+
     drive(1'b1, TRAP_SRC_EBREAK, 32'h0000_0000, 32'h0000_0104,
-          '{base: 30'h0000_0044, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0044, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0003, 32'h0000_0000, 32'h0000_0104, 32'h0000_0110, "ebreak");
 
     drive(1'b1, TRAP_SRC_INSTR_ADDR_MISALIGNED, 32'h0000_0082, 32'h0000_0200,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0000, 32'h0000_0082, 32'h0000_0200, 32'h0000_0200,
                 "instruction address misaligned");
 
     drive(1'b1, TRAP_SRC_LOAD_ADDR_MISALIGNED, 32'h0000_1002, 32'h0000_0204,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0004, 32'h0000_1002, 32'h0000_0204, 32'h0000_0200,
                 "load address misaligned");
 
     drive(1'b1, TRAP_SRC_STORE_ADDR_MISALIGNED, 32'h0000_1002, 32'h0000_0208,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT});
+          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0006, 32'h0000_1002, 32'h0000_0208, 32'h0000_0200,
                 "store address misaligned");
 

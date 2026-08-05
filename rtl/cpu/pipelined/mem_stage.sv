@@ -5,9 +5,10 @@ module mem_stage
   import pipelined_pkg::*;
 (
   /* verilator lint_off UNUSEDSIGNAL */
-  input ex_mem_t ex_mem,
+  input ex_mem_t    ex_mem,
   /* verilator lint_on UNUSEDSIGNAL */
-  input mtvec_t  mtvec,
+  input mtvec_t     mtvec,
+  input priv_mode_t priv_mode,
 
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
@@ -43,6 +44,7 @@ module mem_stage
     .trap_req(_mem_trap_req),
     .pc(ex_mem.pc),
     .mtvec(mtvec),
+    .priv_mode(priv_mode),
     .trap(_mem_trap)
   );
 

@@ -10,10 +10,11 @@ module tb_mem_stage
   import pipelined_pkg::*;
 ();
 
-  ex_mem_t _ex_mem;
-  mtvec_t  _mtvec;
-  logic    _mem_wait;
-  mem_wb_t _mem_wb_payload;
+  ex_mem_t    _ex_mem;
+  mtvec_t     _mtvec;
+  priv_mode_t _priv_mode;
+  logic       _mem_wait;
+  mem_wb_t    _mem_wb_payload;
 
   dbus_if _dbus ();
 
@@ -23,6 +24,7 @@ module tb_mem_stage
   mem_stage _dut (
     .ex_mem(_ex_mem),
     .mtvec(_mtvec),
+    .priv_mode(_priv_mode),
     .mem_wait(_mem_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(_dbus)
@@ -47,6 +49,7 @@ module tb_mem_stage
   task automatic clear_inputs();
     _ex_mem = '0;
     _mtvec = '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT};
+    _priv_mode = PRIV_MACHINE;
     _dbus.rsp = '0;
     _dbus.rsp.ready = 1'b1;
   endtask

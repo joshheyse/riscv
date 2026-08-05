@@ -185,7 +185,8 @@ module tb_csr_file
     read_csr(CSR_MVENDORID, 32'h0000_0000, "read mvendorid");
     read_csr(CSR_MARCHID, 32'h0000_0000, "read marchid");
     read_csr(CSR_MIMPID, 32'h0000_0000, "read mimpid");
-    read_csr(CSR_MHARTID, 32'h0000_0000, "read mhartid");
+	    read_csr(CSR_MHARTID, 32'h0000_0000, "read mhartid");
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "reset privilege mode");
 
     // Idle cycles should not report illegal access even if the address is not
     // implemented.
@@ -203,8 +204,9 @@ module tb_csr_file
     expect_bits(_status.mtvec, 32'h0000_1001, "status exposes mtvec");
     expect_bits(_status.mstatus, 32'h0000_0000, "status exposes mstatus");
     expect_bits(_status.mie, 32'h0000_0000, "status exposes mie");
-    expect_bits(_status.mip, 32'h0000_0000, "status exposes mip");
-    expect_bits(_status.mepc, 32'h0000_0000, "status exposes reset mepc");
+	    expect_bits(_status.mip, 32'h0000_0000, "status exposes mip");
+	    expect_bits(_status.mepc, 32'h0000_0000, "status exposes reset mepc");
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "status exposes reset privilege mode");
 
     write_csr(CSR_MEPC, 32'h0000_0040, "write mepc");
     read_csr(CSR_MEPC, 32'h0000_0040, "read mepc");
@@ -230,12 +232,23 @@ module tb_csr_file
     take_trap(32'h0000_0080, '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR}, 32'h0000_0013);
     read_csr(CSR_MEPC, 32'h0000_0080, "trap writes mepc");
     expect_bits(_status.mepc, 32'h0000_0080, "status exposes trap mepc");
-    read_csr(CSR_MCAUSE, 32'h0000_0002, "trap writes mcause");
-    read_csr(CSR_MTVAL, 32'h0000_0013, "trap writes mtval");
-    read_csr(CSR_MSTATUS, 32'h0000_1880, "trap updates mstatus");
+	    read_csr(CSR_MCAUSE, 32'h0000_0002, "trap writes mcause");
+	    read_csr(CSR_MTVAL, 32'h0000_0013, "trap writes mtval");
+	    read_csr(CSR_MSTATUS, 32'h0000_1880, "trap updates mstatus");
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "trap enters machine mode");
 
-    retire_mret();
-    read_csr(CSR_MSTATUS, 32'h0000_0088, "mret restores mstatus");
+	    retire_mret();
+	    read_csr(CSR_MSTATUS, 32'h0000_0088, "mret restores mstatus");
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "mret restores machine mode");
+
+	    write_csr(CSR_MSTATUS, 32'h0000_0800, "seed supervisor mpp before mret");
+	    retire_mret();
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR), "mret restores supervisor mode");
+	    read_csr(CSR_MSTATUS, 32'h0000_0080, "mret clears mpp after supervisor return");
+
+	    take_trap(32'h0000_0090, '{is_interrupt: 1'b0, code: MCAUSE_ECALL_S}, 32'h0000_0000);
+	    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "supervisor trap enters machine mode");
+	    read_csr(CSR_MSTATUS, 32'h0000_0800, "supervisor trap saves mpp");
 
     // Trap entry wins over a simultaneous normal CSR write.
     @(negedge _clk);

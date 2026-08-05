@@ -233,6 +233,12 @@ package riscv_pkg;
     system_op_t op;
   } system_ctrl_t;
 
+  typedef enum logic [1:0] {
+    PRIV_USER = 2'b00,
+    PRIV_SUPERVISOR = 2'b01,
+    PRIV_MACHINE = 2'b11
+  } priv_mode_t;
+
   // Decoded control-flow class. Branch and jump are mutually exclusive; the
   // branch condition itself is resolved later from funct3 and branch flags.
   typedef enum logic [1:0] {
@@ -472,11 +478,13 @@ package riscv_pkg;
   } trap_stage_t;
 
   typedef struct packed {
-    mtvec_t   mtvec;
-    mstatus_t mstatus;
-    mie_t     mie;
-    mip_t     mip;
-    mepc_t    mepc;
+    mtvec_t     mtvec;
+    mstatus_t   mstatus;
+    mie_t       mie;
+    mip_t       mip;
+    mepc_t      mepc;
+    priv_mode_t priv_mode;
   } csr_status_t;
+
 
 endpackage
