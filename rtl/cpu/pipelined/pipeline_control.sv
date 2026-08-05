@@ -15,7 +15,9 @@ module pipeline_control
   input  logic           mem_wait,
   input  logic           data_stall,
   input  logic           trap_in_flight,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  flow_ctrl_t     flow,
+  /* verilator lint_on UNUSEDSIGNAL */
   output pipeline_ctrl_t pipe_ctrl
 );
 
@@ -67,8 +69,5 @@ module pipeline_control
       pipe_ctrl.id_ex = STAGE_FLUSH;
     end
   end
-
-  logic _unused_flow_bits;
-  assign _unused_flow_bits = |{flow.redirect, flow.take_trap};
 
 endmodule

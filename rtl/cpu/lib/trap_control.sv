@@ -7,7 +7,9 @@ module trap_control
   input trap_ctrl_t trap_ctrl,
   input instr_u     instr,
   input pc_t        pc,
+  /* verilator lint_off UNUSEDSIGNAL */
   input mtvec_t     mtvec,
+  /* verilator lint_on UNUSEDSIGNAL */
 
   output trap_stage_t trap
 );
@@ -33,8 +35,5 @@ module trap_control
       end
     endcase
   end
-
-  logic _unused_mtvec_mode;
-  assign _unused_mtvec_mode = |mtvec.mode;
 
 endmodule

@@ -27,7 +27,9 @@ module imem
 ) (
   input logic         clk,
   input logic         rst,
+  /* verilator lint_off UNUSEDSIGNAL */
         ibus_if.slave ibus
+  /* verilator lint_on UNUSEDSIGNAL */
 );
 
   localparam int unsigned IndexBits = $clog2(DepthWords);
@@ -51,9 +53,5 @@ module imem
       end
     end
   end
-
-  // intentionally ignored for this small aligned ROM
-  logic _unused_addr_bits;
-  assign _unused_addr_bits = |{ibus.req.addr[31:IndexBits+2], ibus.req.addr[1:0]};
 
 endmodule

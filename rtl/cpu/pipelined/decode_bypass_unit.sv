@@ -4,8 +4,10 @@ module decode_bypass_unit
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   input  if_id_t    if_id,
   input  mem_wb_t   mem_wb,
+  /* verilator lint_on UNUSEDSIGNAL */
   input  reg_data_t rf_rs1_read,
   input  reg_data_t rf_rs2_read,
   output reg_data_t id_rs1_operand,
@@ -28,11 +30,5 @@ module decode_bypass_unit
       id_rs2_operand = mem_wb.result;
     end
   end
-
-  logic _unused_if_id;
-  assign _unused_if_id = |{if_id.valid, if_id.pc};
-
-  logic _unused_mem_wb;
-  assign _unused_mem_wb = |{mem_wb.ctrl, mem_wb.result, mem_wb.trap};
 
 endmodule

@@ -4,7 +4,9 @@ module mem_stage
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t ex_mem,
+  /* verilator lint_on UNUSEDSIGNAL */
 
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
@@ -47,8 +49,5 @@ module mem_stage
           rd: ex_mem.rd,
           trap: ex_mem.trap
       };
-
-  pc_t _unused_pc;
-  assign _unused_pc = ex_mem.pc;
 
 endmodule

@@ -5,7 +5,9 @@ module flow_control
   import pipelined_pkg::*;
 (
   input  redirect_t   redirect,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  trap_stage_t trap,
+  /* verilator lint_on UNUSEDSIGNAL */
   input  logic        mret_valid,
   input  mepc_t       mepc,
   output flow_ctrl_t  flow
@@ -32,8 +34,5 @@ module flow_control
       flow.flush_id_ex = 1'b1;
     end
   end
-
-  logic _unused_trap_payload;
-  assign _unused_trap_payload = |{trap.payload.mepc, trap.payload.mcause, trap.payload.mtval};
 
 endmodule

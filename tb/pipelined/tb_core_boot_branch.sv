@@ -26,7 +26,9 @@ module tb_core_boot_branch
   logic              _wrong_path_store;
   word_t             _wrong_path_addr;
   word_t             _wrong_path_data;
-  logic        [3:0] _unused_write_mask;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic        [3:0] _write_mask;
+  /* verilator lint_on UNUSEDSIGNAL */
 
   core _dut (
     .clk(_clk),
@@ -46,9 +48,9 @@ module tb_core_boot_branch
     .ibus(_ibus)
   );
 
-  assign _dbus.rsp.ready    = _dbus.req.valid;
+  assign _dbus.rsp.ready     = _dbus.req.valid;
   assign _dbus.rsp.read_data = '0;
-  assign _unused_write_mask  = _dbus.req.write_mask;
+  assign _write_mask         = _dbus.req.write_mask;
 
   initial begin
     _clk = 1'b0;

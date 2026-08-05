@@ -43,7 +43,9 @@ module core
   logic          _ifu_en;
   pc_src_t       _ifu_pc_src;
 
+  /* verilator lint_off UNUSEDSIGNAL */
   control_t      _ctrl;
+  /* verilator lint_on UNUSEDSIGNAL */
   instr_slot_t   _current;
 
   logic          _in_fetch;
@@ -183,11 +185,5 @@ module core
     .write_data(_write_data),
     .branch_flags(_branch_flags)
   );
-
-  logic _unused_csr_ctrl;
-  assign _unused_csr_ctrl = |{_ctrl.csr, _ctrl.system};
-
-  logic _unused_flow_ctrl;
-  assign _unused_flow_ctrl = |{_ctrl.flow};
 
 endmodule

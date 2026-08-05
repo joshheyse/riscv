@@ -9,10 +9,14 @@ module timer_mmio
   input  logic            clk,
   input  logic            rst,
   input  logic            mem_valid,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  logic            mem_write_en,
+  /* verilator lint_on UNUSEDSIGNAL */
   input  mem_addr_t       mem_addr,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  mem_data_t       mem_write_data,
   input  mem_write_mask_t mem_write_mask,
+  /* verilator lint_on UNUSEDSIGNAL */
   output logic            selected,
   output logic            mem_ready,
   output mem_data_t       mem_read_data
@@ -30,8 +34,5 @@ module timer_mmio
       _counter <= _counter + 1;
     end
   end
-
-  logic _unused_write_bus;
-  assign _unused_write_bus = mem_write_en | (|mem_write_data) | (|mem_write_mask);
 
 endmodule

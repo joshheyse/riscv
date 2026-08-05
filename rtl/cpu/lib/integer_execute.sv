@@ -3,7 +3,9 @@
 module integer_execute
   import riscv_pkg::*;
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   input control_t   ctrl,
+  /* verilator lint_on UNUSEDSIGNAL */
   input br_funct3_t branch_funct3,
   input pc_t        pc,
   input reg_data_t  rs1_data,
@@ -44,21 +46,5 @@ module integer_execute
     .funct3(branch_funct3),
     .pc_src(pc_src)
   );
-
-  logic _unused_ctrl;
-  assign _unused_ctrl = |{
-    ctrl.reg_write_en,
-    ctrl.mem_write_en,
-    ctrl.imm_format,
-    ctrl.execute_result,
-    ctrl.writeback_result,
-    ctrl.pc_src,
-    ctrl.mem_size,
-    ctrl.mem_unsigned,
-    ctrl.clear_pc_lsb,
-    ctrl.trap,
-    ctrl.csr,
-    ctrl.system
-  };
 
 endmodule

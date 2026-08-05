@@ -54,7 +54,9 @@ module core
 
   imm_t           _id_imm;
   alu_data_t      _alu_result;
+  /* verilator lint_off UNUSEDSIGNAL */
   branch_flags_t  _ex_branch_flags;
+  /* verilator lint_on UNUSEDSIGNAL */
   reg_data_t      _ex_rs1_operand;
   reg_data_t      _ex_rs2_operand;
   mem_data_t      _store_data;
@@ -70,8 +72,10 @@ module core
   trap_stage_t    _trap;
   flow_ctrl_t     _flow;
 
+  /* verilator lint_off UNUSEDSIGNAL */
   csr_pipe_t      _csr;
   csr_status_t    _csr_status;
+  /* verilator lint_on UNUSEDSIGNAL */
 
   pipeline_ctrl_t _pipe_ctrl;
   logic           _retire_trap;
@@ -357,14 +361,5 @@ module core
       _mem_wb <= _mem_wb_next;
     end
   end
-
-  pc_t _unused_pc;
-  assign _unused_pc = _ex_mem.pc;
-
-  logic _unused_csr;
-  assign _unused_csr = |{_csr.read_data, _csr.illegal, _trap.payload.pc, _csr_status.mstatus, _csr_status.mie, _csr_status.mip};
-
-  logic _unused_ex_branch_flags;
-  assign _unused_ex_branch_flags = |{_ex_branch_flags};
 
 endmodule

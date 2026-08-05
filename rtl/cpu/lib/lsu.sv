@@ -19,7 +19,9 @@
 module lsu
   import riscv_pkg::*;
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   input  mem_addr_t       addr,
+  /* verilator lint_on UNUSEDSIGNAL */
   input  mem_data_t       write_data,
   input  mem_size_t       mem_size,
   input  logic            mem_unsigned,
@@ -103,8 +105,5 @@ module lsu
       end
     endcase
   end
-
-  logic _unused_addr_bits;
-  assign _unused_addr_bits = |{addr[31:2]};
 
 endmodule

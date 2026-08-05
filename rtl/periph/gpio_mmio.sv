@@ -17,8 +17,10 @@ module gpio_mmio
   input  logic            mem_valid,
   input  logic            mem_write_en,
   input  mem_addr_t       mem_addr,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  mem_data_t       mem_write_data,
   input  mem_write_mask_t mem_write_mask,
+  /* verilator lint_on UNUSEDSIGNAL */
   output logic            selected,
   output logic            mem_ready,
   output mem_data_t       mem_read_data,
@@ -67,8 +69,5 @@ module gpio_mmio
                    8'h0;
 
   assign mem_read_data = {{WordBits - NumGpio{1'b0}}, _read};
-
-  logic _unused_write_data;
-  assign _unused_write_data = |mem_write_data[WordBits-1:NumGpio] | (|mem_write_mask);
 
 endmodule

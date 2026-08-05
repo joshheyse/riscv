@@ -32,14 +32,18 @@ module i2c_mmio
   input  logic            mem_valid,
   input  logic            mem_write_en,
   input  mem_addr_t       mem_addr,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  mem_data_t       mem_write_data,
   input  mem_write_mask_t mem_write_mask,
+  /* verilator lint_on UNUSEDSIGNAL */
   output logic            selected,
   output logic            mem_ready,
   output mem_data_t       mem_read_data,
   input  logic            i2c_sda_in,
   output logic            i2c_sda_drive_low,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  logic            i2c_scl_in,
+  /* verilator lint_on UNUSEDSIGNAL */
   output logic            i2c_scl_drive_low
 );
 
@@ -210,9 +214,5 @@ module i2c_mmio
     end
 
   end
-
-  logic _unused_inputs;
-  assign _unused_inputs = |i2c_scl_in | (|mem_write_data[31:8]) | (|mem_write_mask);
-
 
 endmodule

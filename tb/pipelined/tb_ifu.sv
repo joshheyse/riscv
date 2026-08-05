@@ -20,13 +20,12 @@ module tb_ifu
   pc_t       _pc;
   if_id_t    _fetched;
 
+  /* verilator lint_off UNUSEDSIGNAL */
   ibus_if _ibus ();
+  /* verilator lint_on UNUSEDSIGNAL */
 
   int unsigned errors = 0;
   int unsigned checks = 0;
-
-  logic        _unused_ibus_bits;
-  assign _unused_ibus_bits = |{_ibus.rsp.ready, _ibus.rsp.instr.raw};
 
   ifu _dut (
     .clk(_clk),

@@ -4,9 +4,11 @@ module forwarding_unit
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   input  id_ex_t    id_ex,
   input  ex_mem_t   ex_mem,
   input  mem_wb_t   mem_wb,
+  /* verilator lint_on UNUSEDSIGNAL */
   output reg_data_t rs1_operand,
   output reg_data_t rs2_operand
 );
@@ -34,14 +36,5 @@ module forwarding_unit
     end
 
   end
-
-  logic _unused_id_ex;
-  assign _unused_id_ex = |{id_ex.valid, id_ex.pc, id_ex.ctrl, id_ex.imm, id_ex.rd, id_ex.trap};
-
-  logic _unused_ex_mem;
-  assign _unused_ex_mem = |{ex_mem.pc, ex_mem.ctrl, ex_mem.alu_result, ex_mem.write_data, ex_mem.trap};
-
-  logic _unused_mem_wb;
-  assign _unused_mem_wb = |{mem_wb.trap};
 
 endmodule

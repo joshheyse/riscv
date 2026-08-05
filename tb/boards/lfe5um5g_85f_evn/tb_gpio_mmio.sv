@@ -30,8 +30,10 @@ module tb_gpio_mmio
 
   int unsigned                   errors = 0;
   int unsigned                   checks = 0;
-  logic                          _unused_mem_ready;
-  assign _unused_mem_ready = _mem_ready;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic                          _mem_ready_observed;
+  /* verilator lint_on UNUSEDSIGNAL */
+  assign _mem_ready_observed = _mem_ready;
 
   gpio_mmio #(
     .GpioDataInAddr(DataInAddr),

@@ -10,7 +10,9 @@ module dmem
   input  logic            rst,
   input  logic            mem_valid,
   input  logic            mem_write_en,
+  /* verilator lint_off UNUSEDSIGNAL */
   input  mem_addr_t       mem_addr,
+  /* verilator lint_on UNUSEDSIGNAL */
   input  mem_data_t       mem_write_data,
   input  logic      [3:0] mem_write_mask,
   output logic            mem_ready,
@@ -47,8 +49,5 @@ module dmem
       end
     end
   end
-
-  logic _unused_addr_bits;
-  assign _unused_addr_bits = |{mem_addr[31:IndexBits+2], mem_addr[1:0]};
 
 endmodule
