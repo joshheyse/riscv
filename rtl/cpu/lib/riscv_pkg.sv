@@ -19,12 +19,48 @@ package riscv_pkg;
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address
   typedef logic [4:0] csr_zimm_t;  // CSR immediate operand field
+  typedef logic [11:0] csr_addr_raw_t;  // raw CSR address bits
 
   typedef enum logic [1:0] {
     PRIV_USER       = 2'b00,
     PRIV_SUPERVISOR = 2'b01,
     PRIV_MACHINE    = 2'b11
   } priv_mode_t;
+
+  typedef enum csr_addr_raw_t {
+    CSR_SSTATUS  = 12'h100,
+    CSR_SIE      = 12'h104,
+    CSR_STVEC    = 12'h105,
+    CSR_SENVCFG  = 12'h10a,
+    CSR_SSCRATCH = 12'h140,
+    CSR_SEPC     = 12'h141,
+    CSR_SCAUSE   = 12'h142,
+    CSR_STVAL    = 12'h143,
+    CSR_SIP      = 12'h144,
+
+    CSR_MSTATUS    = 12'h300,
+    CSR_MISA       = 12'h301,
+    CSR_MEDELEG    = 12'h302,
+    CSR_MIDELEG    = 12'h303,
+    CSR_MIE        = 12'h304,
+    CSR_MTVEC      = 12'h305,
+    CSR_MCOUNTEREN = 12'h306,
+    CSR_MENVCFG    = 12'h30a,
+
+    CSR_MSTATUSH = 12'h310,
+    CSR_MENVCFGH = 12'h31a,
+
+    CSR_MSCRATCH = 12'h340,
+    CSR_MEPC     = 12'h341,
+    CSR_MCAUSE   = 12'h342,
+    CSR_MTVAL    = 12'h343,
+    CSR_MIP      = 12'h344,
+
+    CSR_MVENDORID = 12'hf11,
+    CSR_MARCHID   = 12'hf12,
+    CSR_MIMPID    = 12'hf13,
+    CSR_MHARTID   = 12'hf14
+  } csr_addr_e;
 
   typedef struct packed {
     logic [1:0] rw;        // [11:10] read/write class; 2'b11 is read-only
@@ -33,7 +69,8 @@ package riscv_pkg;
   } csr_addr_fields_t;
 
   typedef union packed {
-    logic [11:0]      raw;     // full 12-bit CSR address
+    csr_addr_raw_t    raw;     // full 12-bit CSR address
+    csr_addr_e        named;   // known CSR address enum view
     csr_addr_fields_t fields;  // decoded CSR address fields
   } csr_addr_t;
 
@@ -313,41 +350,6 @@ package riscv_pkg;
     CBIE_RESERVED = 2'b10,
     CBIE_INVAL    = 2'b11
   } cbie_t;
-
-  typedef enum logic [11:0] {
-    CSR_SSTATUS  = 12'h100,
-    CSR_SIE      = 12'h104,
-    CSR_STVEC    = 12'h105,
-    CSR_SENVCFG  = 12'h10a,
-    CSR_SSCRATCH = 12'h140,
-    CSR_SEPC     = 12'h141,
-    CSR_SCAUSE   = 12'h142,
-    CSR_STVAL    = 12'h143,
-    CSR_SIP      = 12'h144,
-
-    CSR_MSTATUS    = 12'h300,
-    CSR_MISA       = 12'h301,
-    CSR_MEDELEG    = 12'h302,
-    CSR_MIDELEG    = 12'h303,
-    CSR_MIE        = 12'h304,
-    CSR_MTVEC      = 12'h305,
-    CSR_MCOUNTEREN = 12'h306,
-    CSR_MENVCFG    = 12'h30a,
-
-    CSR_MSTATUSH = 12'h310,
-    CSR_MENVCFGH = 12'h31a,
-
-    CSR_MSCRATCH = 12'h340,
-    CSR_MEPC     = 12'h341,
-    CSR_MCAUSE   = 12'h342,
-    CSR_MTVAL    = 12'h343,
-    CSR_MIP      = 12'h344,
-
-    CSR_MVENDORID = 12'hf11,
-    CSR_MARCHID   = 12'hf12,
-    CSR_MIMPID    = 12'hf13,
-    CSR_MHARTID   = 12'hf14
-  } csr_addr_e;
 
   typedef struct packed {
     logic [25:0] wpri5;  // [31:6] write-preserved, reads ignored

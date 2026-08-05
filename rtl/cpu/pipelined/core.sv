@@ -74,6 +74,8 @@ module core
 
   trap_req_t      _csr_illegal_trap_req;
   trap_req_t      _redirect_trap_req;
+  logic           _csr_access_illegal;
+  logic           _csr_illegal;
 
   /* verilator lint_off UNUSEDSIGNAL */
   csr_pipe_t      _csr;
@@ -89,6 +91,7 @@ module core
   assign _csr.addr.raw = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
+  assign _csr_illegal = _csr.illegal || _csr_access_illegal;
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
@@ -106,7 +109,7 @@ module core
   end
 
   assign _csr_illegal_trap_req = '{
-          valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr.illegal,
+          valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr_illegal,
           src: TRAP_SRC_ILLEGAL_CSR,
           mtval: _id_ex.slot.instr.raw
       };
@@ -127,7 +130,7 @@ module core
     .clk(clk),
     .rst(rst),
     .csr_en(_csr.en),
-    .csr_write_en(_csr.write_en),
+    .csr_write_en(_csr.write_en && !_csr_access_illegal),
     .csr_addr(_csr.addr),
     .csr_write_data(_csr.write_data),
     .trap_valid(_retire.trap),
@@ -138,6 +141,14 @@ module core
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
     .status(_csr_status)
+  );
+
+  csr_access_control _csr_access_control (
+    .csr_en(_csr.en),
+    .csr_write_en(_csr.write_en),
+    .csr_addr(_csr.addr),
+    .priv_mode(_csr_status.priv_mode),
+    .illegal_csr_access(_csr_access_illegal)
   );
 
   // Pipeline control

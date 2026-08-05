@@ -101,7 +101,7 @@ module csr_file
       _mstatus.mpp <= MPP_USER;
     end else if (csr_en && csr_write_en && !illegal_csr) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(_csr_addr.raw))
+      case (_csr_addr.named)
         CSR_MSTATUS: _mstatus <= _mstatus_write;
         CSR_MIE:     _mie <= csr_write_data;
         CSR_MTVEC:   _mtvec <= _mtvec_write;
@@ -122,7 +122,7 @@ module csr_file
 
     if (csr_en && csr_write_en) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(_csr_addr.raw))
+      case (_csr_addr.named)
         CSR_MSTATUS, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE, CSR_MTVAL, CSR_MIP: begin
         end
         default: illegal_csr = 1'b1;
@@ -132,7 +132,7 @@ module csr_file
 
     if (csr_en) begin
       // slang lint_off case-enum-explicit
-      case (csr_addr_e'(_csr_addr.raw))
+      case (_csr_addr.named)
         CSR_MSTATUS:   csr_read_data = _mstatus;
         CSR_MIE:       csr_read_data = _mie;
         CSR_MTVEC:     csr_read_data = _mtvec;

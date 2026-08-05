@@ -175,6 +175,25 @@ module tb_core_csr_illegal
     expect_word(_dut._csr_file._mtval, csr_bad_instr, {what, " mtval records CSR instruction"});
   endtask
 
+  task automatic check_illegal_csr_from_priv(input priv_mode_t priv_mode,
+                                             input instr_t csr_bad_instr, input string what);
+    reset_core();
+    _dut._csr_file._priv_mode = priv_mode;
+
+    fetch_instr(32'h0000_0000, ADDI_X1_X0_7, {what, " older addi"});
+    fetch_instr(32'h0000_0004, csr_bad_instr, {what, " illegal csr"});
+    offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, {what, " younger addi"});
+
+    drain_until_trap_entry(32'h0000_0002, what);
+
+    expect_word(_dut._reg_file._regs[1], 32'h0000_0007, {what, " older instruction commits"});
+    expect_word(_dut._reg_file._regs[2], 32'h0000_0000, {what, " younger instruction squashed"});
+    expect_word(_dut._reg_file._regs[5], X5Sentinel, {what, " CSR rd write suppressed"});
+    expect_word(_dut._csr_file._mepc, 32'h0000_0004, {what, " mepc points at CSR instruction"});
+    expect_word(_dut._csr_file._mcause, 32'h0000_0002, {what, " mcause is illegal instruction"});
+    expect_word(_dut._csr_file._mtval, csr_bad_instr, {what, " mtval records CSR instruction"});
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -187,6 +206,8 @@ module tb_core_csr_illegal
     check_illegal_csr(csr_instr(CSR_SSTATUS, 5'd0, SYS_F3_RS, 5'd5), "unsupported CSR read");
     check_illegal_csr(csr_instr(CSR_SSTATUS, 5'd3, SYS_F3_RW, 5'd5), "unsupported CSR write");
     check_illegal_csr(csr_instr(CSR_MVENDORID, 5'd3, SYS_F3_RW, 5'd5), "read-only CSR write");
+    check_illegal_csr_from_priv(PRIV_SUPERVISOR, csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RS, 5'd5),
+                                "supervisor access to machine CSR");
 
     if (_errors == 0) begin
       $display("tb_core_csr_illegal: PASS (%0d checks)", _checks);
