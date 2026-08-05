@@ -34,7 +34,7 @@ module csr_file
   localparam mhartid_t   MHARTID   = '0;
   // verilog_format: on
 
-  assign status = '{mtvec: _mtvec, mstatus: _mstatus, mie: _mie, mip: _mip};
+  assign status = '{mtvec: _mtvec, mstatus: _mstatus, mie: _mie, mip: _mip, mepc: _mepc};
 
   always_ff @(posedge clk) begin
     if (rst) begin

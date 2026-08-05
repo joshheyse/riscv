@@ -252,10 +252,8 @@ package riscv_pkg;
     logic              mem_unsigned;      // zero-extend load instead of sign-extend
     logic              clear_pc_lsb;      // force JALR target bit 0 to zero
     logic              illegal_instr;     // instruction should trap as illegal
-    logic              csr_en;            // instruction accesses a CSR
-    logic              csr_write_en;      // instruction updates CSR state
-    csr_op_t           csr_op;            // CSR write/set/clear operation
-    logic              csr_use_zimm;      // CSR operand is zimm, not rs1 data
+    csr_ctrl_t         csr;               // CSR read/write/set/clear control
+    system_ctrl_t      system;            // privileged SYSTEM instruction control
   } control_t;
 
   typedef enum logic [1:0] {
@@ -456,6 +454,7 @@ package riscv_pkg;
     mstatus_t mstatus;
     mie_t     mie;
     mip_t     mip;
+    mepc_t    mepc;
   } csr_status_t;
 
 endpackage

@@ -285,23 +285,69 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic logic exp_csr_illegal(input logic [6:0] op, input funct3_t funct3);
+  function automatic system_ctrl_t exp_system_ctrl(input logic [6:0] op, input logic [11:0] imm,
+                                                   input funct3_t funct3, input logic [4:0] rs1,
+                                                   input logic [4:0] rd);
+    system_ctrl_t ctrl;
+
+    ctrl = '0;
+    ctrl.en = op == OP_SYSTEM;
+    if (op != OP_SYSTEM) return ctrl;
+
+    if (funct3 != SYS_F3_PRIV) begin
+      case (funct3)
+        SYS_F3_RW, SYS_F3_RS, SYS_F3_RC, SYS_F3_RWI, SYS_F3_RSI, SYS_F3_RCI: ctrl.illegal = 1'b0;
+        default: ctrl.illegal = 1'b1;
+      endcase
+      return ctrl;
+    end
+
+    if ((rs1 != 5'd0) || (rd != 5'd0)) begin
+      ctrl.illegal = 1'b1;
+      return ctrl;
+    end
+
+    case (imm)
+      SYS_IMM_MRET:   ctrl.mret = 1'b1;
+      SYS_IMM_ECALL:  ctrl.ecall = 1'b1;
+      SYS_IMM_EBREAK: ctrl.ebreak = 1'b1;
+      SYS_IMM_WFI:    ctrl.wfi = 1'b1;
+      default:        ctrl.illegal = 1'b1;
+    endcase
+
+    return ctrl;
+  endfunction
+
+  function automatic logic exp_csr_illegal(input logic [6:0] op, input logic [11:0] imm,
+                                           input funct3_t funct3, input logic [4:0] rs1,
+                                           input logic [4:0] rd);
     if (op != OP_SYSTEM) return 1'b0;
 
-    case (funct3)
-      SYS_F3_RW, SYS_F3_RS, SYS_F3_RC, SYS_F3_RWI, SYS_F3_RSI, SYS_F3_RCI: return 1'b0;
+    if (funct3 != SYS_F3_PRIV) begin
+      case (funct3)
+        SYS_F3_RW, SYS_F3_RS, SYS_F3_RC, SYS_F3_RWI, SYS_F3_RSI, SYS_F3_RCI: return 1'b0;
+        default: return 1'b1;
+      endcase
+    end
+
+    if ((rs1 != 5'd0) || (rd != 5'd0)) return 1'b1;
+
+    case (imm)
+      SYS_IMM_MRET, SYS_IMM_ECALL, SYS_IMM_EBREAK, SYS_IMM_WFI: return 1'b0;
       default: return 1'b1;
     endcase
   endfunction
 
-  function automatic logic exp_illegal_instr(input logic [6:0] op, input funct3_t funct3,
-                                             input logic [6:0] funct7);
+  function automatic logic exp_illegal_instr(input logic [6:0] op, input logic [11:0] imm,
+                                             input funct3_t funct3, input logic [6:0] funct7,
+                                             input logic [4:0] rs1, input logic [4:0] rd);
     return exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) ||
-        exp_mem_illegal(op, funct3) || exp_csr_illegal(op, funct3);
+        exp_mem_illegal(op, funct3) || exp_csr_illegal(op, imm, funct3, rs1, rd);
   endfunction
 
   task automatic check(input instr_t word, input logic eq, input logic lt, input string what);
     logic    [6:0] op;
+    logic   [11:0] imm;
     funct3_t       funct3;
     logic    [6:0] funct7;
     logic          funct7_bit5;
@@ -310,6 +356,7 @@ module tb_controller
     logic          mem_unsigned_bad;
 
     op = word[6:0];
+    imm = word[31:20];
     funct3 = word[14:12];
     funct7 = word[31:25];
     funct7_bit5 = word[30];
@@ -330,14 +377,16 @@ module tb_controller
             op, funct3, rd
         )) || _ctrl.mem_write_en !== exp_mem_write_en(
             op
-        ) || _ctrl.csr_en !== exp_csr_en(
+        ) || _ctrl.csr.en !== exp_csr_en(
             op, funct3
-        ) || _ctrl.csr_write_en !== exp_csr_write_en(
+        ) || _ctrl.csr.write_en !== exp_csr_write_en(
             op, funct3, rs1
-        ) || _ctrl.csr_op !== exp_csr_op(
+        ) || _ctrl.csr.op !== exp_csr_op(
             op, funct3
-        ) || _ctrl.csr_use_zimm !== exp_csr_use_zimm(
+        ) || _ctrl.csr.use_zimm !== exp_csr_use_zimm(
             op, funct3
+        ) || _ctrl.system !== exp_system_ctrl(
+            op, imm, funct3, rs1, rd
         ) || _ctrl.imm_format !== exp_imm_format(
             op
         ) || _ctrl.alu_operands !== exp_alu_operands(
@@ -361,7 +410,7 @@ module tb_controller
         ) || mem_unsigned_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
             op
         ) || _ctrl.illegal_instr !== exp_illegal_instr(
-            op, funct3, funct7
+            op, imm, funct3, funct7, rs1, rd
         )) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
@@ -369,23 +418,24 @@ module tb_controller
         $display("  FAIL %-38s instr=0x%08h op=%s f3=%03b f7b5=%b eq=%b lt=%b", what, word,
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
-            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
-            _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr_en, _ctrl.csr_write_en,
-            _ctrl.csr_op.name(), _ctrl.csr_use_zimm, _ctrl.imm_format.name(),
+            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr.en, _ctrl.csr.write_en,
+            _ctrl.csr.op.name(), _ctrl.csr.use_zimm, _ctrl.system, _ctrl.imm_format.name(),
             _ctrl.alu_operands.name(), _ctrl.execute_result.name(), _ctrl.alu_op.name(),
             _ctrl.writeback_result.name(), _ctrl.flow.name(), _ctrl.sub_arith, _ctrl.pc_src.name(),
             _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned, _ctrl.clear_pc_lsb,
             _ctrl.illegal_instr);
         $display(
-            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
+            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b illegal=%b",
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
-            ).name(), exp_csr_use_zimm(op, funct3), exp_imm_format(op).name(), exp_alu_operands(op
-            ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3).name(),
-            exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
+            ).name(), exp_csr_use_zimm(op, funct3), exp_system_ctrl(op, imm, funct3, rs1, rd),
+            exp_imm_format(op).name(), exp_alu_operands(op).name(), exp_execute_result(
+            op, funct3).name(), exp_alu_op(op, funct3).name(), exp_writeback_result(
+            op).name(), exp_flow(op).name(), exp_sub_arith(
             op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
             funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),
-            exp_clear_pc_lsb(op), exp_illegal_instr(op, funct3, funct7));
+            exp_clear_pc_lsb(op), exp_illegal_instr(op, imm, funct3, funct7, rs1, rd));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

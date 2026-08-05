@@ -12,6 +12,7 @@ module tb_core_trap
 
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 200;
+  localparam instr_t IllegalInstr = 32'h0000_0000;
 
   logic _clk;
   logic _rst;
@@ -82,13 +83,13 @@ module tb_core_trap
 
     @(negedge _clk);
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = 32'h0010_0073;  // ebreak, currently illegal
+    _ibus.rsp.instr.raw = IllegalInstr;
 
     @(posedge _clk);
     #1;
     expect_bit(_dut._fetched.valid, 1'b1, "IFU captures illegal response");
     expect_word(_dut._fetched.pc, 32'h0000_0000, "IFU tags illegal response pc");
-    expect_word(_dut._fetched.instr.raw, 32'h0010_0073, "IFU captures illegal instruction");
+    expect_word(_dut._fetched.instr.raw, IllegalInstr, "IFU captures illegal instruction");
     expect_bit(_halted, 1'b0, "fetched illegal instruction does not halt yet");
 
     @(negedge _clk);
@@ -98,11 +99,11 @@ module tb_core_trap
     #1;
     expect_bit(_dut._if_id.valid, 1'b1, "IF/ID captures illegal instruction");
     expect_word(_dut._if_id.pc, 32'h0000_0000, "IF/ID carries illegal instruction pc");
-    expect_word(_dut._if_id.instr.raw, 32'h0010_0073, "IF/ID carries illegal instruction");
+    expect_word(_dut._if_id.instr.raw, IllegalInstr, "IF/ID carries illegal instruction");
     expect_bit(_dut._trap.valid, 1'b1, "illegal instruction asserts trap");
     expect_word(_dut._trap.payload.mepc, 32'h0000_0000, "trap mepc is illegal instruction pc");
     expect_word(_dut._trap.payload.mcause, 32'h0000_0002, "trap mcause is illegal instruction");
-    expect_word(_dut._trap.payload.mtval, 32'h0010_0073, "trap mtval is illegal instruction bits");
+    expect_word(_dut._trap.payload.mtval, IllegalInstr, "trap mtval is illegal instruction bits");
     expect_word(_dut._trap.payload.pc, 32'h0000_0000, "temporary zero mtvec traps to zero");
     expect_bit(_halted, 1'b0, "trap is visible before retirement");
 
@@ -121,7 +122,7 @@ module tb_core_trap
     expect_bit(_dut._mem_wb.valid, 1'b0, "trap clears MEM/WB");
     expect_word(_dut._csr_file._mepc, 32'h0000_0000, "csr file captures mepc");
     expect_word(_dut._csr_file._mcause, 32'h0000_0002, "csr file captures mcause");
-    expect_word(_dut._csr_file._mtval, 32'h0010_0073, "csr file captures mtval");
+    expect_word(_dut._csr_file._mtval, IllegalInstr, "csr file captures mtval");
 
     if (_errors == 0) begin
       $display("tb_core_trap: PASS (%0d checks)", _checks);

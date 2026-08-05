@@ -76,15 +76,17 @@ module core
   pipeline_ctrl_t _pipe_ctrl;
   logic           _retire_trap;
   logic           _trap_in_flight;
+  logic           _retire_mret;
 
   assign _id_branch_flags = '0;
 
   assign _csr.addr = _id_ex.instr.i.imm.raw;  // bits [31:20]
-  assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr_en && !_id_ex.trap.valid;
-  assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr_write_en && !_id_ex.trap.valid;
+  assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
+  assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
 
   assign _retire_trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _trap_in_flight = _trap.valid || _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
+  assign _retire_mret = _mem_wb.valid && _mem_wb.ctrl.system.mret && !_mem_wb.trap.valid;
 
   // Files
   reg_file _reg_file (
@@ -134,6 +136,8 @@ module core
   flow_control _flow_control (
     .redirect(_redirect),
     .trap(_mem_wb.trap),
+    .mret_valid(_retire_mret),
+    .mepc(_csr_status.mepc),
     .flow(_flow)
   );
 
@@ -264,8 +268,8 @@ module core
   );
 
   csr_execute _csr_execute (
-    .csr_op(_id_ex.ctrl.csr_op),
-    .csr_use_zimm(_id_ex.ctrl.csr_use_zimm),
+    .csr_op(_id_ex.ctrl.csr.op),
+    .csr_use_zimm(_id_ex.ctrl.csr.use_zimm),
     .csr_read_data(_csr.read_data),
     .rs1_data(_ex_rs1_operand),
     .zimm(_id_ex.instr.r.rs1),

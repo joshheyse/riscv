@@ -25,14 +25,12 @@ module controller
   logic            _system_op_illegal;
   logic            _main_reg_write_en;
   logic            _csr_reg_write_en;
-  csr_ctrl_t       _csr_ctrl;
-  system_ctrl_t    _system_ctrl;
   execute_result_t _main_execute_result;
 
   assign ctrl.branch_sgnd = ~instr.r.funct3.br.unsgnd;
   assign ctrl.illegal_instr = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
 
-  assign _csr_reg_write_en = ctrl.csr_en && (instr.r.rd != 5'd0);
+  assign _csr_reg_write_en = ctrl.csr.en && (instr.r.rd != 5'd0);
   assign ctrl.reg_write_en = _main_reg_write_en | _csr_reg_write_en;
 
   main_decoder _main_decoder (
@@ -73,25 +71,12 @@ module controller
 
   system_decoder _system_decoder (
     .instr(instr),
-    .csr_ctrl(_csr_ctrl),
-    .system_ctrl(_system_ctrl)
+    .csr_ctrl(ctrl.csr),
+    .system_ctrl(ctrl.system)
   );
 
-  assign ctrl.csr_en = _csr_ctrl.en;
-  assign ctrl.csr_write_en = _csr_ctrl.write_en;
-  assign ctrl.csr_op = _csr_ctrl.op;
-  assign ctrl.csr_use_zimm = _csr_ctrl.use_zimm;
-  assign _system_op_illegal = _system_ctrl.illegal;
+  assign _system_op_illegal = ctrl.system.illegal;
 
-  assign ctrl.execute_result = ctrl.csr_en ? EXEC_RESULT_CSR : _main_execute_result;
-
-  logic _unused_system_ctrl;
-  assign _unused_system_ctrl = |{
-      _system_ctrl.en,
-      _system_ctrl.mret,
-      _system_ctrl.ecall,
-      _system_ctrl.ebreak,
-      _system_ctrl.wfi
-  };
+  assign ctrl.execute_result = ctrl.csr.en ? EXEC_RESULT_CSR : _main_execute_result;
 
 endmodule

@@ -57,10 +57,8 @@ module integer_execute
     ctrl.mem_unsigned,
     ctrl.clear_pc_lsb,
     ctrl.illegal_instr,
-    ctrl.csr_en,
-    ctrl.csr_write_en,
-    ctrl.csr_op,
-    ctrl.csr_use_zimm
+    ctrl.csr,
+    ctrl.system
   };
 
 endmodule

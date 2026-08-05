@@ -14,7 +14,7 @@ module tb_core_trap_precision
   localparam int unsigned TimeoutCycles = 300;
 
   localparam instr_t ADDI_X1_X0_7 = 32'h0070_0093;
-  localparam instr_t EBREAK = 32'h0010_0073;
+  localparam instr_t ILLEGAL = 32'h0000_0000;
   localparam instr_t ADDI_X2_X0_9 = 32'h0090_0113;
 
   logic _clk;
@@ -162,7 +162,7 @@ module tb_core_trap_precision
     _dut._reg_file._regs[2] = '0;
 
     fetch_instr(32'h0000_0000, ADDI_X1_X0_7, "older addi");
-    fetch_instr(32'h0000_0004, EBREAK, "illegal instruction");
+    fetch_instr(32'h0000_0004, ILLEGAL, "illegal instruction");
     offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, "younger addi");
 
     drain_until_trap_entry();
@@ -171,7 +171,7 @@ module tb_core_trap_precision
     expect_word(_dut._reg_file._regs[2], 32'h0000_0000, "younger instruction is squashed");
     expect_word(_dut._csr_file._mepc, 32'h0000_0004, "mepc points at trapped instruction");
     expect_word(_dut._csr_file._mcause, 32'h0000_0002, "mcause records illegal instruction");
-    expect_word(_dut._csr_file._mtval, EBREAK, "mtval records trapped instruction bits");
+    expect_word(_dut._csr_file._mtval, ILLEGAL, "mtval records trapped instruction bits");
 
     if (_errors == 0) begin
       $display("tb_core_trap_precision: PASS (%0d checks)", _checks);

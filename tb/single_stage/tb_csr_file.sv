@@ -194,9 +194,11 @@ module tb_csr_file
     expect_bits(_status.mstatus, 32'h0000_0000, "status exposes mstatus");
     expect_bits(_status.mie, 32'h0000_0000, "status exposes mie");
     expect_bits(_status.mip, 32'h0000_0000, "status exposes mip");
+    expect_bits(_status.mepc, 32'h0000_0000, "status exposes reset mepc");
 
     write_csr(CSR_MEPC, 32'h0000_0040, "write mepc");
     read_csr(CSR_MEPC, 32'h0000_0040, "read mepc");
+    expect_bits(_status.mepc, 32'h0000_0040, "status exposes written mepc");
 
     write_csr(CSR_MCAUSE, 32'h8000_0007, "write mcause");
     read_csr(CSR_MCAUSE, 32'h8000_0007, "read mcause");
@@ -216,6 +218,7 @@ module tb_csr_file
     // Trap entry updates trap CSRs.
     take_trap(32'h0000_0080, '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR}, 32'h0000_0013);
     read_csr(CSR_MEPC, 32'h0000_0080, "trap writes mepc");
+    expect_bits(_status.mepc, 32'h0000_0080, "status exposes trap mepc");
     read_csr(CSR_MCAUSE, 32'h0000_0002, "trap writes mcause");
     read_csr(CSR_MTVAL, 32'h0000_0013, "trap writes mtval");
 
