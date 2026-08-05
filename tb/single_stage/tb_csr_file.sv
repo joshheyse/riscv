@@ -22,6 +22,7 @@ module tb_csr_file
   mepc_t       _trap_mepc;
   mcause_t     _trap_mcause;
   mtval_t      _trap_mtval;
+  logic        _mret_valid;
   csr_data_t   _csr_read_data;
   logic        _illegal_csr;
   csr_status_t _status;
@@ -40,6 +41,7 @@ module tb_csr_file
     .trap_mepc(_trap_mepc),
     .trap_mcause(_trap_mcause),
     .trap_mtval(_trap_mtval),
+    .mret_valid(_mret_valid),
     .csr_read_data(_csr_read_data),
     .illegal_csr(_illegal_csr),
     .status(_status)
@@ -80,6 +82,7 @@ module tb_csr_file
     _trap_mepc = '0;
     _trap_mcause = '0;
     _trap_mtval = '0;
+    _mret_valid = 1'b0;
   endtask
 
   task automatic read_csr(input csr_addr_t addr, input csr_data_t exp, input string what);
@@ -153,6 +156,13 @@ module tb_csr_file
     _trap_mtval  = '0;
   endtask
 
+  task automatic retire_mret();
+    @(negedge _clk);
+    _mret_valid = 1'b1;
+    @(negedge _clk);
+    _mret_valid = 1'b0;
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -216,11 +226,16 @@ module tb_csr_file
     read_csr(CSR_MVENDORID, 32'h0000_0000, "mvendorid unchanged after write");
 
     // Trap entry updates trap CSRs.
+    write_csr(CSR_MSTATUS, 32'h0000_0008, "seed mstatus before trap");
     take_trap(32'h0000_0080, '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR}, 32'h0000_0013);
     read_csr(CSR_MEPC, 32'h0000_0080, "trap writes mepc");
     expect_bits(_status.mepc, 32'h0000_0080, "status exposes trap mepc");
     read_csr(CSR_MCAUSE, 32'h0000_0002, "trap writes mcause");
     read_csr(CSR_MTVAL, 32'h0000_0013, "trap writes mtval");
+    read_csr(CSR_MSTATUS, 32'h0000_1880, "trap updates mstatus");
+
+    retire_mret();
+    read_csr(CSR_MSTATUS, 32'h0000_0088, "mret restores mstatus");
 
     // Trap entry wins over a simultaneous normal CSR write.
     @(negedge _clk);

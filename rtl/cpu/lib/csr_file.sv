@@ -13,6 +13,7 @@ module csr_file
   input mepc_t     trap_mepc,
   input mcause_t   trap_mcause,
   input mtval_t    trap_mtval,
+  input logic      mret_valid,
 
   output csr_data_t   csr_read_data,
   output logic        illegal_csr,
@@ -46,10 +47,18 @@ module csr_file
       _mcause <= '0;
       _mtval <= '0;
     end else if (trap_valid) begin
-      _mepc   <= trap_mepc;
+      _mepc <= trap_mepc;
       _mcause <= trap_mcause;
-      _mtval  <= trap_mtval;
+      _mtval <= trap_mtval;
+      _mstatus.mpie <= _mstatus.mie;
+      _mstatus.mie <= 1'b0;
+      _mstatus.mpp <= MPP_MACHINE;  // TODO: use MPP_MACHINE/MPP_SUPERVISOR correctly
+    end else if (mret_valid) begin
+      _mstatus.mie  <= _mstatus.mpie;
+      _mstatus.mpie <= 1'b1;
+      _mstatus.mpp  <= MPP_USER;  // TODO: use MPP_USER/MPP_SUPERVISOR correctly
     end else if (csr_en && csr_write_en && !illegal_csr) begin
+      // slang lint_off case-enum-explicit
       case (csr_addr_e'(csr_addr))
         CSR_MSTATUS: _mstatus <= csr_write_data;
         CSR_MIE:     _mie <= csr_write_data;
@@ -61,6 +70,7 @@ module csr_file
         default: begin
         end
       endcase
+      // slang lint_on case-enum-explicit
     end
   end
 
@@ -69,14 +79,17 @@ module csr_file
     illegal_csr   = 1'b0;
 
     if (csr_en && csr_write_en) begin
+      // slang lint_off case-enum-explicit
       case (csr_addr_e'(csr_addr))
         CSR_MSTATUS, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE, CSR_MTVAL, CSR_MIP: begin
         end
         default: illegal_csr = 1'b1;
       endcase
+      // slang lint_on case-enum-explicit
     end
 
     if (csr_en) begin
+      // slang lint_off case-enum-explicit
       case (csr_addr_e'(csr_addr))
         CSR_MSTATUS:   csr_read_data = _mstatus;
         CSR_MIE:       csr_read_data = _mie;
@@ -91,6 +104,7 @@ module csr_file
         CSR_MHARTID:   csr_read_data = MHARTID;
         default:       illegal_csr = 1'b1;
       endcase
+      // slang lint_on case-enum-explicit
     end
   end
 

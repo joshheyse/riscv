@@ -115,6 +115,7 @@ module core
     .trap_mepc(_mem_wb.trap.payload.mepc),
     .trap_mcause(_mem_wb.trap.payload.mcause),
     .trap_mtval(_mem_wb.trap.payload.mtval),
+    .mret_valid(_retire_mret),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
     .status(_csr_status)
