@@ -23,12 +23,17 @@ module controller
   logic            _alu_op_illegal;
   logic            _mem_op_illegal;
   logic            _system_op_illegal;
+  logic            _trap_valid;
   logic            _main_reg_write_en;
   logic            _csr_reg_write_en;
   execute_result_t _main_execute_result;
 
   assign ctrl.branch_sgnd = ~instr.r.funct3.br.unsgnd;
-  assign ctrl.illegal_instr = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
+  assign _trap_valid = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
+  assign ctrl.trap = '{
+      valid: _trap_valid,
+      src: _trap_valid ? TRAP_SRC_ILLEGAL_INSTR : TRAP_SRC_NONE
+  };
 
   assign _csr_reg_write_en = ctrl.csr.en && (instr.r.rd != 5'd0);
   assign ctrl.reg_write_en = _main_reg_write_en | _csr_reg_write_en;

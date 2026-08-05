@@ -126,7 +126,7 @@ module core
   );
 
   trap_control _trap_control (
-    .illegal_instr(_if_id.valid && _ctrl.illegal_instr),
+    .trap_ctrl('{valid: _if_id.valid && _ctrl.trap.valid, src: _ctrl.trap.src}),
     .instr(_if_id.instr),
     .pc(_if_id.pc),
     .mtvec(_csr_status.mtvec),

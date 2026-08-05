@@ -56,7 +56,7 @@ module integer_execute
     ctrl.mem_size,
     ctrl.mem_unsigned,
     ctrl.clear_pc_lsb,
-    ctrl.illegal_instr,
+    ctrl.trap,
     ctrl.csr,
     ctrl.system
   };

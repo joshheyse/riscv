@@ -11,7 +11,7 @@ module tb_trap_control
 
   localparam int unsigned TimeoutTicks = 100;
 
-  logic        _illegal_instr;
+  trap_ctrl_t  _trap_ctrl;
   instr_u      _instr;
   pc_t         _pc;
   mtvec_t      _mtvec;
@@ -21,7 +21,7 @@ module tb_trap_control
   int unsigned _checks = 0;
 
   trap_control _dut (
-    .illegal_instr(_illegal_instr),
+    .trap_ctrl(_trap_ctrl),
     .instr(_instr),
     .pc(_pc),
     .mtvec(_mtvec),
@@ -44,12 +44,15 @@ module tb_trap_control
     end
   endtask
 
-  task automatic drive(input logic illegal_instr, input instr_t instr, input pc_t pc,
+  task automatic drive(input logic trap_valid, input instr_t instr, input pc_t pc,
                        input mtvec_t mtvec);
-    _illegal_instr = illegal_instr;
-    _instr.raw     = instr;
-    _pc            = pc;
-    _mtvec         = mtvec;
+    _trap_ctrl = '{
+        valid: trap_valid,
+        src: trap_valid ? TRAP_SRC_ILLEGAL_INSTR : TRAP_SRC_NONE
+    };
+    _instr.raw = instr;
+    _pc        = pc;
+    _mtvec     = mtvec;
     #1;
   endtask
 

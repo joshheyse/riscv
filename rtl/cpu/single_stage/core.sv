@@ -71,7 +71,7 @@ module core
   assign _is_load = _ctrl.writeback_result == WB_RESULT_MEM;
   assign _is_store = _ctrl.mem_write_en;
   assign _is_mem_op = _is_load || _is_store;
-  assign _illegal = _in_exec && _ctrl.illegal_instr;
+  assign _illegal = _in_exec && _ctrl.trap.valid;
   assign _exec_done = _in_exec && !_illegal && !_is_mem_op;
   assign _mem_done = ((_in_exec || _in_mem) && _is_mem_op && dbus.rsp.ready);
   assign _retire = _exec_done || _mem_done;

@@ -236,6 +236,18 @@ package riscv_pkg;
     FLOW_JUMP
   } flow_t;
 
+  typedef enum logic [1:0] {
+    TRAP_SRC_NONE,
+    TRAP_SRC_ILLEGAL_INSTR,
+    TRAP_SRC_ECALL,
+    TRAP_SRC_EBREAK
+  } trap_src_t;
+
+  typedef struct packed {
+    logic      valid;  // instruction should trap
+    trap_src_t src;    // decoded trap source
+  } trap_ctrl_t;
+
   typedef struct packed {
     logic              reg_write_en;      // commit a value to integer register rd
     logic              mem_write_en;      // issue a store on the data bus
@@ -251,7 +263,7 @@ package riscv_pkg;
     mem_size_t         mem_size;          // byte/half/word memory transfer width
     logic              mem_unsigned;      // zero-extend load instead of sign-extend
     logic              clear_pc_lsb;      // force JALR target bit 0 to zero
-    logic              illegal_instr;     // instruction should trap as illegal
+    trap_ctrl_t        trap;              // decoded synchronous trap source
     csr_ctrl_t         csr;               // CSR read/write/set/clear control
     system_ctrl_t      system;            // privileged SYSTEM instruction control
   } control_t;
