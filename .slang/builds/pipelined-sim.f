@@ -27,6 +27,7 @@ rtl/cpu/lib/integer_execute.sv
 rtl/cpu/lib/lsu.sv
 rtl/cpu/lib/main_decoder.sv
 rtl/cpu/lib/mem_decoder.sv
+rtl/cpu/lib/mem_trap_control.sv
 rtl/cpu/lib/reg_file.sv
 rtl/cpu/lib/system_decoder.sv
 rtl/cpu/lib/trap_control.sv

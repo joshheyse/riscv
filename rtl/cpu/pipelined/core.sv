@@ -68,10 +68,12 @@ module core
   redirect_t      _redirect;
   trap_stage_t    _id_trap;
   trap_stage_t    _csr_trap;
+  trap_stage_t    _redirect_trap;
   trap_stage_t    _ex_trap;
   flow_ctrl_t     _flow;
 
-  trap_ctrl_t     _csr_illegal_trap_ctrl;
+  trap_req_t      _csr_illegal_trap_req;
+  trap_req_t      _redirect_trap_req;
 
   /* verilator lint_off UNUSEDSIGNAL */
   csr_pipe_t      _csr;
@@ -91,11 +93,22 @@ module core
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
   assign _trap_in_flight = _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
-  assign _ex_trap = _id_ex.trap.valid ? _id_ex.trap : _csr_trap;
+  always_comb begin
+    _ex_trap = '0;
 
-  assign _csr_illegal_trap_ctrl = '{
+    if (_id_ex.trap.valid) begin
+      _ex_trap = _id_ex.trap;
+    end else if (_redirect_trap.valid) begin
+      _ex_trap = _redirect_trap;
+    end else if (_csr_trap.valid) begin
+      _ex_trap = _csr_trap;
+    end
+  end
+
+  assign _csr_illegal_trap_req = '{
           valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr.illegal,
-          src: TRAP_SRC_ILLEGAL_CSR
+          src: TRAP_SRC_ILLEGAL_CSR,
+          mtval: _id_ex.slot.instr.raw
       };
 
   // Files
@@ -133,23 +146,29 @@ module core
     .id_ex_pc_src(_ex_pc_src),
     .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
     .alu_result(_alu_result),
-    .redirect(_redirect)
+    .redirect(_redirect),
+    .trap(_redirect_trap_req)
   );
 
   trap_control _id_trap_control (
-    .trap_ctrl(_ctrl.trap),
-    .instr(_if_id.slot.instr),
+    .trap_req(_ctrl.trap),
     .pc(_if_id.slot.pc),
     .mtvec(_csr_status.mtvec),
     .trap(_id_trap)
   );
 
   trap_control _ex_trap_control (
-    .trap_ctrl(_csr_illegal_trap_ctrl),
-    .instr(_id_ex.slot.instr),
+    .trap_req(_csr_illegal_trap_req),
     .pc(_id_ex.slot.pc),
     .mtvec(_csr_status.mtvec),
     .trap(_csr_trap)
+  );
+
+  trap_control _redirect_trap_control (
+    .trap_req(_redirect_trap_req),
+    .pc(_id_ex.slot.pc),
+    .mtvec(_csr_status.mtvec),
+    .trap(_redirect_trap)
   );
 
   flow_control _flow_control (
@@ -323,6 +342,7 @@ module core
 
   mem_stage _mem_stage (
     .ex_mem(_ex_mem),
+    .mtvec(_csr_status.mtvec),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(dbus)

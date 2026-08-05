@@ -330,12 +330,13 @@ module tb_controller
     return exp_system_op(op, imm, funct3, rs1, rd) == SYSTEM_OP_ILLEGAL;
   endfunction
 
-  function automatic trap_ctrl_t exp_trap(input logic [6:0] op, input logic [11:0] imm,
-                                          input funct3_t funct3, input logic [6:0] funct7,
-                                          input logic [4:0] rs1, input logic [4:0] rd);
-    trap_ctrl_t trap;
+  function automatic trap_req_t exp_trap(
+      input logic [6:0] op, input logic [11:0] imm, input funct3_t funct3, input logic [6:0] funct7,
+      input logic [4:0] rs1, input logic [4:0] rd, input instr_t instr);
+    trap_req_t  trap;
     system_op_t system_op;
 
+    trap = '0;
     system_op = exp_system_op(op, imm, funct3, rs1, rd);
     trap.valid = exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) ||
         exp_mem_illegal(op, funct3) || exp_csr_illegal(op, imm, funct3, rs1, rd) ||
@@ -346,7 +347,8 @@ module tb_controller
     end else if (system_op == SYSTEM_OP_EBREAK) begin
       trap.src = TRAP_SRC_EBREAK;
     end else if (trap.valid) begin
-      trap.src = TRAP_SRC_ILLEGAL_INSTR;
+      trap.src   = TRAP_SRC_ILLEGAL_INSTR;
+      trap.mtval = instr;
     end else begin
       trap.src = TRAP_SRC_NONE;
     end
@@ -419,7 +421,7 @@ module tb_controller
         ) || mem_unsigned_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
             op
         ) || _ctrl.trap !== exp_trap(
-            op, imm, funct3, funct7, rs1, rd
+            op, imm, funct3, funct7, rs1, rd, word
         )) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
@@ -443,7 +445,7 @@ module tb_controller
             ).name(), exp_alu_op(op, funct3).name(), exp_writeback_result(op).name(), exp_flow(op
             ).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(),
             exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(
-            op, funct3), exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd));
+            op, funct3), exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd, word));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

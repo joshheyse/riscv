@@ -7,6 +7,7 @@ module mem_stage
   /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t ex_mem,
   /* verilator lint_on UNUSEDSIGNAL */
+  input mtvec_t  mtvec,
 
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
@@ -14,15 +15,36 @@ module mem_stage
   dbus_if.master dbus
 );
 
-  mem_data_t _mem_read_data;
-  reg_data_t _mem_result_data;
-  logic      _mem_access;
+  mem_data_t   _mem_read_data;
+  reg_data_t   _mem_result_data;
+  logic        _mem_instr;
+  logic        _mem_access;
+  trap_req_t   _mem_trap_req;
+  trap_stage_t _mem_trap;
+  trap_stage_t _trap;
 
-  assign _mem_access = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
+  assign _mem_instr = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
+  assign _mem_access = _mem_instr && !_mem_trap_req.valid;
   assign mem_wait = _mem_access && !dbus.rsp.ready;
   assign dbus.req.valid = _mem_access;
   assign dbus.req.write_en = _mem_access && ex_mem.ctrl.mem_write_en;
   assign dbus.req.addr = ex_mem.alu_result;
+  assign _trap = ex_mem.trap.valid ? ex_mem.trap : _mem_trap;
+
+  mem_trap_control _mem_trap_control (
+    .valid(_mem_instr),
+    .addr(ex_mem.alu_result),
+    .mem_size(ex_mem.ctrl.mem_size),
+    .mem_write_en(ex_mem.ctrl.mem_write_en),
+    .trap(_mem_trap_req)
+  );
+
+  trap_control _trap_control (
+    .trap_req(_mem_trap_req),
+    .pc(ex_mem.pc),
+    .mtvec(mtvec),
+    .trap(_mem_trap)
+  );
 
   lsu _lsu (
     .addr(ex_mem.alu_result),
@@ -47,7 +69,7 @@ module mem_stage
           ctrl: ex_mem.ctrl,
           result: _mem_result_data,
           rd: ex_mem.rd,
-          trap: ex_mem.trap
+          trap: _trap
       };
 
 endmodule

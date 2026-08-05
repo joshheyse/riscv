@@ -243,16 +243,20 @@ package riscv_pkg;
 
   typedef enum logic [2:0] {
     TRAP_SRC_NONE,
+    TRAP_SRC_INSTR_ADDR_MISALIGNED,
     TRAP_SRC_ILLEGAL_INSTR,
     TRAP_SRC_ILLEGAL_CSR,
     TRAP_SRC_ECALL,
-    TRAP_SRC_EBREAK
+    TRAP_SRC_EBREAK,
+    TRAP_SRC_LOAD_ADDR_MISALIGNED,
+    TRAP_SRC_STORE_ADDR_MISALIGNED
   } trap_src_t;
 
   typedef struct packed {
-    logic      valid;  // instruction should trap
-    trap_src_t src;    // decoded trap source
-  } trap_ctrl_t;
+    logic      valid;  // stage requests a synchronous trap
+    trap_src_t src;    // trap source
+    mtval_t    mtval;  // trap-specific value
+  } trap_req_t;
 
   typedef struct packed {
     logic              reg_write_en;      // commit a value to integer register rd
@@ -260,7 +264,6 @@ package riscv_pkg;
     imm_format_t       imm_format;        // instruction immediate encoding
     alu_op_t           alu_op;            // ALU function selected by decode
     alu_operands_t     alu_operands;      // values driven onto ALU src_a/src_b
-    flow_t flow;                          // decoded branch/jump class
     execute_result_t   execute_result;    // execute-stage value before memory
     writeback_result_t writeback_result;  // value committed to rd
     logic              sub_arith;         // use SUB/SRA variant for shared ALU op
@@ -269,7 +272,8 @@ package riscv_pkg;
     mem_size_t         mem_size;          // byte/half/word memory transfer width
     logic              mem_unsigned;      // zero-extend load instead of sign-extend
     logic              clear_pc_lsb;      // force JALR target bit 0 to zero
-    trap_ctrl_t        trap;              // decoded synchronous trap source
+    flow_t flow;                          // decoded branch/jump class
+    trap_req_t         trap;              // decoded synchronous trap request
     csr_ctrl_t         csr;               // CSR read/write/set/clear control
     system_ctrl_t      system;            // privileged SYSTEM instruction control
   } control_t;
@@ -431,11 +435,6 @@ package riscv_pkg;
 
   typedef pc_t mepc_t;
 
-  typedef struct packed {
-    logic        is_interrupt;  // [31] 1 = interrupt, 0 = exception
-    logic [30:0] code;          // [30:0] exception/interrupt cause code
-  } mcause_t;
-
   typedef enum logic [30:0] {
     MCAUSE_INSTR_ADDR_MISALIGNED = 31'd0,
     MCAUSE_INSTR_ACCESS_FAULT    = 31'd1,
@@ -449,6 +448,11 @@ package riscv_pkg;
     MCAUSE_ECALL_S               = 31'd9,
     MCAUSE_ECALL_M               = 31'd11
   } exception_code_t;
+
+  typedef struct packed {
+    logic            is_interrupt;  // [31] 1 = interrupt, 0 = exception
+    exception_code_t code;          // [30:0] exception/interrupt cause code
+  } mcause_t;
 
   typedef csr_data_t mvendorid_t;
   typedef csr_data_t marchid_t;

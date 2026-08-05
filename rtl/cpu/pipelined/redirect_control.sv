@@ -15,10 +15,24 @@ module redirect_control
   input logic      id_ex_clear_pc_lsb,
   input alu_data_t alu_result,
 
-  output redirect_t redirect
+  output redirect_t redirect,
+  output trap_req_t trap
 );
 
-  assign redirect.valid = id_ex_valid && (id_ex_pc_src != PC_SRC_INC);
-  assign redirect.pc = id_ex_clear_pc_lsb ? {alu_result[31:1], 1'b0} : alu_result;
+  pc_t  _target_pc;
+  logic _redirect_valid;
+  logic _target_misaligned;
+
+  assign _target_pc = id_ex_clear_pc_lsb ? {alu_result[31:1], 1'b0} : alu_result;
+  assign _redirect_valid = id_ex_valid && (id_ex_pc_src != PC_SRC_INC);
+  assign _target_misaligned = _redirect_valid && (_target_pc[1:0] != 2'b00);
+
+  assign redirect.valid = _redirect_valid && !_target_misaligned;
+  assign redirect.pc = _target_pc;
+  assign trap = '{
+          valid: _target_misaligned,
+          src: TRAP_SRC_INSTR_ADDR_MISALIGNED,
+          mtval: _target_pc
+      };
 
 endmodule
