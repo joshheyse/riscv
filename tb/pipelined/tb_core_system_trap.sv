@@ -15,6 +15,7 @@ module tb_core_system_trap
 
   localparam instr_t ECALL = 32'h0000_0073;
   localparam instr_t EBREAK = 32'h0010_0073;
+  localparam instr_t MRET = 32'h3020_0073;
 
   logic _clk;
   logic _rst;
@@ -115,6 +116,27 @@ module tb_core_system_trap
     expect_word(_dut._id_trap.payload.mtval, 32'h0000_0000, {what, " trap mtval"});
   endtask
 
+  task automatic check_mret_privilege_trap(input priv_mode_t priv_mode, input string what);
+    int unsigned waits;
+
+    reset_core();
+    _dut._csr_file._priv_mode = priv_mode;
+    issue_first_instr(MRET, what);
+
+    waits = 0;
+    while ((_dut._csr_file._mcause != 32'h0000_0002) && (waits < 40)) begin
+      waits++;
+      @(posedge _clk);
+      #1;
+    end
+
+    expect_bit(waits < 40, 1'b1, {what, " trap retired"});
+    expect_bit(_halted, 1'b0, {what, " trap entry does not halt"});
+    expect_word(_dut._csr_file._mepc, 32'h0000_0000, {what, " mepc"});
+    expect_word(_dut._csr_file._mcause, 32'h0000_0002, {what, " mcause"});
+    expect_word(_dut._csr_file._mtval, MRET, {what, " mtval"});
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -126,6 +148,8 @@ module tb_core_system_trap
 
     check_system_trap(ECALL, TRAP_SRC_ECALL, 32'h0000_000b, "ecall");
     check_system_trap(EBREAK, TRAP_SRC_EBREAK, 32'h0000_0003, "ebreak");
+    check_mret_privilege_trap(PRIV_SUPERVISOR, "supervisor mret");
+    check_mret_privilege_trap(PRIV_USER, "user mret");
 
     if (_errors == 0) begin
       $display("tb_core_system_trap: PASS (%0d checks)", _checks);

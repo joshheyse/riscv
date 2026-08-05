@@ -68,13 +68,16 @@ module core
   redirect_t      _redirect;
   trap_stage_t    _id_trap;
   trap_stage_t    _csr_trap;
+  trap_stage_t    _system_trap;
   trap_stage_t    _redirect_trap;
   trap_stage_t    _ex_trap;
   flow_ctrl_t     _flow;
 
   trap_req_t      _csr_illegal_trap_req;
+  trap_req_t      _system_illegal_trap_req;
   trap_req_t      _redirect_trap_req;
   logic           _csr_access_illegal;
+  logic           _system_access_illegal;
   logic           _csr_illegal;
 
   /* verilator lint_off UNUSEDSIGNAL */
@@ -105,12 +108,20 @@ module core
       _ex_trap = _redirect_trap;
     end else if (_csr_trap.valid) begin
       _ex_trap = _csr_trap;
+    end else if (_system_trap.valid) begin
+      _ex_trap = _system_trap;
     end
   end
 
   assign _csr_illegal_trap_req = '{
           valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr_illegal,
           src: TRAP_SRC_ILLEGAL_CSR,
+          mtval: _id_ex.slot.instr.raw
+      };
+
+  assign _system_illegal_trap_req = '{
+          valid: _id_ex.valid && !_id_ex.trap.valid && _system_access_illegal,
+          src: TRAP_SRC_ILLEGAL_INSTR,
           mtval: _id_ex.slot.instr.raw
       };
 
@@ -151,6 +162,12 @@ module core
     .illegal_csr_access(_csr_access_illegal)
   );
 
+  system_access_control _system_access_control (
+    .system_ctrl(_id_ex.ctrl.system),
+    .priv_mode(_csr_status.priv_mode),
+    .illegal_system_access(_system_access_illegal)
+  );
+
   // Pipeline control
   redirect_control _redirect_control (
     .id_ex_valid(_id_ex.valid),
@@ -175,6 +192,14 @@ module core
     .mtvec(_csr_status.mtvec),
     .priv_mode(_csr_status.priv_mode),
     .trap(_csr_trap)
+  );
+
+  trap_control _system_trap_control (
+    .trap_req(_system_illegal_trap_req),
+    .pc(_id_ex.slot.pc),
+    .mtvec(_csr_status.mtvec),
+    .priv_mode(_csr_status.priv_mode),
+    .trap(_system_trap)
   );
 
   trap_control _redirect_trap_control (
