@@ -38,7 +38,7 @@ module ifu
 
   // Issue at most one fetch at a time. `fetched.valid` does not block issue
   // because a high `fetch_en` also means the core is consuming that entry.
-  assign _request_issued = !rst && fetch_en && !_request_valid && !_drop_rsp;
+  assign _request_issued = !rst && fetch_en && !_request_valid;
   assign ibus.req.valid  = _request_issued;
   assign ibus.req.addr   = pc;
 
