@@ -74,6 +74,8 @@ module core
   flow_ctrl_t     _flow;
 
   trap_req_t      _csr_illegal_trap_req;
+  trap_req_t      _interrupt_trap_req;
+  trap_req_t      _id_trap_req;
   trap_req_t      _system_illegal_trap_req;
   trap_req_t      _redirect_trap_req;
   logic           _csr_access_illegal;
@@ -124,6 +126,28 @@ module core
     /* verilator lint_on PINCONNECTEMPTY */
     .trap_in_flight(_trap_in_flight)
   );
+
+  // Machine-level interrupt checks. For now we implement machine mode
+  // interrupt delivery only; supervisor interrupts remain a future enhancement.
+  always_comb begin
+    _interrupt_trap_req = '0;
+    if (_csr_status.priv_mode == PRIV_MACHINE && _csr_status.mstatus.mie) begin
+      if (_csr_status.mie.meip && _csr_status.mip.meip) begin
+        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, mtval: '0};
+      end else if (_csr_status.mie.mtip && _csr_status.mip.mtip) begin
+        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, mtval: '0};
+      end else if (_csr_status.mie.msip && _csr_status.mip.msip) begin
+        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, mtval: '0};
+      end
+    end
+  end
+
+  always_comb begin
+    _id_trap_req = _ctrl.trap;
+    if (_if_id.valid && !_id_trap_req.valid) begin
+      _id_trap_req = _interrupt_trap_req;
+    end
+  end
 
   assign _csr_illegal_trap_req = '{
           valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr_illegal,
@@ -191,7 +215,7 @@ module core
   );
 
   trap_control _id_trap_control (
-    .trap_req(_ctrl.trap),
+    .trap_req(_id_trap_req),
     .pc(_if_id.slot.pc),
     .mtvec(_csr_status.mtvec),
     .priv_mode(_csr_status.priv_mode),

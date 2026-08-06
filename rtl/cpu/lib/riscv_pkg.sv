@@ -294,7 +294,7 @@ package riscv_pkg;
     FLOW_JUMP
   } flow_t;
 
-  typedef enum logic [2:0] {
+  typedef enum logic [3:0] {
     TRAP_SRC_NONE,
     TRAP_SRC_INSTR_ADDR_MISALIGNED,
     TRAP_SRC_ILLEGAL_INSTR,
@@ -302,7 +302,10 @@ package riscv_pkg;
     TRAP_SRC_ECALL,
     TRAP_SRC_EBREAK,
     TRAP_SRC_LOAD_ADDR_MISALIGNED,
-    TRAP_SRC_STORE_ADDR_MISALIGNED
+    TRAP_SRC_STORE_ADDR_MISALIGNED,
+    TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
+    TRAP_SRC_MACHINE_TIMER_INTERRUPT,
+    TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT
   } trap_src_t;
 
   typedef struct packed {

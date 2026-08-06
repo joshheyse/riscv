@@ -129,6 +129,21 @@ module tb_trap_control
     expect_trap(32'h0000_0006, 32'h0000_1002, 32'h0000_0208, 32'h0000_0200,
                 "store address misaligned");
 
+    drive(1'b1, TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, 32'h0000_0000, 32'h0000_0300,
+          '{base: 30'h0000_0080, mode: MTVEC_MODE_VECTORED}, PRIV_MACHINE);
+    expect_trap(32'h8000_0003, 32'h0000_0000, 32'h0000_0300, 32'h0000_020c,
+                "machine software interrupt");
+
+    drive(1'b1, TRAP_SRC_MACHINE_TIMER_INTERRUPT, 32'h0000_0000, 32'h0000_0304,
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+    expect_trap(32'h8000_0007, 32'h0000_0000, 32'h0000_0304, 32'h0000_0100,
+                "machine timer interrupt");
+
+    drive(1'b1, TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, 32'h0000_0000, 32'h0000_0308,
+          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+    expect_trap(32'h8000_000b, 32'h0000_0000, 32'h0000_0308, 32'h0000_0100,
+                "machine external interrupt");
+
     if (_errors == 0) begin
       $display("tb_trap_control: PASS (%0d checks)", _checks);
       $finish;
