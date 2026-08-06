@@ -18,26 +18,29 @@ module tb_dip_switch_mmio
   logic                                 _mem_ready;
   word_t                                _read_data;
   logic            [NumDipSwitches-1:0] _dip_switch;
+  mem_if _mem ();
 
-  int unsigned                          errors = 0;
-  int unsigned                          checks = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
   /* verilator lint_off UNUSEDSIGNAL */
-  logic                                 _mem_ready_observed;
+  logic        _mem_ready_observed;
   /* verilator lint_on UNUSEDSIGNAL */
   assign _mem_ready_observed = _mem_ready;
+
+  assign _mem.req.valid = _mem_valid;
+  assign _mem.req.write_en = _mem_write_en;
+  assign _mem.req.addr = _mem_addr;
+  assign _mem.req.write_data = _mem_write_data;
+  assign _mem.req.write_mask = _mem_write_mask;
+  assign _mem_ready = _mem.rsp.ready;
+  assign _read_data = _mem.rsp.read_data;
 
   dip_switch_mmio #(
     .DipSwitchAddr(DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dut (
-    .mem_valid(_mem_valid),
-    .mem_write_en(_mem_write_en),
-    .mem_addr(_mem_addr),
-    .mem_write_data(_mem_write_data),
-    .mem_write_mask(_mem_write_mask),
+    .mem(_mem),
     .selected(_selected),
-    .mem_ready(_mem_ready),
-    .mem_read_data(_read_data),
     .dip_switch(_dip_switch)
   );
 

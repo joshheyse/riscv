@@ -11,6 +11,11 @@ constants:
   uart_status_addr: 0x1000100c
   timer_lo_addr: 0x10002000
   timer_hi_addr: 0x10002004
+  clint_msip_addr: 0x10002008
+  clint_mtimecmp_lo_addr: 0x10002010
+  clint_mtimecmp_hi_addr: 0x10002014
+  clint_mtime_lo_addr: 0x10002018
+  clint_mtime_hi_addr: 0x1000201c
   clock_hz: 12000000
   uart_baud: 115200
   sim_halt_addr: 0x1000f000

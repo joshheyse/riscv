@@ -21,20 +21,19 @@ typedef enum logic {
 module i2c_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t    DataAddr         = '0,
-  parameter mem_addr_t    ControlAddr      = '0,
-  parameter mem_addr_t    StatusAddr       = '0,
-  parameter mem_addr_t    AddressAddr      = '0,
+  parameter mem_addr_t   DataAddr         = 32'h10005000,
+  parameter mem_addr_t   ControlAddr      = 32'h10005008,
+  parameter mem_addr_t   StatusAddr       = 32'h1000500C,
+  parameter mem_addr_t   AddressAddr      = 32'h10005004,
   parameter int unsigned ClocksPerHalfBit = 60
 ) (
-  input  logic             clk,
-  input  logic             rst,
+  input logic clk,
+  input logic rst,
 
-  input  logic             i2c_sda_in,
-  output logic             i2c_sda_drive_low,
-  input  logic             i2c_scl_in,
-  output logic             i2c_scl_drive_low,
-  output logic             selected,
+  input  logic i2c_sda_in,
+  output logic i2c_sda_drive_low,
+  output logic i2c_scl_drive_low,
+  output logic selected,
 
   mem_if.slave mem
 );
@@ -54,6 +53,15 @@ module i2c_mmio
   logic       [6:0] _i2c_addr;
   byte_t            _i2c_byte;
   logic       [2:0] _bit_index;
+
+  initial begin
+    assert (DataAddr != ControlAddr);
+    assert (DataAddr != StatusAddr);
+    assert (DataAddr != AddressAddr);
+    assert (ControlAddr != StatusAddr);
+    assert (ControlAddr != AddressAddr);
+    assert (StatusAddr != AddressAddr);
+  end
 
   assign _data_selected = mem.req.addr == DataAddr;
   assign _control_selected = mem.req.addr == ControlAddr;
@@ -190,6 +198,8 @@ module i2c_mmio
         _busy = 1'b1;
         i2c_sda_drive_low = 1'b0;
         i2c_scl_drive_low = (_phase == I2C_PHASE_LOW);
+      end
+      I2C_IDLE: begin
       end
       default: begin
       end

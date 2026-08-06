@@ -11,13 +11,13 @@ typedef enum logic [2:0] {
 module spi_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t   DataAddr         = '0,
-  parameter mem_addr_t   ControlAddr      = '0,
-  parameter mem_addr_t   StatusAddr       = '0,
+  parameter mem_addr_t   DataAddr         = 32'h10004000,
+  parameter mem_addr_t   ControlAddr      = 32'h10004004,
+  parameter mem_addr_t   StatusAddr       = 32'h10004008,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
-  input  logic clk,
-  input  logic rst,
+  input logic clk,
+  input logic rst,
 
   output logic spi_sck,
   output logic spi_mosi,
@@ -36,6 +36,12 @@ module spi_mmio
   byte_t            _tx_data;
   byte_t            _rx_data;
   logic       [2:0] _bit_index;
+
+  initial begin
+    assert (DataAddr != ControlAddr);
+    assert (DataAddr != StatusAddr);
+    assert (ControlAddr != StatusAddr);
+  end
 
   assign _data_selected = mem.req.addr == DataAddr;
   assign _control_selected = mem.req.addr == ControlAddr;
@@ -115,6 +121,8 @@ module spi_mmio
         _busy = 1'b1;
         spi_cs_n = 1'b0;
         spi_mosi = _tx_data[_bit_index];
+      end
+      SPI_IDLE, SPI_DONE: begin
       end
       default: begin
       end

@@ -3,14 +3,14 @@
 module led_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t   LedAddr = '0,
+  parameter mem_addr_t   LedAddr = 32'h10000000,
   parameter int unsigned NumLeds = 1
 ) (
-  input  logic              clk,
-  input  logic              rst,
+  input logic clk,
+  input logic rst,
 
   output logic [NumLeds-1:0] led,
-  output logic              selected,
+  output logic               selected,
 
   mem_if.slave mem
 );

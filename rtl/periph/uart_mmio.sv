@@ -4,11 +4,11 @@ module uart_mmio
   import riscv_pkg::*;
 #(
   parameter int unsigned ClocksPerBit = 1,
-  parameter mem_addr_t   TxDataAddr   = '0,
-  parameter mem_addr_t   StatusAddr   = '0
+  parameter mem_addr_t   TxDataAddr   = 32'h10001000,
+  parameter mem_addr_t   StatusAddr   = 32'h1000100C
 ) (
-  input  logic clk,
-  input  logic rst,
+  input logic clk,
+  input logic rst,
 
   output logic tx,
   output logic selected,
@@ -21,6 +21,10 @@ module uart_mmio
   logic  [2:0] _data_bit_idx;
   logic        _tx_busy;
   logic        _tx_ready;
+
+  initial begin
+    assert (TxDataAddr != StatusAddr);
+  end
 
   assign selected = (mem.req.addr == TxDataAddr | mem.req.addr == StatusAddr);
   assign mem.rsp.ready = mem.req.valid && selected;

@@ -3,15 +3,15 @@
 module push_button_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t    PushButtonAddr = '0,
+  parameter mem_addr_t   PushButtonAddr = 32'h10003004,
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
-  input  logic                    clk,
-  input  logic                    rst,
+  input logic clk,
+  input logic rst,
 
   input  logic [NumPushButtons-1:0] push_button,
-  output logic                    selected,
+  output logic                      selected,
 
   mem_if.slave mem
 );

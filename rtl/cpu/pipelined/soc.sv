@@ -55,19 +55,17 @@ module soc
     .ibus(_ibus)
   );
 
+  mem_if _dmem_mem ();
+  assign _dmem_mem.req = _dbus.req;
+  assign _dbus.rsp = _dmem_mem.rsp;
+
   dmem #(
     .DepthWords(DmemDepthWords),
     .InitFile(DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem_valid(_dbus.req.valid),
-    .mem_write_en(_dbus.req.write_en),
-    .mem_addr(_dbus.req.addr),
-    .mem_write_data(_dbus.req.write_data),
-    .mem_read_data(_dbus.rsp.read_data),
-    .mem_ready(_dbus.rsp.ready),
-    .mem_write_mask(_dbus.req.write_mask)
+    .mem(_dmem_mem)
   );
 
 endmodule

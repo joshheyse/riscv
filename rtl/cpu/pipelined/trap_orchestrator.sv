@@ -16,10 +16,11 @@ module trap_orchestrator
   input trap_stage_t ex_trap,
   input trap_stage_t mem_trap,
 
-  input logic        clear_trap,
+    input logic        clear_trap,
 
-  output trap_stage_t trap,
-  output logic       trap_in_flight
+    output trap_stage_t trap,
+    output logic       trap_held,
+    output logic       trap_in_flight
 );
 
   logic        _trap_held;
@@ -51,6 +52,7 @@ module trap_orchestrator
     trap_in_flight = _candidate.valid || _trap_held;
   end
 
-  assign _trap_held = _held_trap.valid;
+  assign trap_held = _held_trap.valid;
+  assign _trap_held = trap_held;
 
 endmodule

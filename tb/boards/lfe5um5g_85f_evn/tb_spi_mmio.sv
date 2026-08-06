@@ -35,6 +35,15 @@ module tb_spi_mmio
   logic            _mem_ready_observed;
   /* verilator lint_on UNUSEDSIGNAL */
   assign _mem_ready_observed = _mem_ready;
+  mem_if _mem ();
+
+  assign _mem.req.valid = _mem_valid;
+  assign _mem.req.write_en = _mem_write_en;
+  assign _mem.req.addr = _mem_addr;
+  assign _mem.req.write_data = _mem_write_data;
+  assign _mem.req.write_mask = _mem_write_mask;
+  assign _mem_ready = _mem.rsp.ready;
+  assign _read_data = _mem.rsp.read_data;
 
   spi_mmio #(
     .DataAddr(DataAddr),
@@ -44,14 +53,8 @@ module tb_spi_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
-    .mem_valid(_mem_valid),
-    .mem_write_en(_mem_write_en),
-    .mem_addr(_mem_addr),
-    .mem_write_data(_mem_write_data),
-    .mem_write_mask(_mem_write_mask),
+    .mem(_mem),
     .selected(_selected),
-    .mem_ready(_mem_ready),
-    .mem_read_data(_read_data),
     .spi_sck(_spi_sck),
     .spi_mosi(_spi_mosi),
     .spi_miso(_spi_miso),

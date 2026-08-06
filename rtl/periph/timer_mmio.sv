@@ -3,16 +3,20 @@
 module timer_mmio
   import riscv_pkg::*;
 #(
-  parameter mem_addr_t TimerLoAddr = '0,
-  parameter mem_addr_t TimerHiAddr = '0
+  parameter mem_addr_t TimerLoAddr = 32'h10002000,
+  parameter mem_addr_t TimerHiAddr = 32'h10002004
 ) (
-  input  logic  clk,
-  input  logic  rst,
+  input logic clk,
+  input logic rst,
 
   output logic selected,
 
   mem_if.slave mem
 );
+
+  initial begin
+    assert (TimerLoAddr != TimerHiAddr);
+  end
 
   dword_t _counter;
   assign selected = (mem.req.addr == TimerLoAddr || mem.req.addr == TimerHiAddr);

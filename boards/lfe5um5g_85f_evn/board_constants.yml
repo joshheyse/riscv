@@ -16,6 +16,11 @@ constants:
   uart_status_addr: 0x1000100c
   timer_lo_addr: 0x10002000
   timer_hi_addr: 0x10002004
+  clint_msip_addr: 0x10002008
+  clint_mtimecmp_lo_addr: 0x10002010
+  clint_mtimecmp_hi_addr: 0x10002014
+  clint_mtime_lo_addr: 0x10002018
+  clint_mtime_hi_addr: 0x1000201c
   dip_switch_addr: 0x10003000
   push_button_addr: 0x10003004
   spi_data_addr: 0x10004000

@@ -20,17 +20,25 @@ module tb_lsu
 
   logic              _clk;
   logic              _rst;
+  mem_if             _mem ();
   logic              _mem_valid;
   logic              _mem_write_en;
-  logic              _mem_ready;
   word_t             _addr;
   word_t             _write_data;
-  word_t             _dmem_read_data;
-  word_t             _dmem_write_data;
   word_t             _read_data;
   mem_size_t         _mem_size;
   logic              _mem_unsigned;
   logic        [3:0] _write_mask;
+
+  mem_data_t         _mem_read_data;
+  mem_data_t         _mem_write_data;
+
+  assign _mem.req.valid      = _mem_valid;
+  assign _mem.req.write_en   = _mem_write_en;
+  assign _mem.req.addr       = _addr;
+  logic               _mem_ready;
+  assign _mem_ready     = _mem.rsp.ready;
+  assign _mem_read_data = _mem.rsp.read_data;
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
@@ -40,11 +48,14 @@ module tb_lsu
     .write_data(_write_data),
     .mem_size(_mem_size),
     .mem_unsigned(_mem_unsigned),
-    .mem_read_data(_dmem_read_data),
-    .mem_write_data(_dmem_write_data),
+    .mem_read_data(_mem_read_data),
+    .mem_write_data(_mem_write_data),
     .write_mask(_write_mask),
     .read_data(_read_data)
   );
+
+  assign _mem.req.write_data = _mem_write_data;
+  assign _mem.req.write_mask = _write_mask;
 
   dmem #(
     .DepthWords(DepthWords),
@@ -52,13 +63,7 @@ module tb_lsu
   ) _dmem (
     .clk(_clk),
     .rst(_rst),
-    .mem_valid(_mem_valid),
-    .mem_write_en(_mem_write_en),
-    .mem_addr(_addr),
-    .mem_write_data(_dmem_write_data),
-    .mem_write_mask(_write_mask),
-    .mem_ready(_mem_ready),
-    .mem_read_data(_dmem_read_data)
+    .mem(_mem)
   );
 
   initial begin
