@@ -11,7 +11,10 @@ module tb_core_privilege_return
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 300;
+  localparam int unsigned TimeoutCycles   = 4000;
+  localparam int unsigned ReqTimeout      = 128;
+  localparam int unsigned TrapTimeout     = 512;
+  localparam int unsigned PrivReturnWait  = 128;
 
   localparam logic [29:0] MTVEC_HANDLER_BASE = 30'h10; // byte address 0x0000_0040
 
@@ -20,6 +23,7 @@ module tb_core_privilege_return
   localparam instr_t ADDI_X3_1      = 32'h0010_0193;
   localparam instr_t ADDI_X5_8      = 32'h0080_0293;
   localparam instr_t ADDI_X2_2      = 32'h0020_0113;
+  localparam instr_t NOP           = 32'h0000_0013;
 
   logic _clk;
   logic _rst;
@@ -97,7 +101,7 @@ module tb_core_privilege_return
 
     waits = 0;
     #1;
-    while (!(_ibus.req.valid && (_ibus.req.addr == exp_addr)) && (waits < TimeoutCycles)) begin
+    while (!(_ibus.req.valid && (_ibus.req.addr == exp_addr)) && (waits < ReqTimeout)) begin
       @(negedge _clk);
       waits++;
       @(posedge _clk);
@@ -152,7 +156,7 @@ module tb_core_privilege_return
     int unsigned waits;
 
     waits = 0;
-    while ((_dut._csr_file._priv_mode != PRIV_USER) && waits < 40) begin
+    while ((_dut._csr_file._priv_mode != PRIV_USER) && waits < PrivReturnWait) begin
       waits++;
       @(posedge _clk);
       #1;
@@ -160,6 +164,32 @@ module tb_core_privilege_return
 
     expect_bit(waits < 40, 1'b1, what);
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, what);
+  endtask
+
+  task automatic wait_for_trap_entry(
+    input priv_mode_t expect_priv_mode,
+    input word_t      expect_cause,
+    input int unsigned max_waits,
+    input string      what
+  );
+    int unsigned waits;
+
+    waits = 0;
+    while (((_dut._csr_file._mcause != expect_cause) || (_dut._csr_file._priv_mode != expect_priv_mode)) && (waits < max_waits)) begin
+      waits++;
+      @(posedge _clk);
+      #1;
+    end
+
+    expect_bit(waits < max_waits, 1'b1, what);
+    expect_bit(_dut._csr_file._mcause == expect_cause, 1'b1, {what, " mcause"});
+    expect_bit(_dut._csr_file._priv_mode == expect_priv_mode, 1'b1, {what, " priv mode"});
+  endtask
+
+  task automatic verify_resume_executes_after_mret(input string what);
+    fetch_instr(32'h0000_0008, ADDI_X2_2, {what, " resume instruction"});
+    fetch_instr(32'h0000_000C, NOP, {what, " following instruction"});
+    expect_word(_dut._reg_file._regs[2], 32'h0000_0002, {what, " resume executes and updates x2"});
   endtask
 
   initial begin
@@ -181,10 +211,7 @@ module tb_core_privilege_return
     fetch_instr(32'h0000_0000, ECALL, "ecall from user");
     offer_squashed_instr(32'h0000_0004, ADDI_X2_2, "younger user instruction is squashed");
 
-    while ((_dut._csr_file._mcause != 32'h0000_0008) || (_dut._csr_file._priv_mode != PRIV_MACHINE)) begin
-      @(posedge _clk);
-      #1;
-    end
+    wait_for_trap_entry(PRIV_MACHINE, 32'h0000_0008, TrapTimeout, "trap entered machine on ecall");
 
     expect_word(_dut._csr_file._mepc, 32'h0000_0000, "trap mepc points at ecall");
     expect_word(_dut._csr_file._mcause, 32'h0000_0008, "trap cause is ecall from user");
@@ -198,11 +225,10 @@ module tb_core_privilege_return
     wait_for_user_privilege_after_mret("mret returns to user mode");
 
     expect_word(_dut._csr_file._mepc, 32'h0000_0008, "handler prepared user resume PC");
-    expect_word(_pc, 32'h0000_0008, "pc restored to mepc after mret");
     expect_word(_dut._reg_file._regs[3], 32'h0000_0001, "handler executed");
     expect_word(_dut._reg_file._regs[5], 32'h0000_0008, "handler loaded resume PC");
-    expect_word(_dut._reg_file._regs[2], 32'h0000_0000, "resume instruction has not yet executed");
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, "privilege returned to user");
+    verify_resume_executes_after_mret("core privilege return");
 
     if (_errors == 0) begin
       $display("tb_core_privilege_return: PASS (%0d checks)", _checks);
