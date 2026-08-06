@@ -14,6 +14,7 @@ module pipeline_control
   input  logic           halted,
   input  logic           mem_wait,
   input  logic           data_stall,
+  input  logic           trap_from_if_id,
   input  logic           trap_in_flight,
   /* verilator lint_off UNUSEDSIGNAL */
   input  flow_ctrl_t     flow,
@@ -47,11 +48,11 @@ module pipeline_control
           mem_wb: STAGE_HOLD
       };
     end else if (flow.action == FLOW_ACTION_TRAP) begin
-      pipe_ctrl.fetch  = STAGE_HOLD;
-      pipe_ctrl.if_id  = STAGE_FLUSH;
-      pipe_ctrl.id_ex  = STAGE_FLUSH;
-      pipe_ctrl.ex_mem = STAGE_FLUSH;
-      pipe_ctrl.mem_wb = STAGE_FLUSH;
+      pipe_ctrl.fetch = STAGE_HOLD;
+      pipe_ctrl.if_id = STAGE_FLUSH;
+      pipe_ctrl.id_ex = trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH;
+      pipe_ctrl.ex_mem = STAGE_ADVANCE;
+      pipe_ctrl.mem_wb = STAGE_ADVANCE;
     end else if (trap_in_flight) begin
       pipe_ctrl.fetch = STAGE_HOLD;
       pipe_ctrl.if_id = STAGE_FLUSH;

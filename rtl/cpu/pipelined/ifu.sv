@@ -38,7 +38,8 @@ module ifu
 
   // Issue at most one fetch at a time. `fetched.valid` does not block issue
   // because a high `fetch_en` also means the core is consuming that entry.
-  assign _request_issued = !rst && fetch_en && !_request_valid;
+  // Never issue a new request on the same cycle as redirect.
+  assign _request_issued = !rst && fetch_en && !redirect.valid && !_drop_rsp && !_request_valid;
   assign ibus.req.valid  = _request_issued;
   assign ibus.req.addr   = pc;
 
@@ -51,10 +52,14 @@ module ifu
       _drop_rsp <= 1'b0;
     end else begin
       if (redirect.valid) begin
-        fetched <= '0;
         pc <= redirect.pc;
         // If a request is already in flight and its response is not arriving
         // this cycle, remember to discard that stale response later.
+        if (ibus.rsp.ready && _request_valid && !_drop_rsp) begin
+          fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.instr, pc: _request_pc}};
+        end else begin
+          fetched <= '0;
+        end
         _drop_rsp <= _request_valid && !ibus.rsp.ready;
         _request_valid <= 1'b0;
       end else begin

@@ -71,6 +71,7 @@ module core
   trap_stage_t    _system_trap;
   trap_stage_t    _redirect_trap;
   trap_stage_t    _ex_trap;
+  trap_stage_t    _trap;
   flow_ctrl_t     _flow;
 
   trap_req_t      _csr_illegal_trap_req;
@@ -89,7 +90,9 @@ module core
 
   pipeline_ctrl_t _pipe_ctrl;
   logic           _trap_in_flight;
+  logic           _trap_held;
   retire_ctrl_t   _retire;
+  logic           _trap_from_if_id;
 
   assign _id_branch_flags = '0;
 
@@ -111,21 +114,10 @@ module core
       _ex_trap = _csr_trap;
     end else if (_system_trap.valid) begin
       _ex_trap = _system_trap;
-      end
+    end
   end
 
-  trap_orchestrator _trap_orchestrator (
-    .clk(clk),
-    .rst(rst),
-    .id_trap(_if_id.valid ? _id_trap : '0),
-    .ex_trap(_id_ex.valid ? _ex_trap : '0),
-    .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
-    .clear_trap(_retire.trap),
-    /* verilator lint_off PINCONNECTEMPTY */
-    .trap(),
-    /* verilator lint_on PINCONNECTEMPTY */
-    .trap_in_flight(_trap_in_flight)
-  );
+  assign _trap_from_if_id = _if_id.valid && _id_trap.valid && !_trap_held;
 
   // Machine-level interrupt checks. For now we implement machine mode
   // interrupt delivery only; supervisor interrupts remain a future enhancement.
@@ -133,11 +125,19 @@ module core
     _interrupt_trap_req = '0;
     if (_csr_status.priv_mode == PRIV_MACHINE && _csr_status.mstatus.mie) begin
       if (_csr_status.mie.meip && _csr_status.mip.meip) begin
-        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, mtval: '0};
+        _interrupt_trap_req = '{
+            valid: 1'b1,
+            src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
+            mtval: '0
+        };
       end else if (_csr_status.mie.mtip && _csr_status.mip.mtip) begin
         _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, mtval: '0};
       end else if (_csr_status.mie.msip && _csr_status.mip.msip) begin
-        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, mtval: '0};
+        _interrupt_trap_req = '{
+            valid: 1'b1,
+            src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
+            mtval: '0
+        };
       end
     end
   end
@@ -246,9 +246,21 @@ module core
     .trap(_redirect_trap)
   );
 
+  trap_orchestrator _trap_orchestrator (
+    .clk(clk),
+    .rst(rst),
+    .id_trap(_if_id.valid ? _id_trap : '0),
+    .ex_trap(_id_ex.valid ? _ex_trap : '0),
+    .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
+    .clear_trap(_retire.trap),
+    .trap_held(_trap_held),
+    .trap(_trap),
+    .trap_in_flight(_trap_in_flight)
+  );
+
   flow_control _flow_control (
     .redirect(_redirect),
-    .trap(_mem_wb.trap),
+    .trap(_trap),
     .mret_valid(_retire.mret),
     .mepc(_csr_status.mepc),
     .flow(_flow)
@@ -258,6 +270,7 @@ module core
     .halted(halted),
     .mem_wait(_dbus_wait),
     .data_stall(_data_stall),
+    .trap_from_if_id(_trap_from_if_id),
     .trap_in_flight(_trap_in_flight),
     .flow(_flow),
     .pipe_ctrl(_pipe_ctrl)

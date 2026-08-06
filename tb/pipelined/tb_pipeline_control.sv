@@ -16,6 +16,7 @@ module tb_pipeline_control
   logic           _data_stall;
   logic           _dbus_wait;
   logic           _trap_in_flight;
+  logic           _trap_from_if_id;
   flow_ctrl_t     _flow;
   pipeline_ctrl_t _pipe_ctrl;
 
@@ -26,6 +27,7 @@ module tb_pipeline_control
     .halted(_halted),
     .mem_wait(_dbus_wait),
     .data_stall(_data_stall),
+    .trap_from_if_id(_trap_from_if_id),
     .trap_in_flight(_trap_in_flight),
     .flow(_flow),
     .pipe_ctrl(_pipe_ctrl)
@@ -63,6 +65,7 @@ module tb_pipeline_control
     _data_stall = 1'b0;
     _dbus_wait = 1'b0;
     _trap_in_flight = 1'b0;
+    _trap_from_if_id = 1'b0;
     _flow = '0;
   endtask
 
@@ -93,8 +96,15 @@ module tb_pipeline_control
 
     clear_inputs();
     _flow.action = FLOW_ACTION_TRAP;
-    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH,
-                   "retired trap flushes pipe");
+    _trap_from_if_id = 1'b0;
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "trap from older stage flushes decode");
+
+    clear_inputs();
+    _flow.action = FLOW_ACTION_TRAP;
+    _trap_from_if_id = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "trap from if_id carries trapping instruction into execute");
 
     clear_inputs();
     _trap_in_flight = 1'b1;
