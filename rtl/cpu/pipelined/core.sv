@@ -71,6 +71,9 @@ module core
   trap_stage_t    _system_trap;
   trap_stage_t    _redirect_trap;
   trap_stage_t    _ex_trap;
+  /* verilator lint_off UNUSEDSIGNAL */
+  trap_stage_t    _active_trap;
+  /* verilator lint_on UNUSEDSIGNAL */
   flow_ctrl_t     _flow;
 
   trap_req_t      _csr_illegal_trap_req;
@@ -98,7 +101,6 @@ module core
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
-  assign _trap_in_flight = _id_ex.trap.valid || _ex_mem.trap.valid || _mem_wb.trap.valid;
   always_comb begin
     _ex_trap = '0;
 
@@ -110,8 +112,19 @@ module core
       _ex_trap = _csr_trap;
     end else if (_system_trap.valid) begin
       _ex_trap = _system_trap;
-    end
+      end
   end
+
+  trap_orchestrator _trap_orchestrator (
+    .clk(clk),
+    .rst(rst),
+    .id_trap(_if_id.valid ? _id_trap : '0),
+    .ex_trap(_id_ex.valid ? _ex_trap : '0),
+    .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
+    .clear_trap(_retire.trap),
+    .trap(_active_trap),
+    .trap_in_flight(_trap_in_flight)
+  );
 
   assign _csr_illegal_trap_req = '{
           valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr_illegal,

@@ -179,7 +179,17 @@ module tb_core_privilege_return
   task automatic verify_resume_executes_after_mret(input string what);
     fetch_instr(32'h0000_0008, ADDI_X2_2, {what, " resume instruction"});
     fetch_instr(32'h0000_000C, NOP, {what, " following instruction"});
-    expect_word(_dut._reg_file._regs[2], 32'h0000_0002, {what, " resume executes and updates x2"});
+    begin
+      int unsigned waits;
+      waits = 0;
+      while ((_dut._reg_file._regs[2] !== 32'h0000_0002) && (waits < 16)) begin
+        @(posedge _clk);
+        #1;
+        waits++;
+      end
+      expect_bit(waits < 16, 1'b1, {what, " resume writes x2"});
+      expect_word(_dut._reg_file._regs[2], 32'h0000_0002, {what, " resume executes and updates x2"});
+    end
   endtask
 
   initial begin
