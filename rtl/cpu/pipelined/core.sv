@@ -71,9 +71,6 @@ module core
   trap_stage_t    _system_trap;
   trap_stage_t    _redirect_trap;
   trap_stage_t    _ex_trap;
-  /* verilator lint_off UNUSEDSIGNAL */
-  trap_stage_t    _active_trap;
-  /* verilator lint_on UNUSEDSIGNAL */
   flow_ctrl_t     _flow;
 
   trap_req_t      _csr_illegal_trap_req;
@@ -122,7 +119,9 @@ module core
     .ex_trap(_id_ex.valid ? _ex_trap : '0),
     .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
     .clear_trap(_retire.trap),
-    .trap(_active_trap),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .trap(),
+    /* verilator lint_on PINCONNECTEMPTY */
     .trap_in_flight(_trap_in_flight)
   );
 
