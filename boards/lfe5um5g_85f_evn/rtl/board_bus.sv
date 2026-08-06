@@ -32,7 +32,6 @@ module board_bus
 
   input  logic i2c_sda_in,
   output logic i2c_sda_drive_low,
-  input  logic i2c_scl_in,
   output logic i2c_scl_drive_low,
 
   dbus_if.slave dbus
@@ -53,13 +52,25 @@ module board_bus
   localparam int unsigned TimerIdx = 6;
   localparam int unsigned SpiIdx = 7;
   localparam int unsigned I2cIdx = 8;
-  localparam int unsigned NumSources = 9;
+  localparam int unsigned ClintIdx = 9;
+  localparam int unsigned NumSources = 10;
   localparam int unsigned WordBits = XLEN;
 
   logic [NumSources-1:0] _selected;
   logic [NumSources-1:0] _write_en;
   logic [NumSources-1:0] _ready;
   logic [  WordBits-1:0] _read_data[NumSources];
+  mem_if _dmem_mem ();
+  mem_if _led_mem ();
+  mem_if _dip_switch_mem ();
+  mem_if _push_button_mem ();
+  mem_if _gpio_mem ();
+  mem_if _timer_mem ();
+  mem_if _uart_mem ();
+  mem_if _spi_mem ();
+  mem_if _i2c_mem ();
+  mem_if _clint_mem ();
+  irq_if  _irq ();
 
   assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
@@ -72,7 +83,81 @@ module board_bus
   assign _write_en[TimerIdx] = 1'b0;
   assign _write_en[SpiIdx] = dbus.req.valid & dbus.req.write_en & _selected[SpiIdx];
   assign _write_en[I2cIdx] = dbus.req.valid & dbus.req.write_en & _selected[I2cIdx];
+  assign _write_en[ClintIdx] = dbus.req.valid & dbus.req.write_en & _selected[ClintIdx];
   assign dbus.rsp.ready = (|_selected) ? |(_selected & _ready) : dbus.req.valid;
+
+  assign _ready[DmemIdx] = _dmem_mem.rsp.ready;
+  assign _ready[LedIdx] = _led_mem.rsp.ready;
+  assign _ready[DipSwitchIdx] = _dip_switch_mem.rsp.ready;
+  assign _ready[PushButtonIdx] = _push_button_mem.rsp.ready;
+  assign _ready[GpioIdx] = _gpio_mem.rsp.ready;
+  assign _ready[TimerIdx] = _timer_mem.rsp.ready;
+  assign _ready[UartIdx] = _uart_mem.rsp.ready;
+  assign _ready[SpiIdx] = _spi_mem.rsp.ready;
+  assign _ready[I2cIdx] = _i2c_mem.rsp.ready;
+  assign _ready[ClintIdx] = _clint_mem.rsp.ready;
+
+  assign _read_data[DmemIdx] = _dmem_mem.rsp.read_data;
+  assign _read_data[LedIdx] = _led_mem.rsp.read_data;
+  assign _read_data[DipSwitchIdx] = _dip_switch_mem.rsp.read_data;
+  assign _read_data[PushButtonIdx] = _push_button_mem.rsp.read_data;
+  assign _read_data[GpioIdx] = _gpio_mem.rsp.read_data;
+  assign _read_data[TimerIdx] = _timer_mem.rsp.read_data;
+  assign _read_data[UartIdx] = _uart_mem.rsp.read_data;
+  assign _read_data[SpiIdx] = _spi_mem.rsp.read_data;
+  assign _read_data[I2cIdx] = _i2c_mem.rsp.read_data;
+  assign _read_data[ClintIdx] = _clint_mem.rsp.read_data;
+
+  assign _dmem_mem.req = '{valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
+                           write_en: _write_en[DmemIdx],
+                           addr: dbus.req.addr,
+                           write_data: dbus.req.write_data,
+                           write_mask: dbus.req.write_mask};
+  assign _led_mem.req = '{valid: dbus.req.valid,
+                          write_en: _write_en[LedIdx],
+                          addr: dbus.req.addr,
+                          write_data: dbus.req.write_data,
+                          write_mask: dbus.req.write_mask};
+  assign _dip_switch_mem.req = '{valid: dbus.req.valid,
+                                write_en: _write_en[DipSwitchIdx],
+                                addr: dbus.req.addr,
+                                write_data: dbus.req.write_data,
+                                write_mask: dbus.req.write_mask};
+  assign _push_button_mem.req = '{valid: dbus.req.valid,
+                                 write_en: _write_en[PushButtonIdx],
+                                 addr: dbus.req.addr,
+                                 write_data: dbus.req.write_data,
+                                 write_mask: dbus.req.write_mask};
+  assign _gpio_mem.req = '{valid: dbus.req.valid,
+                          write_en: _write_en[GpioIdx],
+                          addr: dbus.req.addr,
+                          write_data: dbus.req.write_data,
+                          write_mask: dbus.req.write_mask};
+  assign _timer_mem.req = '{valid: dbus.req.valid,
+                           write_en: _write_en[TimerIdx],
+                           addr: dbus.req.addr,
+                           write_data: dbus.req.write_data,
+                           write_mask: dbus.req.write_mask};
+  assign _uart_mem.req = '{valid: dbus.req.valid,
+                          write_en: _write_en[UartIdx],
+                          addr: dbus.req.addr,
+                          write_data: dbus.req.write_data,
+                          write_mask: dbus.req.write_mask};
+  assign _spi_mem.req = '{valid: dbus.req.valid,
+                         write_en: _write_en[SpiIdx],
+                         addr: dbus.req.addr,
+                         write_data: dbus.req.write_data,
+                         write_mask: dbus.req.write_mask};
+  assign _i2c_mem.req = '{valid: dbus.req.valid,
+                         write_en: _write_en[I2cIdx],
+                         addr: dbus.req.addr,
+                         write_data: dbus.req.write_data,
+                         write_mask: dbus.req.write_mask};
+  assign _clint_mem.req = '{valid: dbus.req.valid,
+                           write_en: _write_en[ClintIdx],
+                           addr: dbus.req.addr,
+                           write_data: dbus.req.write_data,
+                           write_mask: dbus.req.write_mask};
 
   onehot_mux #(
     .Width(WordBits),
@@ -89,14 +174,8 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[LedIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_led_mem),
     .selected(_selected[LedIdx]),
-    .mem_ready(_ready[LedIdx]),
-    .mem_read_data(_read_data[LedIdx]),
     .led(led)
   );
 
@@ -104,14 +183,8 @@ module board_bus
     .DipSwitchAddr(board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dip_switch_mmio (
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[DipSwitchIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_dip_switch_mem),
     .selected(_selected[DipSwitchIdx]),
-    .mem_ready(_ready[DipSwitchIdx]),
-    .mem_read_data(_read_data[DipSwitchIdx]),
     .dip_switch(dip_switch)
   );
 
@@ -121,14 +194,8 @@ module board_bus
   ) _push_button_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[PushButtonIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_push_button_mem),
     .selected(_selected[PushButtonIdx]),
-    .mem_ready(_ready[PushButtonIdx]),
-    .mem_read_data(_read_data[PushButtonIdx]),
     .push_button(push_button)
   );
 
@@ -143,14 +210,8 @@ module board_bus
   ) _gpio_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[GpioIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_gpio_mem),
     .selected(_selected[GpioIdx]),
-    .mem_ready(_ready[GpioIdx]),
-    .mem_read_data(_read_data[GpioIdx]),
     .gpio_in(gpio_in),
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe)
@@ -162,14 +223,8 @@ module board_bus
   ) _timer_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[TimerIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
-    .selected(_selected[TimerIdx]),
-    .mem_ready(_ready[TimerIdx]),
-    .mem_read_data(_read_data[TimerIdx])
+    .mem(_timer_mem),
+    .selected(_selected[TimerIdx])
   );
 
   uart_mmio #(
@@ -179,14 +234,8 @@ module board_bus
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[UartIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_uart_mem),
     .selected(_selected[UartIdx]),
-    .mem_ready(_ready[UartIdx]),
-    .mem_read_data(_read_data[UartIdx]),
     .tx(uart_tx)
   );
 
@@ -198,14 +247,8 @@ module board_bus
   ) _spi_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[SpiIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_spi_mem),
     .selected(_selected[SpiIdx]),
-    .mem_ready(_ready[SpiIdx]),
-    .mem_read_data(_read_data[SpiIdx]),
     .spi_sck(spi_sck),
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
@@ -221,18 +264,25 @@ module board_bus
   ) _i2c_mmio (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid),
-    .mem_write_en(_write_en[I2cIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
+    .mem(_i2c_mem),
     .selected(_selected[I2cIdx]),
-    .mem_ready(_ready[I2cIdx]),
-    .mem_read_data(_read_data[I2cIdx]),
     .i2c_sda_in(i2c_sda_in),
     .i2c_sda_drive_low(i2c_sda_drive_low),
-    .i2c_scl_in(i2c_scl_in),
     .i2c_scl_drive_low(i2c_scl_drive_low)
+  );
+
+  clint #(
+    .MsipAddr(board_constants_pkg::ClintMsipAddr),
+    .MtimecmpLoAddr(board_constants_pkg::ClintMtimecmpLoAddr),
+    .MtimecmpHiAddr(board_constants_pkg::ClintMtimecmpHiAddr),
+    .MtimeLoAddr(board_constants_pkg::ClintMtimeLoAddr),
+    .MtimeHiAddr(board_constants_pkg::ClintMtimeHiAddr)
+  ) _clint (
+    .clk(clk),
+    .rst(rst),
+    .mem(_clint_mem),
+    .selected(_selected[ClintIdx]),
+    .irq(_irq)
   );
 
   dmem #(
@@ -241,13 +291,7 @@ module board_bus
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem_valid(dbus.req.valid & _selected[DmemIdx] & !_mmio_selected),
-    .mem_write_en(_write_en[DmemIdx]),
-    .mem_addr(dbus.req.addr),
-    .mem_write_data(dbus.req.write_data),
-    .mem_write_mask(dbus.req.write_mask),
-    .mem_ready(_ready[DmemIdx]),
-    .mem_read_data(_read_data[DmemIdx])
+    .mem(_dmem_mem)
   );
 
 endmodule

@@ -37,6 +37,7 @@ module top
   logic                        _rst;
   logic                        _power_on_rst;
   logic                        _halted;
+  pc_t                         _pc;
 
   dbus_if _dbus ();
   ibus_if _ibus ();
@@ -51,7 +52,6 @@ module top
 
   logic               _i2c_sda_in;
   logic               _i2c_sda_drive_low;
-  logic               _i2c_scl_in;
   logic               _i2c_scl_drive_low;
 
   initial begin
@@ -67,7 +67,6 @@ module top
   assign _gpio_in = gpio;
 
   assign _i2c_sda_in = i2c_sda;
-  assign _i2c_scl_in = i2c_scl;
 
   assign i2c_sda = _i2c_sda_drive_low ? 1'b0 : 1'bz;
   assign i2c_scl = _i2c_scl_drive_low ? 1'b0 : 1'bz;
@@ -112,7 +111,6 @@ module top
     .gpio_oe(_gpio_oe),
     .i2c_sda_in(_i2c_sda_in),
     .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_in(_i2c_scl_in),
     .i2c_scl_drive_low(_i2c_scl_drive_low),
     .dbus(_dbus)
   );

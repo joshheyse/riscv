@@ -20,7 +20,6 @@ module tb_board_bus
   logic                                    _spi_cs_n;
   logic                                    _i2c_sda_in;
   logic                                    _i2c_sda_drive_low;
-  logic                                    _i2c_scl_in;
   logic                                    _i2c_scl_drive_low;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_in;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_out;
@@ -45,7 +44,6 @@ module tb_board_bus
     .spi_cs_n(_spi_cs_n),
     .i2c_sda_in(_i2c_sda_in),
     .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_in(_i2c_scl_in),
     .i2c_scl_drive_low(_i2c_scl_drive_low),
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
@@ -123,7 +121,6 @@ module tb_board_bus
     _push_button        = 1'b0;
     _spi_miso           = 1'b0;
     _i2c_sda_in         = 1'b1;
-    _i2c_scl_in         = 1'b1;
     _gpio_in            = '0;
 
     repeat (2) @(posedge _clk);
