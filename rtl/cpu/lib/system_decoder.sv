@@ -9,6 +9,13 @@ module system_decoder
   output system_ctrl_t system_ctrl
 );
 
+  /*
+  2. System instruction privilege checks
+      - mret should only be legal in machine mode.
+      - Later sret only supervisor mode or higher, depending on status bits.
+      - wfi can stay illegal/unimplemented for now.
+*/
+
   logic _priv_fields_valid;
 
   always_comb begin

@@ -7,23 +7,22 @@
 
 module tb_core_privilege_return
   import riscv_pkg::*;
-  import pipelined_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles   = 4000;
-  localparam int unsigned ReqTimeout      = 128;
-  localparam int unsigned TrapTimeout     = 512;
-  localparam int unsigned PrivReturnWait  = 128;
+  localparam int unsigned TimeoutCycles = 4000;
+  localparam int unsigned ReqTimeout = 128;
+  localparam int unsigned TrapTimeout = 512;
+  localparam int unsigned PrivReturnWait = 128;
 
-  localparam logic [29:0] MTVEC_HANDLER_BASE = 30'h10; // byte address 0x0000_0040
+  localparam logic [29:0] MTVEC_HANDLER_BASE = 30'h10;  // byte address 0x0000_0040
 
-  localparam instr_t ECALL         = 32'h0000_0073;
-  localparam instr_t MRET          = 32'h3020_0073;
-  localparam instr_t ADDI_X3_1      = 32'h0010_0193;
-  localparam instr_t ADDI_X5_8      = 32'h0080_0293;
-  localparam instr_t ADDI_X2_2      = 32'h0020_0113;
-  localparam instr_t NOP           = 32'h0000_0013;
+  localparam instr_t ECALL = 32'h0000_0073;
+  localparam instr_t MRET = 32'h3020_0073;
+  localparam instr_t ADDI_X3_1 = 32'h0010_0193;
+  localparam instr_t ADDI_X5_8 = 32'h0080_0293;
+  localparam instr_t ADDI_X2_2 = 32'h0020_0113;
+  localparam instr_t NOP = 32'h0000_0013;
 
   logic _clk;
   logic _rst;
@@ -50,10 +49,8 @@ module tb_core_privilege_return
     forever #(ClkPeriod / 2) _clk = ~_clk;
   end
 
-  function automatic instr_t csr_instr(input logic [11:0] csr,
-                                       input regaddr_t rs1_or_zimm,
-                                       input sys_funct3_t funct3,
-                                       input regaddr_t rd);
+  function automatic instr_t csr_instr(input logic [11:0] csr, input regaddr_t rs1_or_zimm,
+                                       input sys_funct3_t funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
@@ -93,10 +90,7 @@ module tb_core_privilege_return
     #1;
   endtask
 
-  task automatic wait_fetch_req(
-    input  pc_t  exp_addr,
-    input  string what
-  );
+  task automatic wait_fetch_req(input pc_t exp_addr, input string what);
     int unsigned waits;
 
     waits = 0;
@@ -166,12 +160,8 @@ module tb_core_privilege_return
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, what);
   endtask
 
-  task automatic wait_for_trap_entry(
-    input priv_mode_t expect_priv_mode,
-    input word_t      expect_cause,
-    input int unsigned max_waits,
-    input string      what
-  );
+  task automatic wait_for_trap_entry(input priv_mode_t expect_priv_mode, input word_t expect_cause,
+                                     input int unsigned max_waits, input string what);
     int unsigned waits;
 
     waits = 0;
