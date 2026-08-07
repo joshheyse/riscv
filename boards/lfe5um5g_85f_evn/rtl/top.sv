@@ -17,6 +17,7 @@ module top
   output logic [        7:0] led_n,
   input  logic [        7:0] dip_switch_n,
   input  logic               push_button_n,
+  input  logic               uart_rx,
   output logic               uart_tx,
   inout  logic [NumGpio-1:0] gpio,
   output logic               spi_sck,
@@ -37,10 +38,13 @@ module top
   logic                        _rst;
   logic                        _power_on_rst;
   logic                        _halted;
+  /* verilator lint_off UNUSEDSIGNAL */
   pc_t                         _pc;
+  /* verilator lint_on UNUSEDSIGNAL */
 
   dbus_if _dbus ();
   ibus_if _ibus ();
+  irq_if _irq ();
 
   logic [        7:0] _led;
   logic [        7:0] _dip_switch;
@@ -88,10 +92,10 @@ module top
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
+    .InitFile  (ImemInitFile)
   ) _imem (
-    .clk(clk_12mhz),
-    .rst(_rst),
+    .clk (clk_12mhz),
+    .rst (_rst),
     .ibus(_ibus)
   );
 
@@ -102,6 +106,7 @@ module top
     .dip_switch(_dip_switch),
     .push_button(_push_button),
     .uart_tx(uart_tx),
+    .uart_rx(uart_rx),
     .spi_sck(spi_sck),
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
@@ -112,7 +117,8 @@ module top
     .i2c_sda_in(_i2c_sda_in),
     .i2c_sda_drive_low(_i2c_sda_drive_low),
     .i2c_scl_drive_low(_i2c_scl_drive_low),
-    .dbus(_dbus)
+    .dbus(_dbus),
+    .irq(_irq)
   );
 
   core _core (
@@ -121,7 +127,8 @@ module top
     .pc(_pc),
     .halted(_halted),
     .dbus(_dbus),
-    .ibus(_ibus)
+    .ibus(_ibus),
+    .irq(_irq)
   );
 
 endmodule

@@ -28,7 +28,6 @@ module tb_i2c_mmio
   word_t           _read_data;
   logic            _i2c_sda_in;
   logic            _i2c_sda_drive_low;
-  logic            _i2c_scl_in;
   logic            _i2c_scl_drive_low;
 
   int unsigned     errors = 0;
@@ -60,7 +59,6 @@ module tb_i2c_mmio
     .selected(_selected),
     .i2c_sda_in(_i2c_sda_in),
     .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_in(_i2c_scl_in),
     .i2c_scl_drive_low(_i2c_scl_drive_low)
   );
 
@@ -193,7 +191,6 @@ module tb_i2c_mmio
     _mem_write_data = '0;
     _mem_write_mask = '0;
     _i2c_sda_in     = 1'b1;
-    _i2c_scl_in     = 1'b1;
 
     repeat (2) @(posedge _clk);
     #1;

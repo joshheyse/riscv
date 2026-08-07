@@ -7,6 +7,7 @@ module tb_top_led;
   logic       _clk_12mhz;
   logic       _rst_n;
   logic       _uart_tx;
+  logic       _uart_rx;
   logic [7:0] _led_n;
   logic [7:0] _dip_switch_n;
   logic       _push_button_n;
@@ -31,6 +32,7 @@ module tb_top_led;
     .clk_12mhz(_clk_12mhz),
     .rst_n(_rst_n),
     .uart_tx(_uart_tx),
+    .uart_rx(_uart_rx),
     .led_n(_led_n),
     .dip_switch_n(_dip_switch_n),
     .push_button_n(_push_button_n),
@@ -51,6 +53,7 @@ module tb_top_led;
   initial begin
     _errors        = 0;
     _rst_n         = 1'b1;
+    _uart_rx       = 1'b0;
     _dip_switch_n  = 8'hff;
     _push_button_n = 1'b1;
     _spi_miso      = 1'b0;
