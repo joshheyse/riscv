@@ -14,14 +14,14 @@ module board_bus
   parameter int unsigned NumPushButtons = board_constants_pkg::NumPushButtons,
   parameter int unsigned NumGpio        = board_constants_pkg::NumGpio
 ) (
-  input  logic                      clk,
-  input  logic                      rst,
-  output logic [       NumLeds-1:0] led,
-  input  logic [NumDipSwitches-1:0] dip_switch,
-  input  logic [NumPushButtons-1:0] push_button,
-  uart_if.source uart,
-  spi_if.source spi,
-  i2c_if.source i2c,
+  input  logic                               clk,
+  input  logic                               rst,
+  output logic          [       NumLeds-1:0] led,
+  input  logic          [NumDipSwitches-1:0] dip_switch,
+  input  logic          [NumPushButtons-1:0] push_button,
+         uart_if.source                      uart,
+         spi_if.source                       spi,
+         i2c_if.source                       i2c,
 
   input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,
@@ -30,9 +30,10 @@ module board_bus
   dbus_if.slave dbus,
   irq_if.source irq
 );
+  mem_if _dbus_mem ();
 
-  logic _mmio_selected;
-
+  irq_if _clint_irq ();
+  irq_if _uart_irq ();
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
   localparam int unsigned SpiClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::SpiHz);
   localparam int unsigned I2cClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::I2cHz);
@@ -48,138 +49,105 @@ module board_bus
   localparam int unsigned I2cIdx = 8;
   localparam int unsigned ClintIdx = 9;
   localparam int unsigned NumSources = 10;
-  localparam int unsigned WordBits = XLEN;
+  logic [NumSources-1:0] _periph_selected;
+  logic [NumSources-1:0] _source_selected;
+  logic [           1:0] _meip_sources;
+  logic [           1:0] _mtip_sources;
 
-  logic [NumSources-1:0] _selected;
-  logic [NumSources-1:0] _write_en;
-  logic [NumSources-1:0] _ready;
-  logic [  WordBits-1:0] _read_data[NumSources];
-  mem_if _dmem_mem ();
-  mem_if _led_mem ();
-  mem_if _dip_switch_mem ();
-  mem_if _push_button_mem ();
-  mem_if _gpio_mem ();
-  mem_if _timer_mem ();
-  mem_if _uart_mem ();
-  mem_if _spi_mem ();
-  mem_if _i2c_mem ();
-  mem_if _clint_mem ();
 
-  assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
-  assign _mmio_selected = |_selected[NumSources-1:1];
-  assign _write_en[DmemIdx] = dbus.req.valid & dbus.req.write_en & _selected[DmemIdx] & !_mmio_selected;
-  assign _write_en[LedIdx] = dbus.req.valid & dbus.req.write_en & _selected[LedIdx];
-  assign _write_en[DipSwitchIdx] = 1'b0;
-  assign _write_en[PushButtonIdx] = 1'b0;
-  assign _write_en[GpioIdx] = dbus.req.valid & dbus.req.write_en & _selected[GpioIdx];
-  assign _write_en[UartIdx] = dbus.req.valid & dbus.req.write_en & _selected[UartIdx];
-  assign _write_en[TimerIdx] = 1'b0;
-  assign _write_en[SpiIdx] = dbus.req.valid & dbus.req.write_en & _selected[SpiIdx];
-  assign _write_en[I2cIdx] = dbus.req.valid & dbus.req.write_en & _selected[I2cIdx];
-  assign _write_en[ClintIdx] = dbus.req.valid & dbus.req.write_en & _selected[ClintIdx];
-  assign dbus.rsp.ready = (|_selected) ? |(_selected & _ready) : dbus.req.valid;
+  localparam mmio_source_t _source_map[NumSources] = '{
+      '{
+          start_addr: board_constants_pkg::DmemBase,
+          end_addr: board_constants_pkg::DmemBase + board_constants_pkg::DmemSize,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::LedAddr,
+          end_addr: board_constants_pkg::LedAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::DipSwitchAddr,
+          end_addr: board_constants_pkg::DipSwitchAddr + 4,
+          writeable: 1'b0
+      },
+      '{
+          start_addr: board_constants_pkg::PushButtonAddr,
+          end_addr: board_constants_pkg::PushButtonAddr + 4,
+          writeable: 1'b0
+      },
+      '{
+          start_addr: board_constants_pkg::GpioDataInAddr,
+          end_addr: board_constants_pkg::GpioToggleAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::UartTxAddr,
+          end_addr: board_constants_pkg::UartStatusAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::TimerLoAddr,
+          end_addr: board_constants_pkg::TimerHiAddr + 4,
+          writeable: 1'b0
+      },
+      '{
+          start_addr: board_constants_pkg::SpiDataAddr,
+          end_addr: board_constants_pkg::SpiStatusAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::I2cDataAddr,
+          end_addr: board_constants_pkg::I2cStatusAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::ClintMsipAddr,
+          end_addr: board_constants_pkg::ClintMtimeHiAddr + 4,
+          writeable: 1'b1
+      }
+  };
 
-  assign _ready[DmemIdx] = _dmem_mem.rsp.ready;
-  assign _ready[LedIdx] = _led_mem.rsp.ready;
-  assign _ready[DipSwitchIdx] = _dip_switch_mem.rsp.ready;
-  assign _ready[PushButtonIdx] = _push_button_mem.rsp.ready;
-  assign _ready[GpioIdx] = _gpio_mem.rsp.ready;
-  assign _ready[TimerIdx] = _timer_mem.rsp.ready;
-  assign _ready[UartIdx] = _uart_mem.rsp.ready;
-  assign _ready[SpiIdx] = _spi_mem.rsp.ready;
-  assign _ready[I2cIdx] = _i2c_mem.rsp.ready;
-  assign _ready[ClintIdx] = _clint_mem.rsp.ready;
+  mem_if _mmio_mem[NumSources] ();
 
-  assign _read_data[DmemIdx] = _dmem_mem.rsp.read_data;
-  assign _read_data[LedIdx] = _led_mem.rsp.read_data;
-  assign _read_data[DipSwitchIdx] = _dip_switch_mem.rsp.read_data;
-  assign _read_data[PushButtonIdx] = _push_button_mem.rsp.read_data;
-  assign _read_data[GpioIdx] = _gpio_mem.rsp.read_data;
-  assign _read_data[TimerIdx] = _timer_mem.rsp.read_data;
-  assign _read_data[UartIdx] = _uart_mem.rsp.read_data;
-  assign _read_data[SpiIdx] = _spi_mem.rsp.read_data;
-  assign _read_data[I2cIdx] = _i2c_mem.rsp.read_data;
-  assign _read_data[ClintIdx] = _clint_mem.rsp.read_data;
-
-  assign _dmem_mem.req = '{
-          valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
-          write_en: _write_en[DmemIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _led_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[LedIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _dip_switch_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[DipSwitchIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _push_button_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[PushButtonIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _gpio_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[GpioIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _timer_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[TimerIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _uart_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[UartIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _spi_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[SpiIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _i2c_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[I2cIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _clint_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[ClintIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-
-  onehot_mux #(
-    .Width(WordBits),
-    .NumInputs(NumSources)
-  ) _onehot_mux (
-    .selected(_selected),
-    .data_in(_read_data),
-    .data_out(dbus.rsp.read_data)
+  mmio_router #(
+    .NumSources(NumSources),
+    .DmemIdx(DmemIdx),
+    .DmemHasPrio(1'b1),
+    .SourceMap(_source_map)
+  ) _mmio_router (
+    .dbus(_dbus_mem),
+    .selected(_source_selected),
+    .mem(_mmio_mem)
   );
+
+  assign _dbus_mem.req = dbus.req;
+  assign dbus.rsp.ready = _dbus_mem.rsp.ready;
+  assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
+
+  assign _meip_sources = {_clint_irq.pending.meip, _uart_irq.pending.meip};
+  assign _mtip_sources = {_clint_irq.pending.mtip, _uart_irq.pending.mtip};
+
+  irq_aggregator #(
+    .N(2)
+  ) _irq_aggregator (
+    .meip_src(_meip_sources),
+    .mtip_src(_mtip_sources),
+    .irq(irq)
+  );
+
+  always_comb begin
+    assert ($onehot0(_source_selected));
+    assert (_periph_selected[LedIdx] == _source_selected[LedIdx]);
+    assert (_periph_selected[DipSwitchIdx] == _source_selected[DipSwitchIdx]);
+    assert (_periph_selected[PushButtonIdx] == _source_selected[PushButtonIdx]);
+    assert (_periph_selected[GpioIdx] == _source_selected[GpioIdx]);
+    assert (_periph_selected[UartIdx] == _source_selected[UartIdx]);
+    assert (_periph_selected[TimerIdx] == _source_selected[TimerIdx]);
+    assert (_periph_selected[SpiIdx] == _source_selected[SpiIdx]);
+    assert (_periph_selected[I2cIdx] == _source_selected[I2cIdx]);
+    assert (_periph_selected[ClintIdx] == _source_selected[ClintIdx]);
+  end
 
   led_mmio #(
     .LedAddr(board_constants_pkg::LedAddr),
@@ -187,8 +155,8 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_led_mem),
-    .selected(_selected[LedIdx]),
+    .mem(_mmio_mem[LedIdx]),
+    .selected(_periph_selected[LedIdx]),
     .led(led)
   );
 
@@ -196,8 +164,8 @@ module board_bus
     .DipSwitchAddr(board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dip_switch_mmio (
-    .mem(_dip_switch_mem),
-    .selected(_selected[DipSwitchIdx]),
+    .mem(_mmio_mem[DipSwitchIdx]),
+    .selected(_periph_selected[DipSwitchIdx]),
     .dip_switch(dip_switch)
   );
 
@@ -207,8 +175,8 @@ module board_bus
   ) _push_button_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_push_button_mem),
-    .selected(_selected[PushButtonIdx]),
+    .mem(_mmio_mem[PushButtonIdx]),
+    .selected(_periph_selected[PushButtonIdx]),
     .push_button(push_button)
   );
 
@@ -223,8 +191,8 @@ module board_bus
   ) _gpio_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_gpio_mem),
-    .selected(_selected[GpioIdx]),
+    .mem(_mmio_mem[GpioIdx]),
+    .selected(_periph_selected[GpioIdx]),
     .gpio_in(gpio_in),
     .gpio_out(gpio_out),
     .gpio_oe(gpio_oe)
@@ -236,8 +204,8 @@ module board_bus
   ) _timer_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_timer_mem),
-    .selected(_selected[TimerIdx])
+    .mem(_mmio_mem[TimerIdx]),
+    .selected(_periph_selected[TimerIdx])
   );
 
   uart_mmio #(
@@ -247,9 +215,10 @@ module board_bus
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_uart_mem),
-    .selected(_selected[UartIdx]),
-    .uart(uart)
+    .mem(_mmio_mem[UartIdx]),
+    .selected(_periph_selected[UartIdx]),
+    .uart(uart),
+    .irq(_uart_irq)
   );
 
   spi_mmio #(
@@ -260,8 +229,8 @@ module board_bus
   ) _spi_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_spi_mem),
-    .selected(_selected[SpiIdx]),
+    .mem(_mmio_mem[SpiIdx]),
+    .selected(_periph_selected[SpiIdx]),
     .spi(spi)
   );
 
@@ -274,8 +243,8 @@ module board_bus
   ) _i2c_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_i2c_mem),
-    .selected(_selected[I2cIdx]),
+    .mem(_mmio_mem[I2cIdx]),
+    .selected(_periph_selected[I2cIdx]),
     .i2c(i2c)
   );
 
@@ -288,9 +257,9 @@ module board_bus
   ) _clint (
     .clk(clk),
     .rst(rst),
-    .mem(_clint_mem),
-    .selected(_selected[ClintIdx]),
-    .irq(irq)
+    .mem(_mmio_mem[ClintIdx]),
+    .selected(_periph_selected[ClintIdx]),
+    .irq(_clint_irq)
   );
 
   dmem #(
@@ -299,7 +268,7 @@ module board_bus
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem(_dmem_mem)
+    .mem(_mmio_mem[DmemIdx])
   );
 
 endmodule

@@ -12,10 +12,10 @@ module board_bus
   parameter              DmemInitFile   = "",
   parameter int unsigned NumLeds        = board_constants_pkg::NumLeds
 ) (
-  input  logic               clk,
-  input  logic               rst,
-  output logic [NumLeds-1:0] led,
-  uart_if.source uart,
+  input  logic                        clk,
+  input  logic                        rst,
+  output logic          [NumLeds-1:0] led,
+         uart_if.source               uart,
 
   dbus_if.slave dbus,
   irq_if.source irq
@@ -23,7 +23,15 @@ module board_bus
 
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
 
-  logic _mmio_selected;
+  mem_if _dbus_mem ();
+  irq_if _uart_irq ();
+  irq_if _clint_irq ();
+  logic       _led_selected;
+  logic       _timer_selected;
+  logic       _uart_selected;
+  logic       _clint_selected;
+  logic [1:0] _meip_sources;
+  logic [1:0] _mtip_sources;
 
   localparam int unsigned DmemIdx = 0;
   localparam int unsigned LedIdx = 1;
@@ -31,84 +39,71 @@ module board_bus
   localparam int unsigned TimerIdx = 3;
   localparam int unsigned ClintIdx = 4;
   localparam int unsigned NumSources = 5;
-  localparam int unsigned WordBits = XLEN;
 
-  logic [NumSources-1:0] _selected;
-  logic [NumSources-1:0] _write_en;
-  logic [NumSources-1:0] _ready;
-  logic [  WordBits-1:0] _read_data[NumSources];
-  mem_if _clint_mem ();
-  mem_if _dmem_mem ();
-  mem_if _led_mem ();
-  mem_if _uart_mem ();
-  mem_if _timer_mem ();
+  localparam mmio_source_t _source_map[NumSources] = '{
+      '{
+          start_addr: board_constants_pkg::DmemBase,
+          end_addr: board_constants_pkg::DmemBase + board_constants_pkg::DmemSize,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::LedAddr,
+          end_addr: board_constants_pkg::LedAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::UartTxAddr,
+          end_addr: board_constants_pkg::UartStatusAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::TimerLoAddr,
+          end_addr: board_constants_pkg::TimerHiAddr + 4,
+          writeable: 1'b0
+      },
+      '{
+          start_addr: board_constants_pkg::ClintMsipAddr,
+          end_addr: board_constants_pkg::ClintMtimeHiAddr + 4,
+          writeable: 1'b1
+      }
+  };
 
-  assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
+  mem_if _mmio_mem[NumSources] ();
+  logic [NumSources-1:0] _source_selected;
 
-  assign _mmio_selected = |_selected[NumSources-1:1];
-  assign _write_en[TimerIdx] = 1'b0;
-  assign _write_en[DmemIdx] = dbus.req.valid & dbus.req.write_en & _selected[DmemIdx] & !_mmio_selected;
-  assign _write_en[LedIdx] = dbus.req.valid & dbus.req.write_en & _selected[LedIdx];
-  assign _write_en[UartIdx] = dbus.req.valid & dbus.req.write_en & _selected[UartIdx];
-  assign _write_en[ClintIdx] = dbus.req.valid & dbus.req.write_en & _selected[ClintIdx];
-  assign dbus.rsp.ready = (|_selected) ? |(_selected & _ready) : dbus.req.valid;
-
-  assign _ready[DmemIdx] = _dmem_mem.rsp.ready;
-  assign _ready[LedIdx] = _led_mem.rsp.ready;
-  assign _ready[UartIdx] = _uart_mem.rsp.ready;
-  assign _ready[TimerIdx] = _timer_mem.rsp.ready;
-  assign _ready[ClintIdx] = _clint_mem.rsp.ready;
-
-  assign _read_data[DmemIdx] = _dmem_mem.rsp.read_data;
-  assign _read_data[LedIdx] = _led_mem.rsp.read_data;
-  assign _read_data[UartIdx] = _uart_mem.rsp.read_data;
-  assign _read_data[TimerIdx] = _timer_mem.rsp.read_data;
-  assign _read_data[ClintIdx] = _clint_mem.rsp.read_data;
-
-  assign _dmem_mem.req = '{
-          valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
-          write_en: _write_en[DmemIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _led_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[LedIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _uart_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[UartIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _timer_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[TimerIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-  assign _clint_mem.req = '{
-          valid: dbus.req.valid,
-          write_en: _write_en[ClintIdx],
-          addr: dbus.req.addr,
-          write_data: dbus.req.write_data,
-          write_mask: dbus.req.write_mask
-      };
-
-  onehot_mux #(
-    .Width(WordBits),
-    .NumInputs(NumSources)
-  ) _onehot_mux (
-    .selected(_selected),
-    .data_in(_read_data),
-    .data_out(dbus.rsp.read_data)
+  mmio_router #(
+    .NumSources(NumSources),
+    .DmemIdx(DmemIdx),
+    .DmemHasPrio(1'b1),
+    .SourceMap(_source_map)
+  ) _mmio_router (
+    .dbus(_dbus_mem),
+    .selected(_source_selected),
+    .mem(_mmio_mem)
   );
+
+  assign _dbus_mem.req = dbus.req;
+  assign dbus.rsp.ready = _dbus_mem.rsp.ready;
+  assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
+
+  assign _meip_sources = {_clint_irq.pending.meip, _uart_irq.pending.meip};
+  assign _mtip_sources = {_clint_irq.pending.mtip, _uart_irq.pending.mtip};
+
+  irq_aggregator #(
+    .N(2)
+  ) _irq_aggregator (
+    .meip_src(_meip_sources),
+    .mtip_src(_mtip_sources),
+    .irq(irq)
+  );
+
+  always_comb begin
+    assert ($onehot0(_source_selected));
+    assert (_source_selected[LedIdx] == _led_selected);
+    assert (_source_selected[TimerIdx] == _timer_selected);
+    assert (_source_selected[UartIdx] == _uart_selected);
+    assert (_source_selected[ClintIdx] == _clint_selected);
+  end
 
   led_mmio #(
     .LedAddr(board_constants_pkg::LedAddr),
@@ -116,8 +111,8 @@ module board_bus
   ) _led_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_led_mem),
-    .selected(_selected[LedIdx]),
+    .mem(_mmio_mem[LedIdx]),
+    .selected(_led_selected),
     .led(led)
   );
 
@@ -127,8 +122,8 @@ module board_bus
   ) _timer_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_timer_mem),
-    .selected(_selected[TimerIdx])
+    .mem(_mmio_mem[TimerIdx]),
+    .selected(_timer_selected)
   );
 
   uart_mmio #(
@@ -138,9 +133,10 @@ module board_bus
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
-    .mem(_uart_mem),
-    .selected(_selected[UartIdx]),
-    .uart(uart)
+    .mem(_mmio_mem[UartIdx]),
+    .selected(_uart_selected),
+    .uart(uart),
+    .irq(_uart_irq)
   );
 
   clint #(
@@ -152,9 +148,9 @@ module board_bus
   ) _clint (
     .clk(clk),
     .rst(rst),
-    .mem(_clint_mem),
-    .selected(_selected[ClintIdx]),
-    .irq(irq)
+    .mem(_mmio_mem[ClintIdx]),
+    .selected(_clint_selected),
+    .irq(_clint_irq)
   );
 
   dmem #(
@@ -163,7 +159,7 @@ module board_bus
   ) _dmem (
     .clk(clk),
     .rst(rst),
-    .mem(_dmem_mem)
+    .mem(_mmio_mem[DmemIdx])
   );
 
 endmodule
