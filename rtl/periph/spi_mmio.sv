@@ -16,12 +16,12 @@ module spi_mmio
   parameter mem_addr_t   StatusAddr       = 32'h10004008,
   parameter int unsigned ClocksPerHalfBit = 1
 ) (
-  input logic clk,
-  input logic rst,
+  input  logic clk,
+  input  logic rst,
   output logic selected,
-  spi_if.source spi,
 
-  mem_if.slave mem
+  spi_if.source spi,
+  mem_if.slave  mem
 );
 
   spi_state_t       _state;

@@ -15,6 +15,11 @@ package riscv_pkg;
   typedef word_t alu_data_t;  // ALU operand/result value
   typedef word_t mem_addr_t;  // data-memory or MMIO byte address
   typedef word_t mem_data_t;  // data-memory or MMIO payload
+  typedef struct packed {
+    mem_addr_t start_addr;  // inclusive base address
+    mem_addr_t end_addr;  // exclusive upper bound
+    logic      writeable;  // write enable allowed for this source
+  } mmio_source_t;
   typedef word_t csr_data_t;  // CSR read/write payload
   typedef logic [31:0] instr_t;  // an instruction
   typedef logic [4:0] regaddr_t;  // register file address

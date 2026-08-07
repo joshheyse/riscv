@@ -11,10 +11,10 @@ module gpio_mmio
   parameter mem_addr_t   GpioToggleAddr  = 32'h10006014,
   parameter int unsigned NumGpio         = 1
 ) (
-  input logic clk,
-  input logic rst,
+  input logic               clk,
+  input logic               rst,
+  input logic [NumGpio-1:0] gpio_in,
 
-  input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,
   output logic [NumGpio-1:0] gpio_oe,
   output logic               selected,

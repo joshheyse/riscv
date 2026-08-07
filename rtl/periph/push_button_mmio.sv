@@ -7,11 +7,11 @@ module push_button_mmio
   parameter int unsigned NumPushButtons = 1,
   parameter int unsigned DebounceCycles = 120_000
 ) (
-  input logic clk,
-  input logic rst,
+  input logic                      clk,
+  input logic                      rst,
+  input logic [NumPushButtons-1:0] push_button,
 
-  input  logic [NumPushButtons-1:0] push_button,
-  output logic                      selected,
+  output logic selected,
 
   mem_if.slave mem
 );

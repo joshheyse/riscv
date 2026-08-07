@@ -49,6 +49,7 @@ module board_bus
   localparam int unsigned I2cIdx = 8;
   localparam int unsigned ClintIdx = 9;
   localparam int unsigned NumSources = 10;
+
   logic [NumSources-1:0] _periph_selected;
   logic [NumSources-1:0] _source_selected;
   logic [           1:0] _meip_sources;
@@ -161,7 +162,7 @@ module board_bus
   );
 
   dip_switch_mmio #(
-    .DipSwitchAddr(board_constants_pkg::DipSwitchAddr),
+    .DipSwitchAddr (board_constants_pkg::DipSwitchAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dip_switch_mmio (
     .mem(_mmio_mem[DipSwitchIdx]),
@@ -210,8 +211,8 @@ module board_bus
 
   uart_mmio #(
     .ClocksPerBit(UartClocksPerBit),
-    .TxDataAddr(board_constants_pkg::UartTxAddr),
-    .StatusAddr(board_constants_pkg::UartStatusAddr)
+    .TxDataAddr  (board_constants_pkg::UartTxAddr),
+    .StatusAddr  (board_constants_pkg::UartStatusAddr)
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),
@@ -264,7 +265,7 @@ module board_bus
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile(DmemInitFile)
+    .InitFile  (DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),

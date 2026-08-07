@@ -18,8 +18,9 @@ module clint
   parameter mem_addr_t MtimeLoAddr    = 32'h10002018,
   parameter mem_addr_t MtimeHiAddr    = 32'h1000201C
 ) (
-  input  logic         clk,
-  input  logic         rst,
+  input logic clk,
+  input logic rst,
+
   output logic         selected,
   output irq_if.source irq,
 

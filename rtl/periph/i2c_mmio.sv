@@ -29,10 +29,11 @@ module i2c_mmio
 ) (
   input logic clk,
   input logic rst,
-  output logic selected,
-  i2c_if.source i2c,
 
-  mem_if.slave mem
+  output logic selected,
+
+  i2c_if.source i2c,
+  mem_if.slave  mem
 );
 
   i2c_state_t       _state;

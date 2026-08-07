@@ -15,12 +15,14 @@ module uart_mmio
   parameter mem_addr_t   RxDataAddr   = 32'h10001004,
   parameter mem_addr_t   StatusAddr   = 32'h1000100C
 ) (
-  input  logic clk,
-  input  logic rst,
-  output logic selected,
-  uart_if.source uart,
+  input logic clk,
+  input logic rst,
 
-  mem_if.slave mem
+  output logic selected,
+
+         uart_if.source uart,
+         mem_if.slave   mem,
+  output irq_if.source  irq
 );
 
   byte_t             _tx_data;
