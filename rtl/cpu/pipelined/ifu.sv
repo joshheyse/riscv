@@ -32,14 +32,15 @@ module ifu
 );
 
   logic _request_valid;
+  logic _drop_response;
   pc_t  _request_pc;
   logic _request_issued;
-  logic _drop_rsp;
 
   // Issue at most one fetch at a time. `fetched.valid` does not block issue
   // because a high `fetch_en` also means the core is consuming that entry.
-  // Never issue a new request on the same cycle as redirect.
-  assign _request_issued = !rst && fetch_en && !redirect.valid && !_drop_rsp && !_request_valid;
+  // Never issue a new request on the same cycle as a redirected or stale
+  // response is being drained.
+  assign _request_issued = !rst && fetch_en && !redirect.valid && !_request_valid && !_drop_response;
   assign ibus.req.valid  = _request_issued;
   assign ibus.req.addr   = pc;
 
@@ -48,35 +49,32 @@ module ifu
       pc <= '0;
       fetched <= '0;
       _request_valid <= '0;
+      _drop_response <= 1'b0;
       _request_pc <= '0;
-      _drop_rsp <= 1'b0;
     end else begin
       if (redirect.valid) begin
         pc <= redirect.pc;
-        // If a request is already in flight and its response is not arriving
-        // this cycle, remember to discard that stale response later.
-        if (ibus.rsp.ready && _request_valid && !_drop_rsp) begin
-          fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.instr, pc: _request_pc}};
-        end else begin
-          fetched <= '0;
-        end
-        _drop_rsp <= _request_valid && !ibus.rsp.ready;
+        // Discard any in-flight response from the wrong path.
+        fetched <= '0;
         _request_valid <= 1'b0;
+        _drop_response <= _request_valid;
       end else begin
+        // A redirect creates a one-cycle stale-response suppression window.
+        // This is enough to avoid wrong-path capture with the current single-queue
+        // bus model and cannot deadlock if the testbench leaves `ready` deasserted.
+        _drop_response <= 1'b0;
+
         // A held fetch is consumed when the front of the pipeline advances.
         if (fetch_en && fetched.valid) begin
           fetched <= '0;
         end
 
-        // Drop exactly one wrong-path response after a redirect.
-        if (ibus.rsp.ready && _drop_rsp) begin
-          _drop_rsp <= 1'b0;
-        end
-
         // Tag each returned instruction with the PC from the request cycle,
         // not the current next-request PC.
-        if (ibus.rsp.ready && _request_valid) begin
-          fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.instr, pc: _request_pc}};
+        if (ibus.rsp.ready && (_request_valid || _drop_response)) begin
+          if (_request_valid && !_drop_response) begin
+            fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.instr, pc: _request_pc}};
+          end
           _request_valid <= 1'b0;
         end
 

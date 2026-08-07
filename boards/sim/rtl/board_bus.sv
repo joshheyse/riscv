@@ -15,8 +15,7 @@ module board_bus
   input  logic               clk,
   input  logic               rst,
   output logic [NumLeds-1:0] led,
-  output logic               uart_tx,
-  input  logic               uart_rx,
+  uart_if.source uart,
 
   dbus_if.slave dbus,
   irq_if.source irq
@@ -141,8 +140,7 @@ module board_bus
     .rst(rst),
     .mem(_uart_mem),
     .selected(_selected[UartIdx]),
-    .tx(uart_tx),
-    .rx(uart_rx)
+    .uart(uart)
   );
 
   clint #(

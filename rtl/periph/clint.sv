@@ -1,5 +1,14 @@
 `timescale 1ns / 1ps
 
+// Minimal CLINT-like block for machine-level timer/software interrupts.
+//
+// It models three software-visible features:
+//   - MSIP: software interrupt pending bit at `MsipAddr`
+//   - mtimecmp: 64-bit compare value split into lo/hi registers
+//   - mtime: free-running 64-bit timer
+//
+// The block raises `irq.pending.msip` from MSIP and `irq.pending.mtip`
+// when `mtime >= mtimecmp`.
 module clint
   import riscv_pkg::*;
 #(

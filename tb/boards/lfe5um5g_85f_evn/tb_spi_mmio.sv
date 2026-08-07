@@ -24,10 +24,7 @@ module tb_spi_mmio
   logic            _selected;
   logic            _mem_ready;
   word_t           _read_data;
-  logic            _spi_sck;
-  logic            _spi_mosi;
-  logic            _spi_miso;
-  logic            _spi_cs_n;
+  spi_if           _spi ();
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
@@ -55,10 +52,7 @@ module tb_spi_mmio
     .rst(_rst),
     .mem(_mem),
     .selected(_selected),
-    .spi_sck(_spi_sck),
-    .spi_mosi(_spi_mosi),
-    .spi_miso(_spi_miso),
-    .spi_cs_n(_spi_cs_n)
+    .spi(_spi)
   );
 
   initial begin
@@ -105,9 +99,9 @@ module tb_spi_mmio
   endtask
 
   task automatic expect_idle(input string what);
-    expect_bit(_spi_sck, 1'b0, {what, ": sck idle low"});
-    expect_bit(_spi_mosi, 1'b0, {what, ": mosi idle low"});
-    expect_bit(_spi_cs_n, 1'b1, {what, ": cs inactive"});
+    expect_bit(_spi.sck, 1'b0, {what, ": sck idle low"});
+    expect_bit(_spi.mosi, 1'b0, {what, ": mosi idle low"});
+    expect_bit(_spi.cs_n, 1'b1, {what, ": cs inactive"});
   endtask
 
   task automatic expect_status_busy(input logic exp, input string what);
@@ -128,19 +122,19 @@ module tb_spi_mmio
 
     // SETUP state: CS active, SCK low, MOSI stable before sample edge.
     #1;
-    expect_bit(_spi_cs_n, 1'b0, "cs active during setup");
-    expect_bit(_spi_sck, 1'b0, "sck low during setup");
-    expect_bit(_spi_mosi, TxByte[bit_index], "mosi bit during setup");
+    expect_bit(_spi.cs_n, 1'b0, "cs active during setup");
+    expect_bit(_spi.sck, 1'b0, "sck low during setup");
+    expect_bit(_spi.mosi, TxByte[bit_index], "mosi bit during setup");
 
     // SCK_HIGH state: hold the sample clock high for the configured divider.
-    _spi_miso = RxByte[bit_index];
+    _spi.miso = RxByte[bit_index];
     miso_sampled = 1'b0;
     for (int unsigned cycle = 0; cycle < ClocksPerHalfBit; cycle++) begin
       @(posedge _clk);
       #1;
-      expect_bit(_spi_cs_n, 1'b0, "cs active during high");
-      expect_bit(_spi_sck, 1'b1, "sck high during sample");
-      expect_bit(_spi_mosi, TxByte[bit_index], "mosi stable during high");
+      expect_bit(_spi.cs_n, 1'b0, "cs active during high");
+      expect_bit(_spi.sck, 1'b1, "sck high during sample");
+      expect_bit(_spi.mosi, TxByte[bit_index], "mosi stable during high");
       if (cycle == 0) begin
         miso_sampled = 1'b1;
       end
@@ -151,8 +145,8 @@ module tb_spi_mmio
     for (int unsigned cycle = 0; cycle < ClocksPerHalfBit; cycle++) begin
       @(posedge _clk);
       #1;
-      expect_bit(_spi_cs_n, 1'b0, "cs active during low");
-      expect_bit(_spi_sck, 1'b0, "sck low after sample");
+      expect_bit(_spi.cs_n, 1'b0, "cs active during low");
+      expect_bit(_spi.sck, 1'b0, "sck low after sample");
     end
   endtask
 
@@ -168,7 +162,7 @@ module tb_spi_mmio
     _mem_addr       = '0;
     _mem_write_data = '0;
     _mem_write_mask = '0;
-    _spi_miso       = 1'b0;
+    _spi.miso       = 1'b0;
 
     repeat (2) @(posedge _clk);
     #1;
@@ -207,8 +201,8 @@ module tb_spi_mmio
 
     @(posedge _clk);
     #1;
-    expect_bit(_spi_cs_n, 1'b1, "cs inactive during done");
-    expect_bit(_spi_sck, 1'b0, "sck idle low during done");
+    expect_bit(_spi.cs_n, 1'b1, "cs inactive during done");
+    expect_bit(_spi.sck, 1'b0, "sck idle low during done");
 
     @(posedge _clk);
     #1;

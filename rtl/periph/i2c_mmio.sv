@@ -29,11 +29,8 @@ module i2c_mmio
 ) (
   input logic clk,
   input logic rst,
-
-  input  logic i2c_sda_in,
-  output logic i2c_sda_drive_low,
-  output logic i2c_scl_drive_low,
   output logic selected,
+  i2c_if.source i2c,
 
   mem_if.slave mem
 );
@@ -147,7 +144,7 @@ module i2c_mmio
               _phase <= I2C_PHASE_HIGH;
             end else begin
               _phase <= I2C_PHASE_LOW;
-              if (!i2c_sda_in) begin
+              if (!i2c.sda_in) begin
                 if (_byte_type == I2C_BYTE_ADDR) begin
                   _state     <= I2C_SEND_BYTE;
                   _bit_index <= 3'd7;
@@ -181,23 +178,23 @@ module i2c_mmio
 
   always_comb begin
     _busy = 1'b0;
-    i2c_sda_drive_low = 1'b0;
-    i2c_scl_drive_low = 1'b0;
+    i2c.sda_drive_low = 1'b0;
+    i2c.scl_drive_low = 1'b0;
     case (_state)
       I2C_START, I2C_STOP: begin
         _busy = 1'b1;
-        i2c_sda_drive_low = (_phase == I2C_PHASE_LOW);
-        i2c_scl_drive_low = 1'b0;
+        i2c.sda_drive_low = (_phase == I2C_PHASE_LOW);
+        i2c.scl_drive_low = 1'b0;
       end
       I2C_SEND_BYTE: begin
         _busy = 1'b1;
-        i2c_sda_drive_low = ~_i2c_byte[_bit_index];
-        i2c_scl_drive_low = (_phase == I2C_PHASE_LOW);
+        i2c.sda_drive_low = ~_i2c_byte[_bit_index];
+        i2c.scl_drive_low = (_phase == I2C_PHASE_LOW);
       end
       I2C_ACK: begin
         _busy = 1'b1;
-        i2c_sda_drive_low = 1'b0;
-        i2c_scl_drive_low = (_phase == I2C_PHASE_LOW);
+        i2c.sda_drive_low = 1'b0;
+        i2c.scl_drive_low = (_phase == I2C_PHASE_LOW);
       end
       I2C_IDLE: begin
       end

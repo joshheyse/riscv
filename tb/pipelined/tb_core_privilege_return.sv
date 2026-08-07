@@ -7,6 +7,7 @@
 
 module tb_core_privilege_return
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
@@ -31,6 +32,20 @@ module tb_core_privilege_return
 
   ibus_if _ibus ();
   dbus_if _dbus ();
+  irq_if _irq ();
+
+  always_comb begin
+  _irq.pending.platform = 16'h0000;
+  _irq.pending.meip = 1'b0;
+  _irq.pending.seip = 1'b0;
+  _irq.pending.mtip = 1'b0;
+  _irq.pending.stip = 1'b0;
+  _irq.pending.msip = 1'b0;
+  _irq.pending.ssip = 1'b0;
+  _irq.pending.usip = 1'b0;
+  end
+
+
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -41,7 +56,8 @@ module tb_core_privilege_return
     .halted(_halted),
     .pc(_pc),
     .ibus(_ibus),
-    .dbus(_dbus)
+    .dbus(_dbus),
+      .irq(_irq)
   );
 
   initial begin
@@ -139,8 +155,7 @@ module tb_core_privilege_return
 
     @(posedge _clk);
     #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response may be captured"});
-    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " speculative response instr"});
+    expect_bit(_dut._fetched.valid, 1'b0, {what, " speculative response ignored on squash"});
 
     @(negedge _clk);
     _ibus.rsp = '0;
@@ -193,6 +208,16 @@ module tb_core_privilege_return
   endtask
 
   initial begin
+    if ($test$plusargs("dbg_priv")) begin
+      $display("time pc fetch_en flow_action trap_in_flight if_id_valid id_ex_valid _if_id.pc _fetched.valid _fetched.slot.pc mem_wb_trap _trap.valid _retire_mret priv_mode mepc");
+    end
+
+    /* verilator lint_off SYNCASYNCNET */
+    $monitor("%0t %0h %0d %0d %0d %0d %0h %0d %0h %0d %0h", $time, _pc, _dut._pipe_ctrl.fetch, _dut._flow.action,
+      _dut._trap_in_flight, _dut._if_id.valid, _dut._if_id.slot.pc, _dut._fetched.valid, _dut._fetched.slot.pc,
+      _dut._mem_wb.trap.valid, _dut._csr_status.priv_mode);
+    /* verilator lint_on SYNCASYNCNET */
+
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
       $dumpvars(0, tb_core_privilege_return);

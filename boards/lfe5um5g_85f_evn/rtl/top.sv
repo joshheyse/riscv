@@ -17,9 +17,9 @@ module top
   output logic [        7:0] led_n,
   input  logic [        7:0] dip_switch_n,
   input  logic               push_button_n,
+  inout  logic [NumGpio-1:0] gpio,
   input  logic               uart_rx,
   output logic               uart_tx,
-  inout  logic [NumGpio-1:0] gpio,
   output logic               spi_sck,
   output logic               spi_mosi,
   input  logic               spi_miso,
@@ -53,10 +53,9 @@ module top
   logic [NumGpio-1:0] _gpio_in;
   logic [NumGpio-1:0] _gpio_out;
   logic [NumGpio-1:0] _gpio_oe;
-
-  logic               _i2c_sda_in;
-  logic               _i2c_sda_drive_low;
-  logic               _i2c_scl_drive_low;
+  uart_if _uart ();
+  spi_if  _spi ();
+  i2c_if  _i2c ();
 
   initial begin
     assert (PowerOnResetCycles > 0);
@@ -70,10 +69,18 @@ module top
   assign _push_button = ~push_button_n;
   assign _gpio_in = gpio;
 
-  assign _i2c_sda_in = i2c_sda;
+  assign _uart.rx = uart_rx;
+  assign uart_tx = _uart.tx;
 
-  assign i2c_sda = _i2c_sda_drive_low ? 1'b0 : 1'bz;
-  assign i2c_scl = _i2c_scl_drive_low ? 1'b0 : 1'bz;
+  assign _spi.miso = spi_miso;
+  assign spi_sck = _spi.sck;
+  assign spi_mosi = _spi.mosi;
+  assign spi_cs_n = _spi.cs_n;
+
+  assign _i2c.sda_in = i2c_sda;
+  assign _i2c.scl_in = i2c_scl;
+  assign i2c_sda = _i2c.sda_drive_low ? 1'b0 : 1'bz;
+  assign i2c_scl = _i2c.scl_drive_low ? 1'b0 : 1'bz;
 
   genvar _i;
   generate
@@ -105,18 +112,12 @@ module top
     .led(_led),
     .dip_switch(_dip_switch),
     .push_button(_push_button),
-    .uart_tx(uart_tx),
-    .uart_rx(uart_rx),
-    .spi_sck(spi_sck),
-    .spi_mosi(spi_mosi),
-    .spi_miso(spi_miso),
-    .spi_cs_n(spi_cs_n),
+    .uart(_uart),
+    .spi(_spi),
+    .i2c(_i2c),
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
     .gpio_oe(_gpio_oe),
-    .i2c_sda_in(_i2c_sda_in),
-    .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_drive_low(_i2c_scl_drive_low),
     .dbus(_dbus),
     .irq(_irq)
   );

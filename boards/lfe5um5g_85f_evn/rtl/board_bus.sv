@@ -19,21 +19,13 @@ module board_bus
   output logic [       NumLeds-1:0] led,
   input  logic [NumDipSwitches-1:0] dip_switch,
   input  logic [NumPushButtons-1:0] push_button,
-  output logic                      uart_tx,
-  input  logic                      uart_rx,
-
-  output logic spi_sck,
-  output logic spi_mosi,
-  input  logic spi_miso,
-  output logic spi_cs_n,
+  uart_if.source uart,
+  spi_if.source spi,
+  i2c_if.source i2c,
 
   input  logic [NumGpio-1:0] gpio_in,
   output logic [NumGpio-1:0] gpio_out,
   output logic [NumGpio-1:0] gpio_oe,
-
-  input  logic i2c_sda_in,
-  output logic i2c_sda_drive_low,
-  output logic i2c_scl_drive_low,
 
   dbus_if.slave dbus,
   irq_if.source irq
@@ -257,8 +249,7 @@ module board_bus
     .rst(rst),
     .mem(_uart_mem),
     .selected(_selected[UartIdx]),
-    .tx(uart_tx),
-    .rx(uart_rx)
+    .uart(uart)
   );
 
   spi_mmio #(
@@ -271,10 +262,7 @@ module board_bus
     .rst(rst),
     .mem(_spi_mem),
     .selected(_selected[SpiIdx]),
-    .spi_sck(spi_sck),
-    .spi_mosi(spi_mosi),
-    .spi_miso(spi_miso),
-    .spi_cs_n(spi_cs_n)
+    .spi(spi)
   );
 
   i2c_mmio #(
@@ -288,9 +276,7 @@ module board_bus
     .rst(rst),
     .mem(_i2c_mem),
     .selected(_selected[I2cIdx]),
-    .i2c_sda_in(i2c_sda_in),
-    .i2c_sda_drive_low(i2c_sda_drive_low),
-    .i2c_scl_drive_low(i2c_scl_drive_low)
+    .i2c(i2c)
   );
 
   clint #(

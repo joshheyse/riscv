@@ -13,18 +13,14 @@ module tb_board_bus
   logic [                             7:0] _led;
   logic [                             7:0] _dip_switch;
   logic                                    _push_button;
-  logic                                    _uart_tx;
-  logic                                    _spi_sck;
-  logic                                    _spi_mosi;
-  logic                                    _spi_miso;
-  logic                                    _spi_cs_n;
-  logic                                    _i2c_sda_in;
-  logic                                    _i2c_sda_drive_low;
-  logic                                    _i2c_scl_drive_low;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_in;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_out;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_oe;
   dbus_if dbus ();
+  irq_if _irq ();
+  uart_if _uart ();
+  spi_if  _spi ();
+  i2c_if  _i2c ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -37,18 +33,14 @@ module tb_board_bus
     .led(_led),
     .dip_switch(_dip_switch),
     .push_button(_push_button),
-    .uart_tx(_uart_tx),
-    .spi_sck(_spi_sck),
-    .spi_mosi(_spi_mosi),
-    .spi_miso(_spi_miso),
-    .spi_cs_n(_spi_cs_n),
-    .i2c_sda_in(_i2c_sda_in),
-    .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_drive_low(_i2c_scl_drive_low),
+    .uart(_uart),
+    .spi(_spi),
+    .i2c(_i2c),
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
     .gpio_oe(_gpio_oe),
-    .dbus(dbus)
+    .dbus(dbus),
+    .irq(_irq)
   );
 
   initial begin
@@ -119,21 +111,23 @@ module tb_board_bus
     dbus.req.write_mask = '0;
     _dip_switch         = 8'h00;
     _push_button        = 1'b0;
-    _spi_miso           = 1'b0;
-    _i2c_sda_in         = 1'b1;
+    _spi.miso           = 1'b0;
+    _i2c.sda_in         = 1'b1;
+    _i2c.scl_in         = 1'b1;
     _gpio_in            = '0;
+    _uart.rx            = 1'b1;
 
     repeat (2) @(posedge _clk);
     #1;
     expect_byte(_led, 8'h00, "reset clears LEDs");
     expect_byte(_gpio_out, 8'h00, "reset clears GPIO output latch");
     expect_byte(_gpio_oe, 8'h00, "reset clears GPIO output enable");
-    expect_bit(_uart_tx, 1'b1, "reset leaves UART idle high");
-    expect_bit(_spi_sck, 1'b0, "reset leaves SPI clock idle low");
-    expect_bit(_spi_mosi, 1'b0, "reset leaves SPI MOSI idle low");
-    expect_bit(_spi_cs_n, 1'b1, "reset leaves SPI chip select inactive");
-    expect_bit(_i2c_sda_drive_low, 1'b0, "reset releases I2C SDA");
-    expect_bit(_i2c_scl_drive_low, 1'b0, "reset releases I2C SCL");
+    expect_bit(_uart.tx, 1'b1, "reset leaves UART idle high");
+    expect_bit(_spi.sck, 1'b0, "reset leaves SPI clock idle low");
+    expect_bit(_spi.mosi, 1'b0, "reset leaves SPI MOSI idle low");
+    expect_bit(_spi.cs_n, 1'b1, "reset leaves SPI chip select inactive");
+    expect_bit(_i2c.sda_drive_low, 1'b0, "reset releases I2C SDA");
+    expect_bit(_i2c.scl_drive_low, 1'b0, "reset releases I2C SCL");
 
     @(negedge _clk);
     _rst = 1'b0;

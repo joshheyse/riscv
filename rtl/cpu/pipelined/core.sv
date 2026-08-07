@@ -30,7 +30,8 @@ module core
   output pc_t  pc,
 
   ibus_if.master ibus,
-  dbus_if.master dbus
+  dbus_if.master dbus,
+  irq_if.sink irq
 );
 
 
@@ -103,6 +104,11 @@ module core
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
+
+  logic _mie_pending_meip;
+  logic _mie_pending_mtip;
+  logic _mie_pending_msip;
+
   always_comb begin
     _ex_trap = '0;
 
@@ -123,16 +129,24 @@ module core
   // interrupt delivery only; supervisor interrupts remain a future enhancement.
   always_comb begin
     _interrupt_trap_req = '0;
+    _mie_pending_meip = 1'b0;
+    _mie_pending_mtip = 1'b0;
+    _mie_pending_msip = 1'b0;
+
     if (_csr_status.priv_mode == PRIV_MACHINE && _csr_status.mstatus.mie) begin
-      if (_csr_status.mie.meip && _csr_status.mip.meip) begin
+      _mie_pending_meip = _csr_status.mip.meip | irq.pending.meip;
+      _mie_pending_mtip = _csr_status.mip.mtip | irq.pending.mtip;
+      _mie_pending_msip = _csr_status.mip.msip | irq.pending.msip;
+
+      if (_csr_status.mie.meip && _mie_pending_meip) begin
         _interrupt_trap_req = '{
             valid: 1'b1,
             src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
             mtval: '0
         };
-      end else if (_csr_status.mie.mtip && _csr_status.mip.mtip) begin
+      end else if (_csr_status.mie.mtip && _mie_pending_mtip) begin
         _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, mtval: '0};
-      end else if (_csr_status.mie.msip && _csr_status.mip.msip) begin
+      end else if (_csr_status.mie.msip && _mie_pending_msip) begin
         _interrupt_trap_req = '{
             valid: 1'b1,
             src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,

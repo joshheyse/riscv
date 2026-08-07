@@ -3,6 +3,15 @@
 
 #include <stdint.h>
 
+#define MSTATUS_MIE  (1u << 3)
+#define MSTATUS_MPIE (1u << 7)
+#define MIE_MSIE     (1u << 3)
+#define MIE_MTIE     (1u << 7)
+#define MIE_MEIE     (1u << 11)
+#define MIP_MSIP     (1u << 3)
+#define MIP_MTIP     (1u << 7)
+#define MIP_MEIP     (1u << 11)
+
 // CSR instructions require building apps with `RISCV_ARCH=rv32i_zicsr`.
 
 #define riscv_csr_read(csr)                                                    \
@@ -60,6 +69,23 @@ static inline uint32_t csr_read_mip(void) { return riscv_csr_read(mip); }
 
 static inline void csr_write_mip(uint32_t value) {
   riscv_csr_write(mip, value);
+}
+
+static inline void csr_enable_machine_interrupts(void) {
+  riscv_csr_set(mstatus, MSTATUS_MIE);
+  riscv_csr_set(mie, MIE_MTIE);
+}
+
+static inline void csr_disable_machine_timer_interrupt(void) {
+  riscv_csr_clear(mie, MIE_MTIE);
+}
+
+static inline void csr_disable_machine_interrupts(void) {
+  riscv_csr_clear(mstatus, MSTATUS_MIE);
+}
+
+static inline uint32_t csr_is_timer_interrupt_pending(void) {
+  return (riscv_csr_read(mip) & MIP_MTIP);
 }
 
 static inline uint32_t csr_read_mtvec(void) { return riscv_csr_read(mtvec); }

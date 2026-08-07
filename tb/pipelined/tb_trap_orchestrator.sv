@@ -19,6 +19,7 @@ module tb_trap_orchestrator
   trap_stage_t _ex_trap;
   trap_stage_t _mem_trap;
   trap_stage_t _trap;
+  logic        _trap_held;
   logic        _trap_in_flight;
 
   int unsigned _errors = 0;
@@ -31,6 +32,7 @@ module tb_trap_orchestrator
     .ex_trap(_ex_trap),
     .mem_trap(_mem_trap),
     .clear_trap(_clear_trap),
+    .trap_held(_trap_held),
     .trap(_trap),
     .trap_in_flight(_trap_in_flight)
   );
@@ -106,6 +108,7 @@ module tb_trap_orchestrator
 
     tick_and_capture(1);
     expect_bit(_trap_in_flight, 1'b1, "trap_in_flight asserts with pending trap");
+    expect_bit(_trap_held, 1'b1, "trap is held while in-flight");
     expect_word(_trap.payload.mepc, 32'h0000_0018, "oldest trap has MEM/WB priority");
     expect_word(_trap.payload.mtval, 32'h3333_3333, "oldest trap payload selected");
 
@@ -118,6 +121,7 @@ module tb_trap_orchestrator
     expect_word(_trap.payload.mepc, 32'h0000_0018,
                 "held trap stays stable while older trap not cleared");
     expect_bit(_trap_in_flight, 1'b1, "trap still in flight while held");
+    expect_bit(_trap_held, 1'b1, "trap remains held after clear");
 
     @(negedge _clk);
     _clear_trap = 1'b1;
@@ -137,6 +141,7 @@ module tb_trap_orchestrator
     tick_and_capture(1);
     _clear_trap = 1'b0;
     expect_bit(_trap_in_flight, 1'b0, "trap_in_flight clears when last trap cleared");
+    expect_bit(_trap_held, 1'b0, "trap_held clears when no candidate");
     expect_bit(_trap == '0, 1'b1, "trap bus clears with no candidate");
 
     if (_errors != 0) begin

@@ -18,12 +18,8 @@ module spi_mmio
 ) (
   input logic clk,
   input logic rst,
-
-  output logic spi_sck,
-  output logic spi_mosi,
-  input  logic spi_miso,
-  output logic spi_cs_n,
   output logic selected,
+  spi_if.source spi,
 
   mem_if.slave mem
 );
@@ -88,7 +84,7 @@ module spi_mmio
           _state <= SPI_SCK_HIGH;
         end
         SPI_SCK_HIGH: begin
-          _rx_data[_bit_index] <= spi_miso;
+          _rx_data[_bit_index] <= spi.miso;
           if (_stg_tick) begin
             _state <= SPI_SCK_LOW;
           end
@@ -111,16 +107,16 @@ module spi_mmio
   end
 
   always_comb begin
-    spi_sck = 1'b0;
-    spi_cs_n = 1'b1;
+    spi.sck = 1'b0;
+    spi.cs_n = 1'b1;
     _busy = 1'b0;
-    spi_mosi = 1'b0;
+    spi.mosi = 1'b0;
 
     case (_state)
       SPI_SETUP, SPI_SCK_LOW, SPI_SCK_HIGH: begin
         _busy = 1'b1;
-        spi_cs_n = 1'b0;
-        spi_mosi = _tx_data[_bit_index];
+        spi.cs_n = 1'b0;
+        spi.mosi = _tx_data[_bit_index];
       end
       SPI_IDLE, SPI_DONE: begin
       end
@@ -129,7 +125,7 @@ module spi_mmio
     endcase
 
     if (_state == SPI_SCK_HIGH) begin
-      spi_sck = 1'b1;
+      spi.sck = 1'b1;
     end
 
     mem.rsp.read_data = 32'h0;

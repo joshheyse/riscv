@@ -21,6 +21,20 @@ module tb_core_mmio_halt_store
 
   ibus_if _ibus ();
   dbus_if _dbus ();
+  irq_if _irq ();
+
+  always_comb begin
+  _irq.pending.platform = 16'h0000;
+  _irq.pending.meip = 1'b0;
+  _irq.pending.seip = 1'b0;
+  _irq.pending.mtip = 1'b0;
+  _irq.pending.stip = 1'b0;
+  _irq.pending.msip = 1'b0;
+  _irq.pending.ssip = 1'b0;
+  _irq.pending.usip = 1'b0;
+  end
+
+
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
@@ -39,7 +53,8 @@ module tb_core_mmio_halt_store
     .halted(_halted),
     .pc(_pc),
     .ibus(_ibus),
-    .dbus(_dbus)
+    .dbus(_dbus),
+      .irq(_irq)
   );
 
   imem #(

@@ -8,6 +8,7 @@ module tb_uart_mmio
   localparam int unsigned TimeoutCycles = 1_000;
   localparam int unsigned ClocksPerBit = 4;
   localparam word_t TxDataAddr = 32'h1000_1000;
+  localparam word_t RxDataAddr = 32'h1000_1004;
   localparam word_t StatusAddr = 32'h1000_4000;
 
   logic            _clk;
@@ -18,36 +19,31 @@ module tb_uart_mmio
   word_t           _mem_write_data;
   mem_write_mask_t _mem_write_mask;
   logic            _selected;
-  logic            _mem_ready;
   word_t           _read_data;
-  logic            _tx;
+  uart_if          _uart ();
   mem_if _mem ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
-  /* verilator lint_off UNUSEDSIGNAL */
-  logic        _mem_ready_observed;
-  /* verilator lint_on UNUSEDSIGNAL */
-  assign _mem_ready_observed = _mem_ready;
 
   assign _mem.req.valid = _mem_valid;
   assign _mem.req.write_en = _mem_write_en;
   assign _mem.req.addr = _mem_addr;
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _mem_write_mask;
-  assign _mem_ready = _mem.rsp.ready;
   assign _read_data = _mem.rsp.read_data;
 
   uart_mmio #(
     .ClocksPerBit(ClocksPerBit),
     .TxDataAddr(TxDataAddr),
+    .RxDataAddr(RxDataAddr),
     .StatusAddr(StatusAddr)
   ) _dut (
     .clk(_clk),
     .rst(_rst),
     .mem(_mem),
     .selected(_selected),
-    .tx(_tx)
+    .uart(_uart)
   );
 
   initial begin
@@ -83,21 +79,97 @@ module tb_uart_mmio
     _mem_write_en = 1'b0;
   endtask
 
-  task automatic expect_status_ready(input logic ready, input string what);
+  task automatic expect_status(input logic ready, input logic overrun, input logic tx_ready, input string what);
+    word_t       _read;
+
     @(negedge _clk);
     _mem_addr = StatusAddr;
     _mem_valid = 1'b1;
     _mem_write_en = 1'b0;
     #1;
     expect_bit(_selected, 1'b1, "status address selected");
-    expect_word(_read_data, {31'b0, ready}, what);
+    read_mmio(StatusAddr, _read);
+    expect_word(_read, {29'b0, overrun, ready, tx_ready}, what);
+  endtask
+
+  task automatic expect_status_ready(input logic ready, input string what);
+    expect_status(ready, 1'b0, 1'b1, what);
   endtask
 
   task automatic expect_tx_bit(input logic exp, input string what);
     repeat (ClocksPerBit / 2) @(posedge _clk);
     #1;
-    expect_bit(_tx, exp, what);
+    expect_bit(_uart.tx, exp, what);
     repeat (ClocksPerBit - (ClocksPerBit / 2)) @(posedge _clk);
+  endtask
+
+  task automatic read_mmio(input word_t a, output word_t data);
+    @(negedge _clk);
+    _mem_addr     = a;
+    _mem_write_en = 1'b0;
+    _mem_valid    = 1'b1;
+    @(posedge _clk);
+    #1;
+    data = _read_data;
+    _mem_valid = 1'b0;
+  endtask
+
+  task automatic read_status(
+    output logic rx_ready,
+    output logic rx_overrun,
+    output logic tx_ready
+  );
+    logic [2:0] _status;
+    /* verilator lint_off UNUSEDSIGNAL */
+    word_t      _full_status;
+    /* verilator lint_on UNUSEDSIGNAL */
+
+    read_mmio(StatusAddr, _full_status);
+    _status = _full_status[2:0];
+    rx_ready   = _status[1];
+    rx_overrun = _status[2];
+    tx_ready   = _status[0];
+  endtask
+
+  task automatic wait_for_rx_ready();
+    int i;
+    /* verilator lint_off UNUSEDSIGNAL */
+    word_t _status_word;
+    /* verilator lint_on UNUSEDSIGNAL */
+    logic _status_ready;
+
+    for (i = 0; i < (ClocksPerBit * 20); i++) begin
+      read_mmio(StatusAddr, _status_word);
+      _status_ready = _status_word[1];
+      if (_status_ready) begin
+        return;
+      end
+      @(negedge _clk);
+    end
+
+    expect_bit(1'b1, 1'b1, "rx ready timeout");
+  endtask
+
+  task automatic send_uart_byte(input byte_t data);
+    int i;
+    @(negedge _clk);
+      _uart.rx = 1'b0;
+
+    wait (_dut._state == UART_RX_DATA);
+
+    for (i = 0; i < 8; i++) begin
+      @(negedge _clk);
+      _uart.rx = data[i];
+      do begin
+        @(posedge _clk);
+      end while (!_dut._rx_stg_tick);
+    end
+
+    @(negedge _clk);
+      _uart.rx = 1'b1;
+    do begin
+      @(posedge _clk);
+    end while (_dut._state != UART_RX_IDLE);
   endtask
 
   // ---------------------------------------------------------------- tests --
@@ -114,14 +186,15 @@ module tb_uart_mmio
     _mem_addr       = '0;
     _mem_write_data = '0;
     _mem_write_mask = '0;
+    _uart.rx        = 1'b1;
 
     repeat (2) @(posedge _clk);
     #1;
-    expect_bit(_tx, 1'b1, "reset drives UART idle high");
+    expect_bit(_uart.tx, 1'b1, "reset drives UART idle high");
 
     @(negedge _clk);
     _rst = 1'b0;
-    expect_status_ready(1'b1, "idle status ready");
+    expect_status(1'b0, 1'b0, 1'b1, "idle status ready");
 
     write_mmio(TxDataAddr, 32'h0000_00a5);
     #1;
@@ -147,8 +220,8 @@ module tb_uart_mmio
     expect_tx_bit(1'b1, "stop bit");
 
     repeat (1) @(posedge _clk);
-    expect_status_ready(1'b1, "ready after stop bit");
-    expect_bit(_tx, 1'b1, "idle high after frame");
+    expect_status(1'b0, 1'b0, 1'b1, "ready after stop bit");
+    expect_bit(_uart.tx, 1'b1, "idle high after frame");
 
     @(negedge _clk);
     _mem_addr = 32'h2000_0000;
@@ -169,6 +242,28 @@ module tb_uart_mmio
     expect_tx_bit(1'b0, "second frame data bit 0 ignores busy write");
     expect_tx_bit(1'b0, "second frame data bit 1 ignores busy write");
     expect_tx_bit(1'b1, "second frame data bit 2 ignores busy write");
+
+    // ---------------------------------------------------------------- RX behavior --
+    // RX receive should set rx-ready exactly when frame completes and clear only on
+    // explicit read of RxDataAddr.
+    send_uart_byte(8'h5A);
+    wait_for_rx_ready();
+    expect_status(1'b1, 1'b0, 1'b1, "rx-ready set after byte receive");
+
+    read_mmio(RxDataAddr, _mem_write_data);
+    expect_word(_mem_write_data, 32'h0000_005a, "rx-data read after first frame");
+    expect_status(1'b0, 1'b0, 1'b1, "rx-ready clears after data read");
+
+    // Overrun should set when a new byte arrives before data is consumed.
+    send_uart_byte(8'h3C);
+    send_uart_byte(8'hA5);
+    wait_for_rx_ready();
+    @(negedge _clk);
+    read_mmio(StatusAddr, _mem_write_data);
+    expect_word(_mem_write_data, {29'b0, 1'b1, 1'b1, 1'b1}, "status after overrun");
+
+    read_mmio(RxDataAddr, _mem_write_data);
+    expect_word(_mem_write_data, 32'h0000_00a5, "rx-data after overrun keeps latest frame");
 
     if (errors == 0) begin
       $display("tb_uart_mmio: PASS (%0d checks)", checks);

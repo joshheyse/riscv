@@ -25,7 +25,10 @@ module core
   output logic halted,
 
   dbus_if.master dbus,
-  ibus_if.master ibus
+  ibus_if.master ibus,
+  /* verilator lint_off UNUSEDSIGNAL */
+  irq_if.sink irq
+  /* verilator lint_on UNUSEDSIGNAL */
 );
 
   typedef enum logic [1:0] {

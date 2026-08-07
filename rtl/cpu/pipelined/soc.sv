@@ -28,21 +28,19 @@ module soc
   output logic   halted
 );
 
-  // word_t       _dmem_read_data;
-  // word_t       _dmem_write_data;
-  // logic  [3:0] _write_mask;
   dbus_if _dbus ();
   ibus_if _ibus ();
+  irq_if _irq ();
 
   assign instr = _ibus.rsp.instr;
   assign imem_addr = _ibus.req.addr;
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
+    .InitFile  (ImemInitFile)
   ) _imem (
-    .clk(clk),
-    .rst(rst),
+    .clk (clk),
+    .rst (rst),
     .ibus(_ibus)
   );
 
@@ -52,7 +50,8 @@ module soc
     .pc(pc),
     .halted(halted),
     .dbus(_dbus),
-    .ibus(_ibus)
+    .ibus(_ibus),
+    .irq(_irq)
   );
 
   mem_if _dmem_mem ();
@@ -61,7 +60,7 @@ module soc
 
   dmem #(
     .DepthWords(DmemDepthWords),
-    .InitFile(DmemInitFile)
+    .InitFile  (DmemInitFile)
   ) _dmem (
     .clk(clk),
     .rst(rst),

@@ -25,6 +25,20 @@ module tb_core_csr_illegal
 
   ibus_if _ibus ();
   dbus_if _dbus ();
+  irq_if _irq ();
+
+  always_comb begin
+  _irq.pending.platform = 16'h0000;
+  _irq.pending.meip = 1'b0;
+  _irq.pending.seip = 1'b0;
+  _irq.pending.mtip = 1'b0;
+  _irq.pending.stip = 1'b0;
+  _irq.pending.msip = 1'b0;
+  _irq.pending.ssip = 1'b0;
+  _irq.pending.usip = 1'b0;
+  end
+
+
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -35,7 +49,8 @@ module tb_core_csr_illegal
     .halted(_halted),
     .pc(_pc),
     .ibus(_ibus),
-    .dbus(_dbus)
+    .dbus(_dbus),
+      .irq(_irq)
   );
 
   initial begin
@@ -136,7 +151,8 @@ module tb_core_csr_illegal
 
     @(posedge _clk);
     #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response may enter IFU output"});
+    expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response captured"});
+    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " speculative response pc"});
     expect_word(_dut._fetched.slot.instr.raw, instr, {what, " speculative response instr"});
 
     @(negedge _clk);

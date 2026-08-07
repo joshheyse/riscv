@@ -22,7 +22,7 @@ module top_sim
   logic        [7:0] _led_prev;
   logic              _sim_halt_selected;
   logic              _halted;
-  logic              _uart_tx;
+  logic              _uart_rx;
   logic              _retire;
   logic              _sim_halt_fire;
   logic              _sim_done;
@@ -33,6 +33,8 @@ module top_sim
 
   ibus_if _core_ibus ();
   ibus_if _imem_ibus ();
+  irq_if _irq ();
+  uart_if _uart ();
 
   assign _sim_halt_selected = (_core_dbus.req.addr == SimHaltAddr);
   assign _sim_halt_fire = !_rst && _core_dbus.req.valid && _core_dbus.req.write_en
@@ -54,6 +56,7 @@ module top_sim
 
   assign _core_ibus.rsp = _imem_ibus.rsp;
   assign _imem_ibus.req = _core_ibus.req;
+  assign _uart.rx = _uart_rx;
 
   initial begin
     if (ImemInitFile == "") begin
@@ -103,7 +106,8 @@ module top_sim
     .pc(_pc),
     .halted(_halted),
     .dbus(_core_dbus),
-    .ibus(_core_ibus)
+    .ibus(_core_ibus),
+    .irq(_irq)
   );
 
   board_bus #(
@@ -113,34 +117,93 @@ module top_sim
     .clk(_clk),
     .rst(_rst),
     .led(_led),
-    .uart_tx(_uart_tx),
+    .uart(_uart),
+    .irq(_irq),
     .dbus(_board_dbus)
   );
 
   task automatic uart_getc(output byte ch);
-    @(negedge _uart_tx);
+    @(negedge _uart.tx);
     #(ClkPeriod * ClocksPerBit / 2);
 
-    if (_uart_tx !== 1'b0) begin
+    if (_uart.tx !== 1'b0) begin
       $error("UART start bit was not stable low");
     end
 
     #(ClkPeriod * ClocksPerBit);
     for (int i = 0; i < 8; i++) begin
-      ch[i] = _uart_tx;
+      ch[i] = _uart.tx;
       #(ClkPeriod * ClocksPerBit);
     end
 
-    if (_uart_tx !== 1'b1) begin
+    if (_uart.tx !== 1'b1) begin
       $error("UART stop bit was not high after byte 0x%02h", ch);
     end
   endtask
 
+  task automatic uart_send_byte(input byte ch);
+    int unsigned i;
+
+    @(negedge _clk);
+    _uart_rx = 1'b0;
+    repeat (ClocksPerBit) @(negedge _clk);
+
+    for (i = 0; i < 8; i++) begin
+      _uart_rx = ch[i];
+      repeat (ClocksPerBit) @(negedge _clk);
+    end
+
+    _uart_rx = 1'b1;
+    repeat (ClocksPerBit) @(negedge _clk);
+  endtask
+
+  task automatic uart_send_string(input string text);
+    int unsigned i;
+    for (i = 0; i < text.len(); i++) begin
+      uart_send_byte(text[i]);
+    end
+  endtask
+
+  task automatic uart_send_file(input string path);
+    integer file;
+    integer ch;
+
+    file = $fopen(path, "r");
+    if (file == 0) begin
+      $display("top_sim: could not open uart_rx_file=%s", path);
+      return;
+    end
+
+    while (1) begin
+      ch = $fgetc(file);
+      if (ch < 0) begin
+        break;
+      end
+      uart_send_byte(ch[7:0]);
+    end
+
+    $fclose(file);
+  endtask
+
   initial begin
-    byte ch;
+    byte   ch;
+    string uart_rx_data;
+    string uart_rx_file;
+
+    _uart_rx = 1'b1;
 
     $display("top_sim: IMEM %s", ImemInitFile);
     $write("uart: ");
+
+    @(negedge _rst);
+
+    if ($value$plusargs("uart_rx=%s", uart_rx_data)) begin
+      uart_send_string(uart_rx_data);
+    end
+
+    if ($value$plusargs("uart_rx_file=%s", uart_rx_file)) begin
+      uart_send_file(uart_rx_file);
+    end
 
     forever begin
       uart_getc(ch);

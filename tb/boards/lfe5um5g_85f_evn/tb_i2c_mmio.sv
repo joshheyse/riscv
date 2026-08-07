@@ -26,9 +26,7 @@ module tb_i2c_mmio
   logic            _selected;
   logic            _mem_ready;
   word_t           _read_data;
-  logic            _i2c_sda_in;
-  logic            _i2c_sda_drive_low;
-  logic            _i2c_scl_drive_low;
+  i2c_if           _i2c ();
 
   int unsigned     errors = 0;
   int unsigned     checks = 0;
@@ -57,9 +55,7 @@ module tb_i2c_mmio
     .rst(_rst),
     .mem(_mem),
     .selected(_selected),
-    .i2c_sda_in(_i2c_sda_in),
-    .i2c_sda_drive_low(_i2c_sda_drive_low),
-    .i2c_scl_drive_low(_i2c_scl_drive_low)
+    .i2c(_i2c)
   );
 
   initial begin
@@ -113,42 +109,42 @@ module tb_i2c_mmio
 
   task automatic wait_until_scl_low(input string what);
     int unsigned waited = 0;
-    while (_i2c_scl_drive_low !== 1'b1 && waited < WaitLimitCycles) begin
+    while (_i2c.scl_drive_low !== 1'b1 && waited < WaitLimitCycles) begin
       @(posedge _clk);
       #1;
       waited++;
     end
-    expect_bit(_i2c_scl_drive_low, 1'b1, what);
+    expect_bit(_i2c.scl_drive_low, 1'b1, what);
   endtask
 
   task automatic wait_until_scl_high(input string what);
     int unsigned waited = 0;
-    while (_i2c_scl_drive_low !== 1'b0 && waited < WaitLimitCycles) begin
+    while (_i2c.scl_drive_low !== 1'b0 && waited < WaitLimitCycles) begin
       @(posedge _clk);
       #1;
       waited++;
     end
-    expect_bit(_i2c_scl_drive_low, 1'b0, what);
+    expect_bit(_i2c.scl_drive_low, 1'b0, what);
   endtask
 
   task automatic expect_i2c_bit(input logic exp, input string what);
     wait_until_scl_low({what, ": scl low phase observed"});
-    expect_bit(_i2c_sda_drive_low, ~exp, {what, ": sda stable while scl low"});
+    expect_bit(_i2c.sda_drive_low, ~exp, {what, ": sda stable while scl low"});
     wait_until_scl_high({what, ": scl high phase observed"});
-    expect_bit(_i2c_sda_drive_low, ~exp, {what, ": sda stable while scl high"});
+    expect_bit(_i2c.sda_drive_low, ~exp, {what, ": sda stable while scl high"});
     @(posedge _clk);
     #1;
   endtask
 
   task automatic drive_ack(input string what);
     wait_until_scl_low({what, ": ack low phase observed"});
-    expect_bit(_i2c_sda_drive_low, 1'b0, {what, ": master releases sda for ack"});
-    _i2c_sda_in = 1'b0;
+    expect_bit(_i2c.sda_drive_low, 1'b0, {what, ": master releases sda for ack"});
+    _i2c.sda_in = 1'b0;
     wait_until_scl_high({what, ": ack high phase observed"});
-    expect_bit(_i2c_sda_drive_low, 1'b0, {what, ": master still releases sda for ack"});
+    expect_bit(_i2c.sda_drive_low, 1'b0, {what, ": master still releases sda for ack"});
     repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    _i2c_sda_in = 1'b1;
+    _i2c.sda_in = 1'b1;
   endtask
 
   task automatic expect_write_transaction(input logic ack_data);
@@ -163,19 +159,19 @@ module tb_i2c_mmio
     end
 
     wait_until_scl_low("data ack: ack low phase observed");
-    expect_bit(_i2c_sda_drive_low, 1'b0, "data ack: master releases sda");
-    _i2c_sda_in = ack_data ? 1'b0 : 1'b1;
+    expect_bit(_i2c.sda_drive_low, 1'b0, "data ack: master releases sda");
+    _i2c.sda_in = ack_data ? 1'b0 : 1'b1;
     wait_until_scl_high("data ack: ack high phase observed");
     repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    _i2c_sda_in = 1'b1;
+    _i2c.sda_in = 1'b1;
 
     wait_until_scl_high("stop keeps scl released");
-    expect_bit(_i2c_sda_drive_low, 1'b1, "stop first phase drives sda low");
+    expect_bit(_i2c.sda_drive_low, 1'b1, "stop first phase drives sda low");
     repeat (ClocksPerHalfBit) @(posedge _clk);
     #1;
-    expect_bit(_i2c_scl_drive_low, 1'b0, "stop second phase keeps scl released");
-    expect_bit(_i2c_sda_drive_low, 1'b0, "stop second phase releases sda");
+    expect_bit(_i2c.scl_drive_low, 1'b0, "stop second phase keeps scl released");
+    expect_bit(_i2c.sda_drive_low, 1'b0, "stop second phase releases sda");
   endtask
 
   initial begin
@@ -190,12 +186,12 @@ module tb_i2c_mmio
     _mem_addr       = '0;
     _mem_write_data = '0;
     _mem_write_mask = '0;
-    _i2c_sda_in     = 1'b1;
+    _i2c.sda_in     = 1'b1;
 
     repeat (2) @(posedge _clk);
     #1;
-    expect_bit(_i2c_sda_drive_low, 1'b0, "reset releases sda");
-    expect_bit(_i2c_scl_drive_low, 1'b0, "reset releases scl");
+    expect_bit(_i2c.sda_drive_low, 1'b0, "reset releases sda");
+    expect_bit(_i2c.scl_drive_low, 1'b0, "reset releases scl");
     expect_word(_read_data, 32'h0000_0000, "reset unmapped read is zero");
 
     @(negedge _clk);
@@ -218,8 +214,8 @@ module tb_i2c_mmio
     write_mmio(DataAddr, {24'hff_ffff, TxByte});
     write_mmio(ControlAddr, 32'h0000_0001);
     #1;
-    expect_bit(_i2c_scl_drive_low, 1'b0, "start keeps scl released");
-    expect_bit(_i2c_sda_drive_low, 1'b1, "start drives sda low");
+    expect_bit(_i2c.scl_drive_low, 1'b0, "start keeps scl released");
+    expect_bit(_i2c.sda_drive_low, 1'b1, "start drives sda low");
 
     expect_write_transaction(1'b1);
 
