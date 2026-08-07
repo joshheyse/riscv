@@ -92,10 +92,10 @@ module top
 
   imem #(
     .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
+    .InitFile(ImemInitFile)
   ) _imem (
-    .clk (clk_12mhz),
-    .rst (_rst),
+    .clk(clk_12mhz),
+    .rst(_rst),
     .ibus(_ibus)
   );
 

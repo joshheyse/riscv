@@ -16,8 +16,10 @@ module board_bus
   input  logic               rst,
   output logic [NumLeds-1:0] led,
   output logic               uart_tx,
+  input  logic               uart_rx,
 
-  dbus_if.slave dbus
+  dbus_if.slave dbus,
+  irq_if.source irq
 );
 
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
@@ -41,7 +43,6 @@ module board_bus
   mem_if _led_mem ();
   mem_if _uart_mem ();
   mem_if _timer_mem ();
-  irq_if  _irq ();
 
   assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
 
@@ -65,31 +66,41 @@ module board_bus
   assign _read_data[TimerIdx] = _timer_mem.rsp.read_data;
   assign _read_data[ClintIdx] = _clint_mem.rsp.read_data;
 
-  assign _dmem_mem.req = '{valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
-                           write_en: _write_en[DmemIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
-  assign _led_mem.req = '{valid: dbus.req.valid,
-                          write_en: _write_en[LedIdx],
-                          addr: dbus.req.addr,
-                          write_data: dbus.req.write_data,
-                          write_mask: dbus.req.write_mask};
-  assign _uart_mem.req = '{valid: dbus.req.valid,
-                           write_en: _write_en[UartIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
-  assign _timer_mem.req = '{valid: dbus.req.valid,
-                           write_en: _write_en[TimerIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
-  assign _clint_mem.req = '{valid: dbus.req.valid,
-                           write_en: _write_en[ClintIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
+  assign _dmem_mem.req = '{
+          valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
+          write_en: _write_en[DmemIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _led_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[LedIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _uart_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[UartIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _timer_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[TimerIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _clint_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[ClintIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
 
   onehot_mux #(
     .Width(WordBits),
@@ -130,7 +141,8 @@ module board_bus
     .rst(rst),
     .mem(_uart_mem),
     .selected(_selected[UartIdx]),
-    .tx(uart_tx)
+    .tx(uart_tx),
+    .rx(uart_rx)
   );
 
   clint #(
@@ -144,7 +156,7 @@ module board_bus
     .rst(rst),
     .mem(_clint_mem),
     .selected(_selected[ClintIdx]),
-    .irq(_irq)
+    .irq(irq)
   );
 
   dmem #(

@@ -20,6 +20,7 @@ module board_bus
   input  logic [NumDipSwitches-1:0] dip_switch,
   input  logic [NumPushButtons-1:0] push_button,
   output logic                      uart_tx,
+  input  logic                      uart_rx,
 
   output logic spi_sck,
   output logic spi_mosi,
@@ -34,7 +35,8 @@ module board_bus
   output logic i2c_sda_drive_low,
   output logic i2c_scl_drive_low,
 
-  dbus_if.slave dbus
+  dbus_if.slave dbus,
+  irq_if.source irq
 );
 
   logic _mmio_selected;
@@ -70,7 +72,6 @@ module board_bus
   mem_if _spi_mem ();
   mem_if _i2c_mem ();
   mem_if _clint_mem ();
-  irq_if  _irq ();
 
   assign _selected[DmemIdx] = ((dbus.req.addr - board_constants_pkg::DmemBase) < board_constants_pkg::DmemSize);
   assign _mmio_selected = |_selected[NumSources-1:1];
@@ -108,56 +109,76 @@ module board_bus
   assign _read_data[I2cIdx] = _i2c_mem.rsp.read_data;
   assign _read_data[ClintIdx] = _clint_mem.rsp.read_data;
 
-  assign _dmem_mem.req = '{valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
-                           write_en: _write_en[DmemIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
-  assign _led_mem.req = '{valid: dbus.req.valid,
-                          write_en: _write_en[LedIdx],
-                          addr: dbus.req.addr,
-                          write_data: dbus.req.write_data,
-                          write_mask: dbus.req.write_mask};
-  assign _dip_switch_mem.req = '{valid: dbus.req.valid,
-                                write_en: _write_en[DipSwitchIdx],
-                                addr: dbus.req.addr,
-                                write_data: dbus.req.write_data,
-                                write_mask: dbus.req.write_mask};
-  assign _push_button_mem.req = '{valid: dbus.req.valid,
-                                 write_en: _write_en[PushButtonIdx],
-                                 addr: dbus.req.addr,
-                                 write_data: dbus.req.write_data,
-                                 write_mask: dbus.req.write_mask};
-  assign _gpio_mem.req = '{valid: dbus.req.valid,
-                          write_en: _write_en[GpioIdx],
-                          addr: dbus.req.addr,
-                          write_data: dbus.req.write_data,
-                          write_mask: dbus.req.write_mask};
-  assign _timer_mem.req = '{valid: dbus.req.valid,
-                           write_en: _write_en[TimerIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
-  assign _uart_mem.req = '{valid: dbus.req.valid,
-                          write_en: _write_en[UartIdx],
-                          addr: dbus.req.addr,
-                          write_data: dbus.req.write_data,
-                          write_mask: dbus.req.write_mask};
-  assign _spi_mem.req = '{valid: dbus.req.valid,
-                         write_en: _write_en[SpiIdx],
-                         addr: dbus.req.addr,
-                         write_data: dbus.req.write_data,
-                         write_mask: dbus.req.write_mask};
-  assign _i2c_mem.req = '{valid: dbus.req.valid,
-                         write_en: _write_en[I2cIdx],
-                         addr: dbus.req.addr,
-                         write_data: dbus.req.write_data,
-                         write_mask: dbus.req.write_mask};
-  assign _clint_mem.req = '{valid: dbus.req.valid,
-                           write_en: _write_en[ClintIdx],
-                           addr: dbus.req.addr,
-                           write_data: dbus.req.write_data,
-                           write_mask: dbus.req.write_mask};
+  assign _dmem_mem.req = '{
+          valid: dbus.req.valid && _selected[DmemIdx] && !_mmio_selected,
+          write_en: _write_en[DmemIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _led_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[LedIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _dip_switch_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[DipSwitchIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _push_button_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[PushButtonIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _gpio_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[GpioIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _timer_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[TimerIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _uart_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[UartIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _spi_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[SpiIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _i2c_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[I2cIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
+  assign _clint_mem.req = '{
+          valid: dbus.req.valid,
+          write_en: _write_en[ClintIdx],
+          addr: dbus.req.addr,
+          write_data: dbus.req.write_data,
+          write_mask: dbus.req.write_mask
+      };
 
   onehot_mux #(
     .Width(WordBits),
@@ -236,7 +257,8 @@ module board_bus
     .rst(rst),
     .mem(_uart_mem),
     .selected(_selected[UartIdx]),
-    .tx(uart_tx)
+    .tx(uart_tx),
+    .rx(uart_rx)
   );
 
   spi_mmio #(
@@ -282,7 +304,7 @@ module board_bus
     .rst(rst),
     .mem(_clint_mem),
     .selected(_selected[ClintIdx]),
-    .irq(_irq)
+    .irq(irq)
   );
 
   dmem #(

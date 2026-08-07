@@ -82,8 +82,8 @@ module controller
   );
 
   branch_logic _branch_logic (
-    .flow  (ctrl.flow),
-    .flags (branch_flags),
+    .flow(ctrl.flow),
+    .flags(branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );

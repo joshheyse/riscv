@@ -28,6 +28,7 @@ module soc
   // logic  [3:0] _write_mask;
   dbus_if _dbus ();
   ibus_if _ibus ();
+  irq_if _irq ();
 
   assign instr = _ibus.rsp.instr;
   assign imem_addr = _ibus.req.addr;
@@ -47,12 +48,13 @@ module soc
     .pc(pc),
     .halted(halted),
     .dbus(_dbus),
-    .ibus(_ibus)
+    .ibus(_ibus),
+    .irq(_irq)
   );
 
   mem_if _dmem_mem ();
 
-  assign _dmem_mem.req  = _dbus.req;
+  assign _dmem_mem.req = _dbus.req;
   assign _dbus.rsp = _dmem_mem.rsp;
 
   dmem #(
