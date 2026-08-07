@@ -335,7 +335,7 @@ board-tb-run: $(BOARD_TB_BIN)
 	cd $(BOARD_TB_BUILD_DIR) && ./V$(BOARD_TB_TOP) $(RUN_ARGS)
 
 ## board-tb: build and run a board peripheral testbench
-board-tb: board-tb-run
+board-tb: app-build board-tb-run
 
 ## board-program: build the selected APP into a readmemh file
 board-program: app-build

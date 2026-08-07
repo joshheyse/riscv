@@ -22,6 +22,7 @@ module tb_top_led;
   logic       _observed_outputs;
   /* verilator lint_on UNUSEDSIGNAL */
   int         _errors;
+  int         _cycles;
 
   assign _observed_outputs = _uart_tx | _spi_sck | _spi_mosi | _spi_cs_n | (|gpio) | _i2c_sda | _i2c_scl;
 
@@ -60,8 +61,15 @@ module tb_top_led;
 
     repeat (12) @(posedge _clk_12mhz);
 
+    for (_cycles = 0; _cycles < 500; _cycles++) begin
+      if (_led_n === 8'b1111_1110) begin
+        break;
+      end
+      @(posedge _clk_12mhz);
+    end
+
     if (_led_n !== 8'b1111_1110) begin
-      $error("expected LED0 on after first MMIO store, got led_n=%b", _led_n);
+      $error("expected LED0 on after MMIO program start, got led_n=%b", _led_n);
       _errors++;
     end
 
