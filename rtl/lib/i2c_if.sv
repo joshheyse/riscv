@@ -10,12 +10,12 @@ interface i2c_if
   import riscv_pkg::*;
 ();
 
-  logic sda_in;
-  logic sda_drive_low;
+  logic sda_in;         // sampled SDA input level
+  logic sda_drive_low;  // 1 drives SDA low, 0 releases SDA
   /* verilator lint_off UNUSEDSIGNAL */
-  logic scl_in;
+  logic scl_in;         // sampled SCL input level
   /* verilator lint_on UNUSEDSIGNAL */
-  logic scl_drive_low;
+  logic scl_drive_low;  // 1 drives SCL low, 0 releases SCL
 
   modport source(
     input  sda_in,

@@ -9,6 +9,7 @@ package board_constants_pkg;
   localparam logic [31:0] LedAddr = 32'h10000000;
   localparam logic [31:0] UartTxAddr = 32'h10001000;
   localparam logic [31:0] UartStatusAddr = 32'h1000100c;
+  localparam logic [31:0] UartMsipAddr = 32'h10001008;
   localparam logic [31:0] TimerLoAddr = 32'h10002000;
   localparam logic [31:0] TimerHiAddr = 32'h10002004;
   localparam logic [31:0] ClintMsipAddr = 32'h10002008;

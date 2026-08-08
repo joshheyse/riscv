@@ -5,13 +5,13 @@ interface ibus_if
 ();
 
   typedef struct packed {
-    logic valid;
-    pc_t  addr;
+    logic valid;  // request valid; one fetch at a time
+    pc_t  addr;   // instruction fetch byte address
   } req_t;
 
   typedef struct packed {
-    logic   ready;
-    instr_u instr;
+    logic   ready;  // instruction response is valid this cycle
+    instr_u instr;  // fetched instruction word
   } rsp_t;
 
   /* verilator lint_off UNUSEDSIGNAL */

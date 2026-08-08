@@ -7,8 +7,8 @@ interface uart_if
   import riscv_pkg::*;
 ();
 
-  logic tx;
-  logic rx;
+  logic tx;  // UART transmit output
+  logic rx;  // UART receive input
 
   modport source(
     output tx,

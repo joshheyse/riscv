@@ -5,14 +5,14 @@ interface irq_if
 ();
 
   typedef struct packed {
-    logic [15:0] platform;
-    logic        meip;
-    logic        seip;
-    logic        mtip;
-    logic        stip;
-    logic        msip;
-    logic        ssip;
-    logic        usip;
+    logic [15:0] platform;   // custom/platform-specific interrupt pending bits (reserved extension space)
+    logic meip;  // machine-level external interrupt pending (M-mode)
+    logic seip;  // supervisor-level external interrupt pending (S-mode)
+    logic mtip;  // machine-level timer interrupt pending (M-mode)
+    logic stip;  // supervisor-level timer interrupt pending (S-mode)
+    logic msip;  // machine-level software interrupt pending (M-mode)
+    logic ssip;  // supervisor-level software interrupt pending (S-mode)
+    logic usip;  // user-level software interrupt pending (U-mode)
   } pending_t;
 
   /* verilator lint_off UNUSEDSIGNAL */

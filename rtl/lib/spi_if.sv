@@ -6,10 +6,10 @@ interface spi_if
   import riscv_pkg::*;
 ();
 
-  logic sck;
-  logic mosi;
-  logic miso;
-  logic cs_n;
+  logic sck;    // serial clock
+  logic mosi;   // master out / slave in
+  logic miso;   // master in / slave out
+  logic cs_n;   // active-low chip-select
 
   modport source(
     output sck,

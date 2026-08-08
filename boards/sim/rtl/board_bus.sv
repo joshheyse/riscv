@@ -30,8 +30,18 @@ module board_bus
   logic       _timer_selected;
   logic       _uart_selected;
   logic       _clint_selected;
-  logic [1:0] _meip_sources;
-  logic [1:0] _mtip_sources;
+  localparam int unsigned MeipSources = 2;
+  localparam int unsigned MtipSources = 2;
+  localparam int unsigned MsipSources = 2;
+  localparam int unsigned MEIP_SRC_CLINT      = 0;
+  localparam int unsigned MEIP_SRC_UART       = 1;
+  localparam int unsigned MTIP_SRC_CLINT      = 0;
+  localparam int unsigned MSIP_SRC_CLINT      = 0;
+  localparam int unsigned MSIP_SRC_UART       = 1;
+
+  logic [MeipSources-1:0] _meip_sources;
+  logic [MtipSources-1:0] _mtip_sources;
+  logic [MsipSources-1:0] _msip_sources;
 
   localparam int unsigned DmemIdx = 0;
   localparam int unsigned LedIdx = 1;
@@ -86,13 +96,23 @@ module board_bus
   assign dbus.rsp.ready = _dbus_mem.rsp.ready;
   assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
 
-  assign _meip_sources = {_clint_irq.pending.meip, _uart_irq.pending.meip};
-  assign _mtip_sources = {_clint_irq.pending.mtip, _uart_irq.pending.mtip};
+  always_comb begin
+    _meip_sources = '0;
+    _mtip_sources = '0;
+    _msip_sources = '0;
+
+    _meip_sources[MEIP_SRC_CLINT] = _clint_irq.pending.meip;
+    _mtip_sources[MTIP_SRC_CLINT] = _clint_irq.pending.mtip;
+    _meip_sources[MEIP_SRC_UART]  = _uart_irq.pending.meip;
+    _msip_sources[MSIP_SRC_CLINT] = _clint_irq.pending.msip;
+    _msip_sources[MSIP_SRC_UART]  = _uart_irq.pending.msip;
+  end
 
   irq_aggregator #(
-    .N(2)
+    .N($bits(_meip_sources))
   ) _irq_aggregator (
     .meip_src(_meip_sources),
+    .msip_src(_msip_sources),
     .mtip_src(_mtip_sources),
     .irq(irq)
   );
@@ -129,7 +149,9 @@ module board_bus
   uart_mmio #(
     .ClocksPerBit(UartClocksPerBit),
     .TxDataAddr(board_constants_pkg::UartTxAddr),
-    .StatusAddr(board_constants_pkg::UartStatusAddr)
+    .StatusAddr(board_constants_pkg::UartStatusAddr),
+    .MsipAddr(board_constants_pkg::UartMsipAddr)
+
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),

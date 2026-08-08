@@ -9,6 +9,7 @@ module tb_uart_mmio
   localparam int unsigned ClocksPerBit = 4;
   localparam word_t TxDataAddr = 32'h1000_1000;
   localparam word_t RxDataAddr = 32'h1000_1004;
+  localparam word_t MsipAddr   = 32'h1000_1008;
   localparam word_t StatusAddr = 32'h1000_4000;
 
   logic            _clk;
@@ -22,6 +23,7 @@ module tb_uart_mmio
   word_t           _read_data;
   uart_if          _uart ();
   mem_if _mem ();
+  irq_if           _irq ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -37,13 +39,15 @@ module tb_uart_mmio
     .ClocksPerBit(ClocksPerBit),
     .TxDataAddr(TxDataAddr),
     .RxDataAddr(RxDataAddr),
+    .MsipAddr(MsipAddr),
     .StatusAddr(StatusAddr)
   ) _dut (
     .clk(_clk),
     .rst(_rst),
     .mem(_mem),
     .selected(_selected),
-    .uart(_uart)
+    .uart(_uart),
+    .irq(_irq)
   );
 
   initial begin
@@ -180,6 +184,23 @@ module tb_uart_mmio
       $dumpvars(0, tb_uart_mmio);
     end
 
+`ifdef UART_DEBUG
+    fork
+      forever begin
+        @(posedge _clk);
+        $display("t=%0t tx=%b busy=%b idx=%0d data=%h data_bit_idx=%0d state=%0d rx=%b",
+          $time,
+          _uart.tx,
+          _dut._tx_busy,
+          _dut._tx_bit_idx,
+          _dut._tx_data,
+          _dut._tx_data_bit_idx,
+          _dut._state,
+          _uart.rx);
+      end
+    join_none
+`endif
+
     _rst            = 1'b1;
     _mem_valid      = 1'b0;
     _mem_write_en   = 1'b0;
@@ -197,14 +218,6 @@ module tb_uart_mmio
     expect_status(1'b0, 1'b0, 1'b1, "idle status ready");
 
     write_mmio(TxDataAddr, 32'h0000_00a5);
-    #1;
-    expect_bit(_selected, 1'b1, "tx data address selected");
-    expect_word(_read_data, 32'h0000_0000, "non-status read_data is zero");
-
-    @(negedge _clk);
-    _mem_addr = StatusAddr;
-    #1;
-    expect_word(_read_data, 32'h0000_0000, "busy status not ready");
 
     // 0xa5 = 8'b1010_0101, transmitted LSB first:
     // start, 1, 0, 1, 0, 0, 1, 0, 1, stop.
@@ -222,6 +235,32 @@ module tb_uart_mmio
     repeat (1) @(posedge _clk);
     expect_status(1'b0, 1'b0, 1'b1, "ready after stop bit");
     expect_bit(_uart.tx, 1'b1, "idle high after frame");
+
+    @(negedge _clk);
+    _mem_addr     = TxDataAddr;
+    _mem_valid    = 1'b1;
+    _mem_write_en = 1'b0;
+    #1;
+    expect_bit(_selected, 1'b1, "tx data address selected");
+    expect_word(_read_data, 32'h0000_0000, "non-status read_data is zero");
+    _mem_valid = 1'b0;
+    expect_bit(_irq.pending.msip, 1'b0, "reset clears msip");
+    expect_bit(_irq.pending.meip, 1'b0, "reset clears meip");
+
+    expect_bit(_dut._tx_busy, 1'b0, "tx is not busy after frame");
+
+    read_mmio(StatusAddr, _mem_write_data);
+    expect_word(_mem_write_data, 32'h0000_0001, "status after frame complete");
+
+    write_mmio(MsipAddr, 32'h0000_0001);
+    read_mmio(MsipAddr, _mem_write_data);
+    expect_word(_mem_write_data, 32'h0000_0001, "msip write/readback");
+    expect_bit(_irq.pending.msip, 1'b1, "msip write sets pending msip output");
+
+    write_mmio(MsipAddr, 32'h0000_0000);
+    read_mmio(MsipAddr, _mem_write_data);
+    expect_word(_mem_write_data, 32'h0000_0000, "msip clear write/readback");
+    expect_bit(_irq.pending.msip, 1'b0, "msip clear clears pending msip output");
 
     @(negedge _clk);
     _mem_addr = 32'h2000_0000;
@@ -249,10 +288,12 @@ module tb_uart_mmio
     send_uart_byte(8'h5A);
     wait_for_rx_ready();
     expect_status(1'b1, 1'b0, 1'b1, "rx-ready set after byte receive");
+    expect_bit(_irq.pending.meip, 1'b1, "meip set when rx data ready");
 
     read_mmio(RxDataAddr, _mem_write_data);
     expect_word(_mem_write_data, 32'h0000_005a, "rx-data read after first frame");
     expect_status(1'b0, 1'b0, 1'b1, "rx-ready clears after data read");
+    expect_bit(_irq.pending.meip, 1'b0, "meip clears when rx data consumed");
 
     // Overrun should set when a new byte arrives before data is consumed.
     send_uart_byte(8'h3C);

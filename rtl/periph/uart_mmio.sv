@@ -13,6 +13,7 @@ module uart_mmio
   parameter int unsigned ClocksPerBit = 1,
   parameter mem_addr_t   TxDataAddr   = 32'h10001000,
   parameter mem_addr_t   RxDataAddr   = 32'h10001004,
+  parameter mem_addr_t   MsipAddr     = 32'h10001008,
   parameter mem_addr_t   StatusAddr   = 32'h1000100C
 ) (
   input logic clk,
@@ -20,9 +21,9 @@ module uart_mmio
 
   output logic selected,
 
-         uart_if.source uart,
-         mem_if.slave   mem,
-  output irq_if.source  irq
+  uart_if.source uart,
+  mem_if.slave   mem,
+  irq_if.source  irq
 );
 
   byte_t             _tx_data;
@@ -40,15 +41,20 @@ module uart_mmio
   logic              _rx_overrun;
   logic              _rx_data_consumed;
 
+  logic              _msip;
+
   uart_state_t       _state;
 
   initial begin
     assert (TxDataAddr != StatusAddr);
     assert (TxDataAddr != RxDataAddr);
     assert (RxDataAddr != StatusAddr);
+    assert (MsipAddr != StatusAddr);
+    assert (MsipAddr != TxDataAddr);
+    assert (MsipAddr != RxDataAddr);
   end
 
-  assign selected = (mem.req.addr == TxDataAddr || mem.req.addr == RxDataAddr || mem.req.addr == StatusAddr);
+  assign selected = (mem.req.addr == TxDataAddr || mem.req.addr == RxDataAddr || mem.req.addr == StatusAddr || mem.req.addr == MsipAddr);
   assign mem.rsp.ready = mem.req.valid && selected;
 
   assign _tx_ready = !_tx_busy;
@@ -62,11 +68,17 @@ module uart_mmio
       mem.rsp.read_data = {29'b0, _rx_overrun, _rx_ready, _tx_ready};
     end else if (mem.req.addr == RxDataAddr) begin
       mem.rsp.read_data = {24'b0, _rx_data};
+    end else if (mem.req.addr == MsipAddr) begin
+      mem.rsp.read_data = {31'b0, _msip};
     end
+
+
+    irq.pending = '0;
+    irq.pending.msip = _msip;
+    irq.pending.meip = _rx_ready;
   end
 
   assign _tx_data_bit_idx = _tx_bit_idx[2:0] - 3'd1;
-
 
   serial_tick_generator #(
     .ClocksPerTick(ClocksPerBit)
@@ -101,9 +113,14 @@ module uart_mmio
       _rx_bit_idx <= '0;
       _rx_overrun <= '0;
 
+      _msip <= '0;
+
       _state <= UART_RX_IDLE;
     end else begin
-      if (mem.req.write_en && (mem.req.addr == TxDataAddr) && !_tx_busy) begin
+      if (mem.req.write_en && mem.req.valid && (mem.req.addr == MsipAddr)) begin
+        _msip <= mem.req.write_data[0];
+      end
+      if (mem.req.write_en && mem.req.valid && (mem.req.addr == TxDataAddr) && !_tx_busy) begin
         _tx_busy <= 1'b1;
         _tx_data <= mem.req.write_data[7:0];
         _tx_bit_idx <= 0;
