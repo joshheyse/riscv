@@ -55,11 +55,10 @@ module board_bus
   localparam int unsigned MeipSources = 2;
   localparam int unsigned MtipSources = 2;
   localparam int unsigned MsipSources = 2;
-  localparam int unsigned MEIP_SRC_CLINT      = 0;
-  localparam int unsigned MEIP_SRC_UART       = 1;
-  localparam int unsigned MTIP_SRC_CLINT      = 0;
-  localparam int unsigned MSIP_SRC_CLINT      = 0;
-  localparam int unsigned MSIP_SRC_UART       = 1;
+  localparam int unsigned MEIP_SRC_CLINT = 0;
+  localparam int unsigned MEIP_SRC_UART  = 1;
+  localparam int unsigned MTIP_SRC_CLINT = 0;
+  localparam int unsigned MSIP_SRC_CLINT = 0;
 
   logic [MeipSources-1:0] _meip_sources;
   logic [MtipSources-1:0] _mtip_sources;
@@ -145,7 +144,6 @@ module board_bus
     _meip_sources[MEIP_SRC_UART]  = _uart_irq.pending.meip;
     _mtip_sources[MTIP_SRC_CLINT] = _clint_irq.pending.mtip;
     _msip_sources[MSIP_SRC_CLINT] = _clint_irq.pending.msip;
-    _msip_sources[MSIP_SRC_UART]  = _uart_irq.pending.msip;
   end
 
   irq_aggregator #(
@@ -233,7 +231,7 @@ module board_bus
     .ClocksPerBit(UartClocksPerBit),
     .TxDataAddr(board_constants_pkg::UartTxAddr),
     .StatusAddr(board_constants_pkg::UartStatusAddr),
-    .MsipAddr(board_constants_pkg::UartMsipAddr)
+    .IrqEnableAddr(board_constants_pkg::UartIrqEnableAddr)
   ) _uart_mmio (
     .clk(clk),
     .rst(rst),

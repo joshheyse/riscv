@@ -9,7 +9,7 @@ constants:
   led_addr: 0x10000000
   uart_tx_addr: 0x10001000
   uart_status_addr: 0x1000100c
-  uart_msip_addr: 0x10001008
+  uart_irq_enable_addr: 0x10001008
   timer_lo_addr: 0x10002000
   timer_hi_addr: 0x10002004
   clint_msip_addr: 0x10002008
