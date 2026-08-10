@@ -35,6 +35,7 @@ module board_bus
   irq_if _clint_irq ();
   irq_if _uart_irq ();
   irq_if _dip_switch_irq ();
+  irq_if _push_button_irq ();
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
   localparam int unsigned SpiClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::SpiHz);
   localparam int unsigned I2cClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::I2cHz);
@@ -53,14 +54,15 @@ module board_bus
 
   logic [NumSources-1:0] _periph_selected;
   logic [NumSources-1:0] _source_selected;
-  localparam int unsigned MeipSources = 3;
-  localparam int unsigned MtipSources = 3;
-  localparam int unsigned MsipSources = 3;
-  localparam int unsigned MEIP_SRC_CLINT      = 0;
-  localparam int unsigned MEIP_SRC_UART       = 1;
-  localparam int unsigned MEIP_SRC_DIP_SWITCH = 2;
-  localparam int unsigned MTIP_SRC_CLINT      = 0;
-  localparam int unsigned MSIP_SRC_CLINT      = 0;
+  localparam int unsigned MeipSources          = 4;
+  localparam int unsigned MtipSources          = 4;
+  localparam int unsigned MsipSources          = 4;
+  localparam int unsigned MEIP_SRC_CLINT       = 0;
+  localparam int unsigned MEIP_SRC_UART        = 1;
+  localparam int unsigned MEIP_SRC_DIP_SWITCH  = 2;
+  localparam int unsigned MEIP_SRC_PUSH_BUTTON = 3;
+  localparam int unsigned MTIP_SRC_CLINT       = 0;
+  localparam int unsigned MSIP_SRC_CLINT       = 0;
 
   logic [MeipSources-1:0] _meip_sources;
   logic [MtipSources-1:0] _mtip_sources;
@@ -85,8 +87,8 @@ module board_bus
       },
       '{
           start_addr: board_constants_pkg::PushButtonAddr,
-          end_addr: board_constants_pkg::PushButtonAddr + 4,
-          writeable: 1'b0
+          end_addr: board_constants_pkg::PushButtonIrqPendingAddr + 4,
+          writeable: 1'b1
       },
       '{
           start_addr: board_constants_pkg::GpioDataInAddr,
@@ -142,9 +144,10 @@ module board_bus
     _mtip_sources = '0;
     _msip_sources = '0;
 
-    _meip_sources[MEIP_SRC_CLINT]      = _clint_irq.pending.meip;
-    _meip_sources[MEIP_SRC_UART]       = _uart_irq.pending.meip;
-    _meip_sources[MEIP_SRC_DIP_SWITCH] = _dip_switch_irq.pending.meip;
+    _meip_sources[MEIP_SRC_CLINT]       = _clint_irq.pending.meip;
+    _meip_sources[MEIP_SRC_UART]        = _uart_irq.pending.meip;
+    _meip_sources[MEIP_SRC_DIP_SWITCH]  = _dip_switch_irq.pending.meip;
+    _meip_sources[MEIP_SRC_PUSH_BUTTON] = _push_button_irq.pending.meip;
     _mtip_sources[MTIP_SRC_CLINT]      = _clint_irq.pending.mtip;
     _msip_sources[MSIP_SRC_CLINT]      = _clint_irq.pending.msip;
   end
@@ -198,13 +201,16 @@ module board_bus
 
   push_button_mmio #(
     .PushButtonAddr(board_constants_pkg::PushButtonAddr),
+    .IrqEnableAddr(board_constants_pkg::PushButtonIrqEnableAddr),
+    .IrqPendingAddr(board_constants_pkg::PushButtonIrqPendingAddr),
     .NumPushButtons(NumPushButtons)
   ) _push_button_mmio (
     .clk(clk),
     .rst(rst),
     .mem(_mmio_mem[PushButtonIdx]),
     .selected(_periph_selected[PushButtonIdx]),
-    .push_button(push_button)
+    .push_button(push_button),
+    .irq(_push_button_irq)
   );
 
   gpio_mmio #(

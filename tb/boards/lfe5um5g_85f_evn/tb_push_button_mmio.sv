@@ -5,49 +5,47 @@ module tb_push_button_mmio
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 100;
-  localparam word_t PushButtonAddr = 32'h1000_3004;
-  localparam int unsigned NumPushButtons = 1;
+  localparam int unsigned TimeoutCycles = 300;
+  localparam int unsigned NumPushButtons = 4;
   localparam int unsigned DebounceCycles = 3;
+  localparam word_t PushButtonAddr = 32'h1000_3010;
+  localparam word_t IrqEnableAddr = 32'h1000_3014;
+  localparam word_t IrqPendingAddr = 32'h1000_3018;
 
-  logic                                 _clk;
-  logic                                 _rst;
-  logic                                 _mem_valid;
-  logic                                 _mem_write_en;
-  word_t                                _mem_addr;
-  word_t                                _mem_write_data;
-  mem_write_mask_t                      _mem_write_mask;
-  logic                                 _selected;
-  logic                                 _mem_ready;
-  word_t                                _read_data;
-  logic            [NumPushButtons-1:0] _push_button;
+  logic                                  _clk;
+  logic                                  _rst;
+  logic                                  _mem_valid;
+  logic                                  _mem_write_en;
+  word_t                                 _mem_addr;
+  word_t                                 _mem_write_data;
+  mem_write_mask_t                       _mem_write_mask;
+  logic                                  _selected;
+  logic             [NumPushButtons-1:0] _push_button;
   mem_if _mem ();
+  irq_if _irq ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
-  /* verilator lint_off UNUSEDSIGNAL */
-  logic        _mem_ready_observed;
-  /* verilator lint_on UNUSEDSIGNAL */
-  assign _mem_ready_observed = _mem_ready;
 
   assign _mem.req.valid = _mem_valid;
   assign _mem.req.write_en = _mem_write_en;
   assign _mem.req.addr = _mem_addr;
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _mem_write_mask;
-  assign _mem_ready = _mem.rsp.ready;
-  assign _read_data = _mem.rsp.read_data;
 
   push_button_mmio #(
     .PushButtonAddr(PushButtonAddr),
+    .IrqEnableAddr(IrqEnableAddr),
+    .IrqPendingAddr(IrqPendingAddr),
     .NumPushButtons(NumPushButtons),
     .DebounceCycles(DebounceCycles)
   ) _dut (
     .clk(_clk),
     .rst(_rst),
-    .mem(_mem),
+    .push_button(_push_button),
     .selected(_selected),
-    .push_button(_push_button)
+    .mem(_mem),
+    .irq(_irq)
   );
 
   initial begin
@@ -71,17 +69,35 @@ module tb_push_button_mmio
     end
   endtask
 
-  task automatic set_addr(input word_t addr);
+  task automatic read_mmio(input word_t addr, input word_t expected, input string what);
     @(negedge _clk);
     _mem_valid = 1'b1;
-    _mem_addr  = addr;
+    _mem_write_en = 1'b0;
+    _mem_addr = addr;
     #1;
+    expect_bit(_selected, 1'b1, {what, " selected"});
+    expect_bit(_mem.rsp.ready, 1'b1, {what, " ready"});
+    expect_word(_mem.rsp.read_data, expected, what);
+    @(negedge _clk);
+    _mem_valid = 1'b0;
   endtask
 
-  task automatic set_button(input logic [NumPushButtons-1:0] buttons);
+  task automatic write_mmio(input word_t addr, input word_t data);
     @(negedge _clk);
-    _push_button = buttons;
+    _mem_valid = 1'b1;
+    _mem_write_en = 1'b1;
+    _mem_addr = addr;
+    _mem_write_data = data;
+    _mem_write_mask = '1;
+    @(posedge _clk);
     #1;
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
+  endtask
+
+  task automatic set_buttons(input logic [NumPushButtons-1:0] value);
+    @(negedge _clk);
+    _push_button = value;
   endtask
 
   task automatic wait_debounce;
@@ -95,52 +111,69 @@ module tb_push_button_mmio
       $dumpvars(0, tb_push_button_mmio);
     end
 
-    _rst            = 1'b1;
-    _mem_valid      = 1'b0;
-    _mem_write_en   = 1'b0;
-    _mem_addr       = '0;
+    _rst = 1'b1;
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
+    _mem_addr = '0;
     _mem_write_data = '0;
     _mem_write_mask = '0;
-    _push_button    = '0;
+    _push_button = '0;
 
     repeat (2) @(posedge _clk);
-    #1;
-    expect_bit(_selected, 1'b0, "reset unmapped address not selected");
-    expect_word(_read_data, '0, "reset released button reads zero");
-
-    set_addr(PushButtonAddr);
-    expect_bit(_selected, 1'b1, "push-button address selected");
-    expect_word(_read_data, 32'h0000_0000, "reset mapped read is zero");
-
     @(negedge _clk);
     _rst = 1'b0;
-    #1;
 
-    set_button(1'b1);
-    expect_word(_read_data, 32'h0000_0000, "press is not visible before debounce");
+    read_mmio(PushButtonAddr, 32'h0000_0000, "button state reset");
+    read_mmio(IrqEnableAddr, 32'h0000_0000, "IRQ enable reset");
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "IRQ pending reset");
+    expect_bit(_irq.pending.meip, 1'b0, "reset clears external interrupt");
+    expect_bit(_irq.pending.msip, 1'b0, "push button never raises software interrupt");
+
+    // A press is invisible until debounced, then records a sticky event.
+    set_buttons(4'b0001);
+    read_mmio(PushButtonAddr, 32'h0000_0000, "press hidden before debounce");
     wait_debounce();
-    expect_word(_read_data, 32'h0000_0001, "pressed button is visible after debounce");
+    read_mmio(PushButtonAddr, 32'h0000_0001, "press visible after debounce");
+    read_mmio(IrqPendingAddr, 32'h0000_0001, "disabled press becomes pending");
+    expect_bit(_irq.pending.meip, 1'b0, "disabled pending press does not interrupt");
 
-    set_button(1'b0);
-    expect_word(_read_data, 32'h0000_0001, "release is not visible before debounce");
+    write_mmio(IrqEnableAddr, 32'h0000_0005);
+    read_mmio(IrqEnableAddr, 32'h0000_0005, "per-button IRQ enable mask");
+    expect_bit(_irq.pending.meip, 1'b1, "enabling pending button raises interrupt");
+    write_mmio(IrqPendingAddr, 32'h0000_0001);
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "W1C acknowledges press");
+    expect_bit(_irq.pending.meip, 1'b0, "acknowledging press deasserts interrupt");
+
+    // Releases update state but do not generate press interrupts.
+    set_buttons(4'b0000);
     wait_debounce();
-    expect_word(_read_data, 32'h0000_0000, "released button is visible after debounce");
+    read_mmio(PushButtonAddr, 32'h0000_0000, "release visible after debounce");
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "release does not become pending");
 
-    set_button(1'b1);
+    // A pulse shorter than the debounce period affects neither state nor IRQ.
+    set_buttons(4'b0010);
     @(posedge _clk);
-    set_button(1'b0);
+    set_buttons(4'b0000);
     wait_debounce();
-    expect_word(_read_data, 32'h0000_0000, "short pulse is filtered by debounce");
+    read_mmio(PushButtonAddr, 32'h0000_0000, "short pulse is filtered");
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "short pulse does not become pending");
 
-    set_button(1'b1);
+    // Pending and enable masks preserve the identity of the pressed button.
+    set_buttons(4'b0100);
     wait_debounce();
-    set_addr(PushButtonAddr + 32'h4);
-    expect_bit(_selected, 1'b0, "neighbor address not selected");
-    expect_word(_read_data, 32'h0000_0001, "read data still mirrors raw button input");
+    read_mmio(PushButtonAddr, 32'h0000_0004, "third button state");
+    read_mmio(IrqPendingAddr, 32'h0000_0004, "third button pending bit");
+    expect_bit(_irq.pending.meip, 1'b1, "enabled third button raises interrupt");
+    write_mmio(IrqPendingAddr, 32'h0000_0004);
+    expect_bit(_irq.pending.meip, 1'b0, "selective clear removes third-button interrupt");
 
-    set_addr(32'h2000_0000);
+    @(negedge _clk);
+    _mem_addr = 32'h2000_0000;
+    _mem_valid = 1'b1;
+    #1;
     expect_bit(_selected, 1'b0, "unmapped address not selected");
-    expect_word(_read_data, 32'h0000_0001, "unmapped read data still mirrors debounced button");
+    expect_bit(_mem.rsp.ready, 1'b0, "unmapped request not acknowledged by peripheral");
+    expect_word(_mem.rsp.read_data, '0, "unmapped read data is zero");
 
     if (errors == 0) begin
       $display("tb_push_button_mmio: PASS (%0d checks)", checks);

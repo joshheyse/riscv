@@ -171,6 +171,13 @@ module tb_board_bus
     #1;
     set_read_addr(board_constants_pkg::PushButtonAddr);
     expect_word(dbus.rsp.read_data, 32'h0000_0001, "push button read routes through board bus");
+    expect_bit(_irq.pending.meip, 1'b0, "disabled push-button event does not raise meip");
+    set_read_addr(board_constants_pkg::PushButtonIrqPendingAddr);
+    expect_word(dbus.rsp.read_data, 32'h0000_0001, "push-button pending routes through board bus");
+    write_bus(board_constants_pkg::PushButtonIrqEnableAddr, 32'h0000_0001);
+    expect_bit(_irq.pending.meip, 1'b1, "enabled push-button event reaches board IRQ");
+    write_bus(board_constants_pkg::PushButtonIrqPendingAddr, 32'h0000_0001);
+    expect_bit(_irq.pending.meip, 1'b0, "push-button W1C deasserts board IRQ");
 
     _gpio_in = 8'h3c;
     set_read_addr(board_constants_pkg::GpioDataInAddr);
