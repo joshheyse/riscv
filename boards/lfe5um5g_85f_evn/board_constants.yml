@@ -22,7 +22,11 @@ constants:
   clint_mtime_lo_addr: 0x10002018
   clint_mtime_hi_addr: 0x1000201c
   dip_switch_addr: 0x10003000
-  push_button_addr: 0x10003004
+  dip_switch_irq_enable_addr: 0x10003004
+  dip_switch_irq_pending_addr: 0x10003008
+  push_button_addr: 0x10003010
+  push_button_irq_enable_addr: 0x10003014
+  push_button_irq_pending_addr: 0x10003018
   spi_data_addr: 0x10004000
   spi_control_addr: 0x10004004
   spi_status_addr: 0x10004008

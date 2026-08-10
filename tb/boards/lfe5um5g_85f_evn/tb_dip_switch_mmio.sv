@@ -4,45 +4,52 @@ module tb_dip_switch_mmio
   import riscv_pkg::*;
 ();
 
-  localparam realtime Step = 1ns;
-  localparam int unsigned TimeoutSteps = 100;
-  localparam word_t DipSwitchAddr = 32'h1000_3000;
+  localparam realtime ClkPeriod = 10ns;
+  localparam int unsigned TimeoutCycles = 200;
   localparam int unsigned NumDipSwitches = 8;
+  localparam word_t DipSwitchAddr = 32'h1000_3000;
+  localparam word_t IrqEnableAddr = 32'h1000_3004;
+  localparam word_t IrqPendingAddr = 32'h1000_3008;
 
+  logic                                 _clk;
+  logic                                 _rst;
   logic                                 _mem_valid;
   logic                                 _mem_write_en;
   word_t                                _mem_addr;
   word_t                                _mem_write_data;
   mem_write_mask_t                      _mem_write_mask;
   logic                                 _selected;
-  logic                                 _mem_ready;
-  word_t                                _read_data;
   logic            [NumDipSwitches-1:0] _dip_switch;
   mem_if _mem ();
+  irq_if _irq ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
-  /* verilator lint_off UNUSEDSIGNAL */
-  logic        _mem_ready_observed;
-  /* verilator lint_on UNUSEDSIGNAL */
-  assign _mem_ready_observed = _mem_ready;
 
   assign _mem.req.valid = _mem_valid;
   assign _mem.req.write_en = _mem_write_en;
   assign _mem.req.addr = _mem_addr;
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _mem_write_mask;
-  assign _mem_ready = _mem.rsp.ready;
-  assign _read_data = _mem.rsp.read_data;
 
   dip_switch_mmio #(
     .DipSwitchAddr(DipSwitchAddr),
+    .IrqEnableAddr(IrqEnableAddr),
+    .IrqPendingAddr(IrqPendingAddr),
     .NumDipSwitches(NumDipSwitches)
   ) _dut (
-    .mem(_mem),
+    .clk(_clk),
+    .rst(_rst),
+    .dip_switch(_dip_switch),
     .selected(_selected),
-    .dip_switch(_dip_switch)
+    .mem(_mem),
+    .irq(_irq)
   );
+
+  initial begin
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
+  end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
     checks++;
@@ -60,11 +67,37 @@ module tb_dip_switch_mmio
     end
   endtask
 
-  task automatic set_inputs(input word_t addr, input logic [NumDipSwitches-1:0] switches);
-    _mem_addr   = addr;
-    _dip_switch = switches;
-    _mem_valid  = 1'b1;
-    #Step;
+  task automatic read_mmio(input word_t addr, input word_t expected, input string what);
+    @(negedge _clk);
+    _mem_valid = 1'b1;
+    _mem_write_en = 1'b0;
+    _mem_addr = addr;
+    #1;
+    expect_bit(_selected, 1'b1, {what, " selected"});
+    expect_bit(_mem.rsp.ready, 1'b1, {what, " ready"});
+    expect_word(_mem.rsp.read_data, expected, what);
+    @(negedge _clk);
+    _mem_valid = 1'b0;
+  endtask
+
+  task automatic write_mmio(input word_t addr, input word_t data);
+    @(negedge _clk);
+    _mem_valid = 1'b1;
+    _mem_write_en = 1'b1;
+    _mem_addr = addr;
+    _mem_write_data = data;
+    _mem_write_mask = '1;
+    @(posedge _clk);
+    #1;
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
+  endtask
+
+  task automatic change_switches(input logic [NumDipSwitches-1:0] value);
+    @(negedge _clk);
+    _dip_switch = value;
+    repeat (3) @(posedge _clk);
+    #1;
   endtask
 
   initial begin
@@ -73,31 +106,72 @@ module tb_dip_switch_mmio
       $dumpvars(0, tb_dip_switch_mmio);
     end
 
-    _mem_write_en   = 1'b0;
+    _rst = 1'b1;
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
+    _mem_addr = '0;
     _mem_write_data = '0;
     _mem_write_mask = '0;
+    _dip_switch = '0;
 
-    set_inputs('0, '0);
-    expect_bit(_selected, 1'b0, "reset-like unmapped address not selected");
-    expect_word(_read_data, '0, "zero switches read as zero");
+    repeat (2) @(posedge _clk);
+    @(negedge _clk);
+    _rst = 1'b0;
 
-    set_inputs(DipSwitchAddr, 8'h00);
-    expect_bit(_selected, 1'b1, "DIP switch address selected");
-    expect_word(_read_data, 32'h0000_0000, "all switches off read zero");
+    read_mmio(DipSwitchAddr, 32'h0000_0000, "switch state reset");
+    read_mmio(IrqEnableAddr, 32'h0000_0000, "IRQ enable reset");
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "IRQ pending reset");
+    expect_bit(_irq.pending.meip, 1'b0, "reset clears external interrupt");
+    expect_bit(_irq.pending.msip, 1'b0, "DIP switch never raises software interrupt");
 
-    set_inputs(DipSwitchAddr, 8'ha5);
-    expect_word(_read_data, 32'h0000_00a5, "switch pattern is zero-extended");
+    // Changes remain pending even while their interrupt source is disabled.
+    change_switches(8'h01);
+    read_mmio(DipSwitchAddr, 32'h0000_0001, "synchronized switch state");
+    read_mmio(IrqPendingAddr, 32'h0000_0001, "disabled change becomes pending");
+    expect_bit(_irq.pending.meip, 1'b0, "disabled pending bit does not raise interrupt");
 
-    set_inputs(DipSwitchAddr, 8'hff);
-    expect_word(_read_data, 32'h0000_00ff, "all switches on are visible");
+    write_mmio(IrqEnableAddr, 32'h0000_0005);
+    read_mmio(IrqEnableAddr, 32'h0000_0005, "per-switch IRQ enable mask");
+    expect_bit(_irq.pending.meip, 1'b1, "enabling pending switch raises interrupt");
 
-    set_inputs(DipSwitchAddr + 32'h4, 8'h3c);
-    expect_bit(_selected, 1'b0, "neighbor address not selected");
-    expect_word(_read_data, 32'h0000_003c, "read data still mirrors raw switch input");
+    // Reading data does not acknowledge an event; pending is explicitly W1C.
+    read_mmio(DipSwitchAddr, 32'h0000_0001, "data read leaves pending set");
+    read_mmio(IrqPendingAddr, 32'h0000_0001, "pending survives data read");
+    write_mmio(IrqPendingAddr, 32'h0000_0001);
+    read_mmio(IrqPendingAddr, 32'h0000_0000, "write one clears pending bit");
+    expect_bit(_irq.pending.meip, 1'b0, "clearing pending deasserts interrupt");
 
-    set_inputs(32'h2000_0000, 8'hc3);
+    // A disabled source still records its event and asserts once enabled.
+    change_switches(8'h03);
+    read_mmio(IrqPendingAddr, 32'h0000_0002, "second switch change is pending");
+    expect_bit(_irq.pending.meip, 1'b0, "disabled second switch does not interrupt");
+    write_mmio(IrqEnableAddr, 32'h0000_0007);
+    expect_bit(_irq.pending.meip, 1'b1, "enabling second switch exposes pending event");
+    write_mmio(IrqPendingAddr, 32'h0000_0002);
+    expect_bit(_irq.pending.meip, 1'b0, "selective W1C clears enabled event");
+
+    // Arrange a clear on the same cycle a synchronized transition is observed.
+    @(negedge _clk);
+    _dip_switch = 8'h07;
+    repeat (2) @(posedge _clk);
+    @(negedge _clk);
+    _mem_valid = 1'b1;
+    _mem_write_en = 1'b1;
+    _mem_addr = IrqPendingAddr;
+    _mem_write_data = 32'h0000_0004;
+    @(posedge _clk);
+    #1;
+    _mem_valid = 1'b0;
+    _mem_write_en = 1'b0;
+    read_mmio(IrqPendingAddr, 32'h0000_0004, "new event wins over simultaneous clear");
+
+    @(negedge _clk);
+    _mem_addr = 32'h2000_0000;
+    _mem_valid = 1'b1;
+    #1;
     expect_bit(_selected, 1'b0, "unmapped address not selected");
-    expect_word(_read_data, 32'h0000_00c3, "unmapped read data mirrors raw switch input");
+    expect_bit(_mem.rsp.ready, 1'b0, "unmapped request not acknowledged by peripheral");
+    expect_word(_mem.rsp.read_data, '0, "unmapped read data is zero");
 
     if (errors == 0) begin
       $display("tb_dip_switch_mmio: PASS (%0d checks)", checks);
@@ -109,8 +183,8 @@ module tb_dip_switch_mmio
   end
 
   initial begin
-    #(TimeoutSteps * Step);
-    $display("tb_dip_switch_mmio: TIMEOUT after %0d steps", TimeoutSteps);
+    repeat (TimeoutCycles) @(posedge _clk);
+    $display("tb_dip_switch_mmio: TIMEOUT after %0d cycles", TimeoutCycles);
     $fatal(1);
   end
 

@@ -154,8 +154,17 @@ module tb_board_bus
     expect_word(dbus.rsp.read_data, 32'hdead_beef, "LED write does not change DMEM");
 
     _dip_switch = 8'hc3;
+    repeat (3) @(posedge _clk);
+    #1;
     set_read_addr(board_constants_pkg::DipSwitchAddr);
     expect_word(dbus.rsp.read_data, 32'h0000_00c3, "DIP switch read routes through board bus");
+    expect_bit(_irq.pending.meip, 1'b0, "disabled DIP switch event does not raise meip");
+    set_read_addr(board_constants_pkg::DipSwitchIrqPendingAddr);
+    expect_word(dbus.rsp.read_data, 32'h0000_00c3, "DIP switch pending routes through board bus");
+    write_bus(board_constants_pkg::DipSwitchIrqEnableAddr, 32'h0000_00ff);
+    expect_bit(_irq.pending.meip, 1'b1, "enabled DIP switch event reaches board IRQ");
+    write_bus(board_constants_pkg::DipSwitchIrqPendingAddr, 32'h0000_00c3);
+    expect_bit(_irq.pending.meip, 1'b0, "DIP switch W1C deasserts board IRQ");
 
     _push_button = 1'b1;
     repeat (PushButtonDebounceCycles + 3) @(posedge _clk);
