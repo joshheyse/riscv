@@ -119,8 +119,8 @@ module tb_pipeline_control
 
     clear_inputs();
     _flow.action = FLOW_ACTION_MRET;
-    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH, STAGE_FLUSH,
-                   "mret flushes all younger stages");
+    expect_control(STAGE_HOLD, STAGE_FLUSH, STAGE_FLUSH, STAGE_ADVANCE, STAGE_ADVANCE,
+                   "mret flushes younger stages and advances older stages");
 
     if (errors == 0) begin
       $display("tb_pipeline_control: PASS (%0d checks)", checks);

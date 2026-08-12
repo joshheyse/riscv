@@ -20,6 +20,7 @@ module tb_core_privilege_return
 
   localparam instr_t ECALL = 32'h0000_0073;
   localparam instr_t MRET = 32'h3020_0073;
+  localparam instr_t ILLEGAL = 32'h0000_0000;
   localparam instr_t ADDI_X3_1 = 32'h0010_0193;
   localparam instr_t ADDI_X5_8 = 32'h0080_0293;
   localparam instr_t ADDI_X2_2 = 32'h0020_0113;
@@ -35,14 +36,14 @@ module tb_core_privilege_return
   irq_if _irq ();
 
   always_comb begin
-  _irq.pending.platform = 16'h0000;
-  _irq.pending.meip = 1'b0;
-  _irq.pending.seip = 1'b0;
-  _irq.pending.mtip = 1'b0;
-  _irq.pending.stip = 1'b0;
-  _irq.pending.msip = 1'b0;
-  _irq.pending.ssip = 1'b0;
-  _irq.pending.usip = 1'b0;
+    _irq.pending.platform = 16'h0000;
+    _irq.pending.meip = 1'b0;
+    _irq.pending.seip = 1'b0;
+    _irq.pending.mtip = 1'b0;
+    _irq.pending.stip = 1'b0;
+    _irq.pending.msip = 1'b0;
+    _irq.pending.ssip = 1'b0;
+    _irq.pending.usip = 1'b0;
   end
 
 
@@ -57,7 +58,7 @@ module tb_core_privilege_return
     .pc(_pc),
     .ibus(_ibus),
     .dbus(_dbus),
-      .irq(_irq)
+    .irq(_irq)
   );
 
   initial begin
@@ -161,6 +162,33 @@ module tb_core_privilege_return
     _ibus.rsp = '0;
   endtask
 
+  task automatic complete_outstanding_fetch(input pc_t exp_addr, input instr_t instr,
+                                            input string what);
+    int unsigned waits;
+
+    waits = 0;
+    while (!(_dut._ifu._request_valid && (_dut._ifu._request_pc == exp_addr)) &&
+           (waits < ReqTimeout)) begin
+      @(negedge _clk);
+      waits++;
+    end
+
+    expect_bit(_dut._ifu._request_valid, 1'b1, {what, " request outstanding"});
+    expect_word(_dut._ifu._request_pc, exp_addr, {what, " request addr"});
+
+    _ibus.rsp.ready = 1'b1;
+    _ibus.rsp.instr.raw = instr;
+
+    @(posedge _clk);
+    #1;
+    expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
+    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
+    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
+
+    @(negedge _clk);
+    _ibus.rsp = '0;
+  endtask
+
   task automatic wait_for_user_privilege_after_mret(input string what);
     int unsigned waits;
 
@@ -192,7 +220,7 @@ module tb_core_privilege_return
   endtask
 
   task automatic verify_resume_executes_after_mret(input string what);
-    fetch_instr(32'h0000_0008, ADDI_X2_2, {what, " resume instruction"});
+    complete_outstanding_fetch(32'h0000_0008, ADDI_X2_2, {what, " resume instruction"});
     fetch_instr(32'h0000_000C, NOP, {what, " following instruction"});
     begin
       int unsigned waits;
@@ -203,19 +231,22 @@ module tb_core_privilege_return
         waits++;
       end
       expect_bit(waits < 16, 1'b1, {what, " resume writes x2"});
-      expect_word(_dut._reg_file._regs[2], 32'h0000_0002, {what, " resume executes and updates x2"});
+      expect_word(_dut._reg_file._regs[2], 32'h0000_0002, {what, " resume executes and updates x2"
+                  });
     end
   endtask
 
   initial begin
     if ($test$plusargs("dbg_priv")) begin
-      $display("time pc fetch_en flow_action trap_in_flight if_id_valid id_ex_valid _if_id.pc _fetched.valid _fetched.slot.pc mem_wb_trap _trap.valid _retire_mret priv_mode mepc");
+      $display(
+          "time pc fetch_en flow_action trap_in_flight if_id_valid id_ex_valid _if_id.pc _fetched.valid _fetched.slot.pc mem_wb_trap _trap.valid _retire_mret priv_mode mepc");
     end
 
     /* verilator lint_off SYNCASYNCNET */
-    $monitor("%0t %0h %0d %0d %0d %0d %0h %0d %0h %0d %0h", $time, _pc, _dut._pipe_ctrl.fetch, _dut._flow.action,
-      _dut._trap_in_flight, _dut._if_id.valid, _dut._if_id.slot.pc, _dut._fetched.valid, _dut._fetched.slot.pc,
-      _dut._mem_wb.trap.valid, _dut._csr_status.priv_mode);
+    $monitor("%0t %0h %0d %0d %0d %0d %0h %0d %0h %0d %0h", $time, _pc, _dut._pipe_ctrl.fetch,
+             _dut._flow.action, _dut._trap_in_flight, _dut._if_id.valid, _dut._if_id.slot.pc,
+             _dut._fetched.valid, _dut._fetched.slot.pc, _dut._mem_wb.trap.valid,
+             _dut._csr_status.priv_mode);
     /* verilator lint_on SYNCASYNCNET */
 
     if ($test$plusargs("trace")) begin
@@ -246,14 +277,15 @@ module tb_core_privilege_return
     fetch_instr(32'h0000_0044, ADDI_X5_8, "handler loads user resume PC");
     fetch_instr(32'h0000_0048, csr_instr(CSR_MEPC, 5'd5, SYS_F3_RW, 5'd0), "handler rewrites mepc");
     fetch_instr(32'h0000_004C, MRET, "handler returns with mret");
+    fetch_instr(32'h0000_0050, ILLEGAL, "younger illegal instruction after mret");
 
+    verify_resume_executes_after_mret("core privilege return");
     wait_for_user_privilege_after_mret("mret returns to user mode");
 
     expect_word(_dut._csr_file._mepc, 32'h0000_0008, "handler prepared user resume PC");
     expect_word(_dut._reg_file._regs[3], 32'h0000_0001, "handler executed");
     expect_word(_dut._reg_file._regs[5], 32'h0000_0008, "handler loaded resume PC");
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, "privilege returned to user");
-    verify_resume_executes_after_mret("core privilege return");
 
     if (_errors == 0) begin
       $display("tb_core_privilege_return: PASS (%0d checks)", _checks);

@@ -31,7 +31,7 @@ module core
 
   ibus_if.master ibus,
   dbus_if.master dbus,
-  irq_if.sink irq
+  irq_if.sink    irq
 );
 
 
@@ -94,6 +94,7 @@ module core
   logic           _trap_held;
   retire_ctrl_t   _retire;
   logic           _trap_from_if_id;
+  logic           _ex_mret_valid;
 
   assign _id_branch_flags = '0;
 
@@ -104,6 +105,9 @@ module core
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
+  assign _ex_mret_valid = _id_ex.valid && _id_ex.ctrl.system.en &&
+      (_id_ex.ctrl.system.op == SYSTEM_OP_MRET) && !_id_ex.trap.valid &&
+      !_system_access_illegal;
 
   logic _mie_pending_meip;
   logic _mie_pending_mtip;
@@ -129,9 +133,9 @@ module core
   // interrupt delivery only; supervisor interrupts remain a future enhancement.
   always_comb begin
     _interrupt_trap_req = '0;
-    _mie_pending_meip = 1'b0;
-    _mie_pending_mtip = 1'b0;
-    _mie_pending_msip = 1'b0;
+    _mie_pending_meip   = 1'b0;
+    _mie_pending_mtip   = 1'b0;
+    _mie_pending_msip   = 1'b0;
 
     if (_csr_status.priv_mode == PRIV_MACHINE && _csr_status.mstatus.mie) begin
       _mie_pending_meip = _csr_status.mip.meip | irq.pending.meip;
@@ -263,7 +267,7 @@ module core
   trap_orchestrator _trap_orchestrator (
     .clk(clk),
     .rst(rst),
-    .id_trap(_if_id.valid ? _id_trap : '0),
+    .id_trap((_if_id.valid && !_ex_mret_valid) ? _id_trap : '0),
     .ex_trap(_id_ex.valid ? _ex_trap : '0),
     .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
     .clear_trap(_retire.trap),
@@ -275,7 +279,7 @@ module core
   flow_control _flow_control (
     .redirect(_redirect),
     .trap(_trap),
-    .mret_valid(_retire.mret),
+    .mret_valid(_ex_mret_valid),
     .mepc(_csr_status.mepc),
     .flow(_flow)
   );

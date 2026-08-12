@@ -48,9 +48,9 @@ module pipeline_control
           mem_wb: STAGE_HOLD
       };
     end else if (flow.action == FLOW_ACTION_TRAP) begin
-      pipe_ctrl.fetch = STAGE_HOLD;
-      pipe_ctrl.if_id = STAGE_FLUSH;
-      pipe_ctrl.id_ex = trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH;
+      pipe_ctrl.fetch  = STAGE_HOLD;
+      pipe_ctrl.if_id  = STAGE_FLUSH;
+      pipe_ctrl.id_ex  = trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH;
       pipe_ctrl.ex_mem = STAGE_ADVANCE;
       pipe_ctrl.mem_wb = STAGE_ADVANCE;
     end else if (trap_in_flight) begin
@@ -61,8 +61,8 @@ module pipeline_control
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,
           id_ex: STAGE_FLUSH,
-          ex_mem: STAGE_FLUSH,
-          mem_wb: STAGE_FLUSH
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
       };
     end else if (flow.action != FLOW_ACTION_NONE) begin
       pipe_ctrl = '{
