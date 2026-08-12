@@ -8,6 +8,7 @@ constants:
   num_leds: 8
   led_addr: 0x10000000
   uart_tx_addr: 0x10001000
+  uart_rx_addr: 0x10001004
   uart_status_addr: 0x1000100c
   uart_irq_enable_addr: 0x10001008
   timer_lo_addr: 0x10002000
@@ -17,6 +18,15 @@ constants:
   clint_mtimecmp_hi_addr: 0x10002014
   clint_mtime_lo_addr: 0x10002018
   clint_mtime_hi_addr: 0x1000201c
+  plic_base: 0x0c000000
+  plic_priority_base_addr: 0x0c000000
+  plic_pending_addr: 0x0c001000
+  plic_m_enable_addr: 0x0c002000
+  plic_m_threshold_addr: 0x0c200000
+  plic_m_claim_complete_addr: 0x0c200004
+  plic_irq_uart: 1
+  plic_irq_dip_switch: 2
+  plic_irq_push_button: 3
   clock_hz: 12000000
   uart_baud: 115200
   sim_halt_addr: 0x1000f000

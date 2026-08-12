@@ -32,6 +32,7 @@ RTL_PERIPH_DIR := rtl/periph
 CPU_LIB_DIR    := rtl/cpu/lib
 CPU_DESIGN_DIR := rtl/cpu/$(DESIGN)
 TB_DIR         := tb/$(DESIGN)
+PERIPH_TB_DIR  := tb/periph
 BUILD_ROOT    := build/$(DESIGN)
 SIM_DIR       := $(BUILD_ROOT)/$(TB_TOP)
 
@@ -47,8 +48,8 @@ CPU_DESIGN_SRCS := $(filter-out $(CPU_PKG_SRCS), \
                     $(sort $(wildcard $(CPU_DESIGN_DIR)/*.sv) $(wildcard $(CPU_DESIGN_DIR)/*.v)))
 PERIPH_SRCS := $(sort $(wildcard $(RTL_PERIPH_DIR)/*.sv) $(wildcard $(RTL_PERIPH_DIR)/*.v))
 RTL_SRCS := $(CPU_PKG_SRCS) $(RTL_LIB_SRCS) $(CPU_LIB_SRCS) $(CPU_DESIGN_SRCS)
-TB_SRC   := $(TB_DIR)/$(TB_TOP).sv
-SRCS     := $(RTL_SRCS) $(TB_SRC)
+TB_SRC   := $(if $(wildcard $(TB_DIR)/$(TB_TOP).sv),$(TB_DIR)/$(TB_TOP).sv,$(PERIPH_TB_DIR)/$(TB_TOP).sv)
+SRCS     := $(RTL_SRCS) $(PERIPH_SRCS) $(TB_SRC)
 
 BOARD_DIR       := boards/$(BOARD)
 BOARD_RTL_DIR   := $(BOARD_DIR)/rtl
@@ -150,7 +151,8 @@ ECP5_FREQ    ?= 12
 # Every testbench/simulator in the design — for formatting only. Simulation
 # compiles just the one selected by TB, so sibling top-level modules don't
 # collide.
-ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v))
+ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v) \
+                       $(wildcard $(PERIPH_TB_DIR)/*.sv) $(wildcard $(PERIPH_TB_DIR)/*.v))
 ALL_BOARD_TB_SRCS := $(sort $(wildcard tb/boards/*/*.sv) $(wildcard tb/boards/*/*.v))
 ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*.v) \
                          $(wildcard boards/*/sim/*.sv) $(wildcard boards/*/sim/*.v))

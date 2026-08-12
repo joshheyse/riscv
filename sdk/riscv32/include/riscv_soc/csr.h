@@ -80,6 +80,15 @@ static inline void csr_disable_machine_timer_interrupt(void) {
   riscv_csr_clear(mie, MIE_MTIE);
 }
 
+static inline void csr_enable_machine_external_interrupt(void) {
+  riscv_csr_set(mie, MIE_MEIE);
+  riscv_csr_set(mstatus, MSTATUS_MIE);
+}
+
+static inline void csr_disable_machine_external_interrupt(void) {
+  riscv_csr_clear(mie, MIE_MEIE);
+}
+
 static inline void csr_disable_machine_interrupts(void) {
   riscv_csr_clear(mstatus, MSTATUS_MIE);
 }

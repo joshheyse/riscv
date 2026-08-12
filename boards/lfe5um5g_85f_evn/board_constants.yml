@@ -40,6 +40,15 @@ constants:
   gpio_set_addr: 0x1000600c
   gpio_clear_addr: 0x10006010
   gpio_toggle_addr: 0x10006014
+  plic_base: 0x0c000000
+  plic_priority_base_addr: 0x0c000000
+  plic_pending_addr: 0x0c001000
+  plic_m_enable_addr: 0x0c002000
+  plic_m_threshold_addr: 0x0c200000
+  plic_m_claim_complete_addr: 0x0c200004
+  plic_irq_uart: 1
+  plic_irq_dip_switch: 2
+  plic_irq_push_button: 3
   clock_hz: 12000000
   uart_baud: 115200
   spi_hz: 2000000

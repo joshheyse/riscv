@@ -36,6 +36,8 @@ module board_bus
   irq_if _uart_irq ();
   irq_if _dip_switch_irq ();
   irq_if _push_button_irq ();
+  irq_if _plic_irq ();
+  irq_if _plic_sources[3:1] ();
   localparam int unsigned UartClocksPerBit = board_constants_pkg::ClockHz / board_constants_pkg::UartBaud;
   localparam int unsigned SpiClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::SpiHz);
   localparam int unsigned I2cClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::I2cHz);
@@ -50,19 +52,18 @@ module board_bus
   localparam int unsigned SpiIdx = 7;
   localparam int unsigned I2cIdx = 8;
   localparam int unsigned ClintIdx = 9;
-  localparam int unsigned NumSources = 10;
+  localparam int unsigned PlicIdx = 10;
+  localparam int unsigned NumSources = 11;
 
   logic [NumSources-1:0] _periph_selected;
   logic [NumSources-1:0] _source_selected;
-  localparam int unsigned MeipSources          = 4;
-  localparam int unsigned MtipSources          = 4;
-  localparam int unsigned MsipSources          = 4;
-  localparam int unsigned MEIP_SRC_CLINT       = 0;
-  localparam int unsigned MEIP_SRC_UART        = 1;
-  localparam int unsigned MEIP_SRC_DIP_SWITCH  = 2;
-  localparam int unsigned MEIP_SRC_PUSH_BUTTON = 3;
-  localparam int unsigned MTIP_SRC_CLINT       = 0;
-  localparam int unsigned MSIP_SRC_CLINT       = 0;
+  localparam int unsigned MeipSources = 4;
+  localparam int unsigned MtipSources = 4;
+  localparam int unsigned MsipSources = 4;
+  localparam int unsigned MEIP_SRC_CLINT = 0;
+  localparam int unsigned MEIP_SRC_PLIC = 1;
+  localparam int unsigned MTIP_SRC_CLINT = 0;
+  localparam int unsigned MSIP_SRC_CLINT = 0;
 
   logic [MeipSources-1:0] _meip_sources;
   logic [MtipSources-1:0] _mtip_sources;
@@ -119,6 +120,11 @@ module board_bus
           start_addr: board_constants_pkg::ClintMsipAddr,
           end_addr: board_constants_pkg::ClintMtimeHiAddr + 4,
           writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::PlicBase,
+          end_addr: board_constants_pkg::PlicMClaimCompleteAddr + 4,
+          writeable: 1'b1
       }
   };
 
@@ -140,16 +146,14 @@ module board_bus
   assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
 
   always_comb begin
-    _meip_sources = '0;
-    _mtip_sources = '0;
-    _msip_sources = '0;
+    _meip_sources                 = '0;
+    _mtip_sources                 = '0;
+    _msip_sources                 = '0;
 
-    _meip_sources[MEIP_SRC_CLINT]       = _clint_irq.pending.meip;
-    _meip_sources[MEIP_SRC_UART]        = _uart_irq.pending.meip;
-    _meip_sources[MEIP_SRC_DIP_SWITCH]  = _dip_switch_irq.pending.meip;
-    _meip_sources[MEIP_SRC_PUSH_BUTTON] = _push_button_irq.pending.meip;
-    _mtip_sources[MTIP_SRC_CLINT]      = _clint_irq.pending.mtip;
-    _msip_sources[MSIP_SRC_CLINT]      = _clint_irq.pending.msip;
+    _meip_sources[MEIP_SRC_CLINT] = _clint_irq.pending.meip;
+    _meip_sources[MEIP_SRC_PLIC]  = _plic_irq.pending.meip;
+    _mtip_sources[MTIP_SRC_CLINT] = _clint_irq.pending.mtip;
+    _msip_sources[MSIP_SRC_CLINT] = _clint_irq.pending.msip;
   end
 
   irq_aggregator #(
@@ -172,6 +176,11 @@ module board_bus
     assert (_periph_selected[SpiIdx] == _source_selected[SpiIdx]);
     assert (_periph_selected[I2cIdx] == _source_selected[I2cIdx]);
     assert (_periph_selected[ClintIdx] == _source_selected[ClintIdx]);
+    assert ((_source_selected[PlicIdx] && _dbus_mem.req.valid) == _periph_selected[PlicIdx]);
+
+    _plic_sources[board_constants_pkg::PlicIrqUart].pending = _uart_irq.pending;
+    _plic_sources[board_constants_pkg::PlicIrqDipSwitch].pending = _dip_switch_irq.pending;
+    _plic_sources[board_constants_pkg::PlicIrqPushButton].pending = _push_button_irq.pending;
   end
 
   led_mmio #(
@@ -294,6 +303,24 @@ module board_bus
     .mem(_mmio_mem[ClintIdx]),
     .selected(_periph_selected[ClintIdx]),
     .irq(_clint_irq)
+  );
+
+  plic #(
+    .PlicBase(board_constants_pkg::PlicBase),
+    .PlicPriorityBaseAddr(board_constants_pkg::PlicPriorityBaseAddr),
+    .PlicPendingAddr(board_constants_pkg::PlicPendingAddr),
+    .PlicMEnableAddr(board_constants_pkg::PlicMEnableAddr),
+    .PlicMThresholdAddr(board_constants_pkg::PlicMThresholdAddr),
+    .PlicMClaimCompleteAddr(board_constants_pkg::PlicMClaimCompleteAddr),
+    .NumSources(3),
+    .PriorityBits(3)
+  ) _plic (
+    .clk(clk),
+    .rst(rst),
+    .selected(_periph_selected[PlicIdx]),
+    .sources(_plic_sources),
+    .irq(_plic_irq),
+    .mem(_mmio_mem[PlicIdx])
   );
 
   dmem #(

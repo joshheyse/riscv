@@ -88,6 +88,24 @@ static inline void uart_putc(char ch) {
 }
 #endif
 
+#if defined(BOARD_UART_RX_ADDR) && defined(BOARD_UART_STATUS_ADDR)
+static inline int uart_rx_ready(void) {
+  return (int)((mmio_read32(BOARD_UART_STATUS_ADDR) >> 1) & 1u);
+}
+
+static inline uint8_t uart_getc(void) {
+  while (!uart_rx_ready()) {
+  }
+  return (uint8_t)mmio_read32(BOARD_UART_RX_ADDR);
+}
+#endif
+
+#if defined(BOARD_UART_IRQ_ENABLE_ADDR)
+static inline void uart_set_rx_interrupt_enabled(int enabled) {
+  mmio_write32(BOARD_UART_IRQ_ENABLE_ADDR, enabled ? 1u : 0u);
+}
+#endif
+
 #if defined(BOARD_NUM_GPIO) && defined(BOARD_GPIO_DATA_IN_ADDR) && \
     defined(BOARD_GPIO_DIR_ADDR) && defined(BOARD_GPIO_SET_ADDR) && \
     defined(BOARD_GPIO_CLEAR_ADDR) && defined(BOARD_GPIO_TOGGLE_ADDR)

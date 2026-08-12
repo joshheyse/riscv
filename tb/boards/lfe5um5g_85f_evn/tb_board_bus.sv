@@ -19,8 +19,8 @@ module tb_board_bus
   dbus_if dbus ();
   irq_if _irq ();
   uart_if _uart ();
-  spi_if  _spi ();
-  i2c_if  _i2c ();
+  spi_if _spi ();
+  i2c_if _i2c ();
 
   int unsigned errors = 0;
   int unsigned checks = 0;
@@ -97,6 +97,21 @@ module tb_board_bus
     dbus.req.write_en = 1'b0;
   endtask
 
+  task automatic claim_irq(input word_t exp_id, input string what);
+    @(negedge _clk);
+    dbus.req.valid      = 1'b1;
+    dbus.req.write_en   = 1'b0;
+    dbus.req.addr       = board_constants_pkg::PlicMClaimCompleteAddr;
+    dbus.req.write_data = '0;
+    dbus.req.write_mask = 4'b1111;
+    #1;
+    expect_bit(dbus.rsp.ready, 1'b1, {what, " ready"});
+    expect_word(dbus.rsp.read_data, exp_id, what);
+    @(posedge _clk);
+    #1;
+    dbus.req.valid = 1'b0;
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -153,6 +168,19 @@ module tb_board_bus
     set_read_addr(board_constants_pkg::DmemBase + 32'h0000_0004);
     expect_word(dbus.rsp.read_data, 32'hdead_beef, "LED write does not change DMEM");
 
+    write_bus(board_constants_pkg::PlicPriorityBaseAddr + (4 * board_constants_pkg::PlicIrqUart),
+              32'd1);
+    write_bus(
+        board_constants_pkg::PlicPriorityBaseAddr + (4 * board_constants_pkg::PlicIrqDipSwitch),
+        32'd2);
+    write_bus(
+        board_constants_pkg::PlicPriorityBaseAddr + (4 * board_constants_pkg::PlicIrqPushButton),
+        32'd3);
+    write_bus(board_constants_pkg::PlicMEnableAddr, 32'h0000_000e);
+    write_bus(board_constants_pkg::PlicMThresholdAddr, 32'd0);
+    set_read_addr(board_constants_pkg::PlicMEnableAddr);
+    expect_word(dbus.rsp.read_data, 32'h0000_000e, "PLIC enable routes through board bus");
+
     _dip_switch = 8'hc3;
     repeat (3) @(posedge _clk);
     #1;
@@ -162,9 +190,14 @@ module tb_board_bus
     set_read_addr(board_constants_pkg::DipSwitchIrqPendingAddr);
     expect_word(dbus.rsp.read_data, 32'h0000_00c3, "DIP switch pending routes through board bus");
     write_bus(board_constants_pkg::DipSwitchIrqEnableAddr, 32'h0000_00ff);
+    @(posedge _clk);
+    #1;
     expect_bit(_irq.pending.meip, 1'b1, "enabled DIP switch event reaches board IRQ");
+    claim_irq(board_constants_pkg::PlicIrqDipSwitch, "claim DIP switch PLIC source");
+    expect_bit(_irq.pending.meip, 1'b0, "claim removes DIP switch source from arbitration");
     write_bus(board_constants_pkg::DipSwitchIrqPendingAddr, 32'h0000_00c3);
-    expect_bit(_irq.pending.meip, 1'b0, "DIP switch W1C deasserts board IRQ");
+    write_bus(board_constants_pkg::PlicMClaimCompleteAddr, board_constants_pkg::PlicIrqDipSwitch);
+    expect_bit(_irq.pending.meip, 1'b0, "cleared and completed DIP switch stays idle");
 
     _push_button = 1'b1;
     repeat (PushButtonDebounceCycles + 3) @(posedge _clk);
@@ -175,9 +208,14 @@ module tb_board_bus
     set_read_addr(board_constants_pkg::PushButtonIrqPendingAddr);
     expect_word(dbus.rsp.read_data, 32'h0000_0001, "push-button pending routes through board bus");
     write_bus(board_constants_pkg::PushButtonIrqEnableAddr, 32'h0000_0001);
+    @(posedge _clk);
+    #1;
     expect_bit(_irq.pending.meip, 1'b1, "enabled push-button event reaches board IRQ");
+    claim_irq(board_constants_pkg::PlicIrqPushButton, "claim push-button PLIC source");
+    expect_bit(_irq.pending.meip, 1'b0, "claim removes push-button source from arbitration");
     write_bus(board_constants_pkg::PushButtonIrqPendingAddr, 32'h0000_0001);
-    expect_bit(_irq.pending.meip, 1'b0, "push-button W1C deasserts board IRQ");
+    write_bus(board_constants_pkg::PlicMClaimCompleteAddr, board_constants_pkg::PlicIrqPushButton);
+    expect_bit(_irq.pending.meip, 1'b0, "cleared and completed push button stays idle");
 
     _gpio_in = 8'h3c;
     set_read_addr(board_constants_pkg::GpioDataInAddr);

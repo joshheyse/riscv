@@ -26,15 +26,18 @@ module board_bus
   mem_if _dbus_mem ();
   irq_if _uart_irq ();
   irq_if _clint_irq ();
-  logic       _led_selected;
-  logic       _timer_selected;
-  logic       _uart_selected;
-  logic       _clint_selected;
+  irq_if _plic_irq ();
+  irq_if _plic_sources[3:1] ();
+  logic _led_selected;
+  logic _timer_selected;
+  logic _uart_selected;
+  logic _clint_selected;
+  logic _plic_selected;
   localparam int unsigned MeipSources = 2;
   localparam int unsigned MtipSources = 2;
   localparam int unsigned MsipSources = 2;
   localparam int unsigned MEIP_SRC_CLINT = 0;
-  localparam int unsigned MEIP_SRC_UART  = 1;
+  localparam int unsigned MEIP_SRC_PLIC = 1;
   localparam int unsigned MTIP_SRC_CLINT = 0;
   localparam int unsigned MSIP_SRC_CLINT = 0;
 
@@ -47,7 +50,8 @@ module board_bus
   localparam int unsigned UartIdx = 2;
   localparam int unsigned TimerIdx = 3;
   localparam int unsigned ClintIdx = 4;
-  localparam int unsigned NumSources = 5;
+  localparam int unsigned PlicIdx = 5;
+  localparam int unsigned NumSources = 6;
 
   localparam mmio_source_t _source_map[NumSources] = '{
       '{
@@ -73,6 +77,11 @@ module board_bus
       '{
           start_addr: board_constants_pkg::ClintMsipAddr,
           end_addr: board_constants_pkg::ClintMtimeHiAddr + 4,
+          writeable: 1'b1
+      },
+      '{
+          start_addr: board_constants_pkg::PlicBase,
+          end_addr: board_constants_pkg::PlicMClaimCompleteAddr + 4,
           writeable: 1'b1
       }
   };
@@ -102,7 +111,7 @@ module board_bus
 
     _meip_sources[MEIP_SRC_CLINT] = _clint_irq.pending.meip;
     _mtip_sources[MTIP_SRC_CLINT] = _clint_irq.pending.mtip;
-    _meip_sources[MEIP_SRC_UART]  = _uart_irq.pending.meip;
+    _meip_sources[MEIP_SRC_PLIC] = _plic_irq.pending.meip;
     _msip_sources[MSIP_SRC_CLINT] = _clint_irq.pending.msip;
   end
 
@@ -121,6 +130,11 @@ module board_bus
     assert (_source_selected[TimerIdx] == _timer_selected);
     assert (_source_selected[UartIdx] == _uart_selected);
     assert (_source_selected[ClintIdx] == _clint_selected);
+    assert ((_source_selected[PlicIdx] && _dbus_mem.req.valid) == _plic_selected);
+
+    _plic_sources[1].pending = _uart_irq.pending;
+    _plic_sources[2].pending = '0;
+    _plic_sources[3].pending = '0;
   end
 
   led_mmio #(
@@ -171,6 +185,24 @@ module board_bus
     .mem(_mmio_mem[ClintIdx]),
     .selected(_clint_selected),
     .irq(_clint_irq)
+  );
+
+  plic #(
+    .PlicBase(board_constants_pkg::PlicBase),
+    .PlicPriorityBaseAddr(board_constants_pkg::PlicPriorityBaseAddr),
+    .PlicPendingAddr(board_constants_pkg::PlicPendingAddr),
+    .PlicMEnableAddr(board_constants_pkg::PlicMEnableAddr),
+    .PlicMThresholdAddr(board_constants_pkg::PlicMThresholdAddr),
+    .PlicMClaimCompleteAddr(board_constants_pkg::PlicMClaimCompleteAddr),
+    .NumSources(3),
+    .PriorityBits(3)
+  ) _plic (
+    .clk(clk),
+    .rst(rst),
+    .selected(_plic_selected),
+    .sources(_plic_sources),
+    .irq(_plic_irq),
+    .mem(_mmio_mem[PlicIdx])
   );
 
   dmem #(
