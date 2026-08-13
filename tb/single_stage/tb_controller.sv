@@ -349,7 +349,7 @@ module tb_controller
       trap.src = TRAP_SRC_EBREAK;
     end else if (trap.valid) begin
       trap.src   = TRAP_SRC_ILLEGAL_INSTR;
-      trap.mtval = instr;
+      trap.tval = instr;
     end else begin
       trap.src = TRAP_SRC_NONE;
     end

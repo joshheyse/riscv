@@ -30,6 +30,8 @@ module tb_core_interrupt
   localparam instr_t       ADDI_X1_1 = 32'h0010_0093;
   localparam instr_t       LW_X2_0   = 32'h0000_2103;
   localparam instr_t       ADD_X3_X2 = 32'h0001_0193;
+  localparam instr_t       NOP       = 32'h0000_0013;
+  localparam instr_t       SRET      = 32'h1020_0073;
   localparam word_t        LOAD_DATA = 32'h1234_5678;
 
   logic        _clk;
@@ -197,6 +199,23 @@ module tb_core_interrupt
     expect_word(_dut._csr_file._mcause, cause_expected, "trap cause is machine software interrupt");
   endtask
 
+  task automatic expect_interrupt_request(input logic exp_valid, input trap_src_t exp_src,
+                                          input string what);
+    #1;
+    expect_bit(_dut._interrupt_trap_req.valid, exp_valid, {what, " valid"});
+    if (exp_valid) begin
+      expect_word(32'(_dut._interrupt_trap_req.src), 32'(exp_src), {what, " source"});
+    end
+  endtask
+
+  task automatic clear_interrupt_state();
+    _dut._csr_file._mie = '0;
+    _dut._csr_file._mip = '0;
+    _dut._csr_file._mideleg = '0;
+    _dut._csr_file._mstatus.mie = 1'b0;
+    _dut._csr_file._mstatus.sie = 1'b0;
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -205,6 +224,51 @@ module tb_core_interrupt
 
     _rst = 1'b1;
     drive_idle();
+    reset_core();
+
+    // Supervisor interrupt sources follow the existing external, timer,
+    // software arbitration pattern and respect supervisor global enable.
+    clear_interrupt_state();
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0222;
+    _dut._csr_file._mie.seip = 1'b1;
+    _dut._csr_file._mip.seip = 1'b1;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
+                             "delegated supervisor external interrupt");
+
+    clear_interrupt_state();
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0222;
+    _dut._csr_file._mie.stip = 1'b1;
+    _dut._csr_file._mip.stip = 1'b1;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT,
+                             "delegated supervisor timer interrupt");
+
+    clear_interrupt_state();
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0222;
+    _dut._csr_file._mie.ssip = 1'b1;
+    _dut._csr_file._mip.ssip = 1'b1;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
+                             "delegated supervisor software interrupt");
+
+    _dut._csr_file._mstatus.sie = 1'b0;
+    expect_interrupt_request(1'b0, TRAP_SRC_NONE,
+                             "supervisor global disable blocks delegated interrupt");
+
+    _dut._csr_file._priv_mode = PRIV_USER;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
+                             "lower privilege enables delegated supervisor interrupt");
+
+    _dut._csr_file._priv_mode = PRIV_MACHINE;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    expect_interrupt_request(1'b0, TRAP_SRC_NONE,
+                             "delegated supervisor interrupt cannot preempt machine mode");
+
+    clear_interrupt_state();
     reset_core();
 
     // Interrupts require machine mode + global/specific enables.
@@ -243,6 +307,58 @@ module tb_core_interrupt
     expect_word(_dut._reg_file._regs[1], 32'h0000_0001, "older addi committed");
     expect_word(_dut._reg_file._regs[2], LOAD_DATA, "load result committed before trap");
     expect_word(_dut._reg_file._regs[3], 32'hdead_beef, "squashed dependent add does not write x3");
+
+    // Let a delegated supervisor software interrupt traverse the complete
+    // pipeline, update supervisor CSRs, redirect to stvec, and return via sret.
+    reset_core();
+    _dut._csr_file._stvec.base = 30'h0000_0010;
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0002;
+    _dut._csr_file._mie.ssip = 1'b1;
+    _dut._csr_file._mepc = 32'h1111_1110;
+    _dut._csr_file._mcause = '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT};
+    _dut._csr_file._mtval = 32'h2222_2222;
+
+    fetch_instr(32'h0000_0000, NOP, "supervisor instruction before interrupt");
+    _dut._csr_file._mip.ssip = 1'b1;
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while (((_dut._csr_file._scause != 32'h8000_0001) ||
+              (_dut._csr_file._priv_mode != PRIV_SUPERVISOR)) && (waits < 120)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < 120, 1'b1, "delegated supervisor interrupt retires");
+    end
+
+    expect_word(_dut._csr_file._sepc, 32'h0000_0000, "supervisor interrupt sepc");
+    expect_word(_dut._csr_file._scause, 32'h8000_0001, "supervisor interrupt scause");
+    expect_word(_dut._csr_file._stval, 32'h0000_0000, "supervisor interrupt stval");
+    expect_word(_dut._csr_file._mepc, 32'h1111_1110, "supervisor interrupt preserves mepc");
+    expect_word(_dut._csr_file._mcause, 32'h0000_0003, "supervisor interrupt preserves mcause");
+    expect_word(_dut._csr_file._mtval, 32'h2222_2222, "supervisor interrupt preserves mtval");
+
+    _dut._csr_file._mip.ssip = 1'b0;
+    fetch_instr(32'h0000_0040, SRET, "supervisor interrupt handler sret");
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while (((_dut._csr_file._priv_mode != PRIV_SUPERVISOR) ||
+              !(_ibus.req.valid && (_ibus.req.addr == 32'h0000_0000))) && (waits < 120)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < 120, 1'b1, "sret resumes interrupted supervisor instruction");
+      expect_bit(_dut._csr_file._priv_mode == PRIV_SUPERVISOR, 1'b1,
+                 "interrupt sret restores supervisor mode");
+      expect_word(_ibus.req.addr, 32'h0000_0000, "interrupt sret resumes at sepc");
+    end
 
     if (_errors == 0) begin
       $display("tb_core_interrupt: PASS (%0d checks)", _checks);

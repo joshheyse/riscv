@@ -18,8 +18,10 @@ module csr_access_control
         illegal_csr_access = 1'b1;
       end
 
-      if (csr_write_en && (csr_addr.fields.rw == 2'b11)) begin
-        illegal_csr_access = 1'b1;
+      if (csr_write_en) begin
+        if (csr_addr.fields.rw == 2'b11) begin
+          illegal_csr_access = 1'b1;
+        end
       end
     end
   end

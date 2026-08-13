@@ -19,9 +19,7 @@ module tb_csr_file
   csr_addr_t   _csr_addr;
   csr_data_t   _csr_write_data;
   logic        _trap_valid;
-  mepc_t       _trap_mepc;
-  mcause_t     _trap_mcause;
-  mtval_t      _trap_mtval;
+  trap_t       _trap;
   logic        _mret_valid;
   logic        _sret_valid;
   csr_data_t   _csr_read_data;
@@ -41,9 +39,7 @@ module tb_csr_file
     .csr_addr(_csr_addr),
     .csr_write_data(_csr_write_data),
     .trap_valid(_trap_valid),
-    .trap_mepc(_trap_mepc),
-    .trap_mcause(_trap_mcause),
-    .trap_mtval(_trap_mtval),
+    .trap(_trap),
     .mret_valid(_mret_valid),
     .sret_valid(_sret_valid),
     .csr_read_data(_csr_read_data),
@@ -83,9 +79,7 @@ module tb_csr_file
     _csr_addr = '0;
     _csr_write_data = '0;
     _trap_valid = 1'b0;
-    _trap_mepc = '0;
-    _trap_mcause = '0;
-    _trap_mtval = '0;
+    _trap = '0;
     _mret_valid = 1'b0;
     _sret_valid = 1'b0;
   endtask
@@ -155,17 +149,24 @@ module tb_csr_file
     _csr_write_data = '0;
   endtask
 
-  task automatic take_trap(input mepc_t mepc, input mcause_t mcause, input mtval_t mtval);
+  task automatic take_target_trap(input epc_t epc, input cause_t cause, input tval_t tval,
+                                  input priv_mode_t target_priv);
     @(negedge _clk);
     _trap_valid  = 1'b1;
-    _trap_mepc   = mepc;
-    _trap_mcause = mcause;
-    _trap_mtval  = mtval;
+    _trap = '{
+        epc: epc,
+        cause: cause,
+        tval: tval,
+        handler_pc: '0,
+        target_priv: target_priv
+    };
     @(negedge _clk);
     _trap_valid  = 1'b0;
-    _trap_mepc   = '0;
-    _trap_mcause = '0;
-    _trap_mtval  = '0;
+    _trap = '0;
+  endtask
+
+  task automatic take_trap(input epc_t epc, input cause_t cause, input tval_t tval);
+    take_target_trap(epc, cause, tval, PRIV_MACHINE);
   endtask
 
   task automatic retire_mret();
@@ -194,6 +195,7 @@ module tb_csr_file
     read_csr(CSR_MCAUSE, 32'h0000_0000, "reset mcause");
     read_csr(CSR_MTVAL, 32'h0000_0000, "reset mtval");
     read_csr(CSR_MIP, 32'h0000_0000, "reset mip");
+    read_csr(CSR_SSCRATCH, 32'h0000_0000, "reset sscratch");
     read_csr(CSR_SATP, 32'h0000_0000, "reset satp is Bare");
     read_csr(CSR_MVENDORID, 32'h0000_0000, "read mvendorid");
     read_csr(CSR_MARCHID, 32'h0000_0000, "read marchid");
@@ -241,7 +243,7 @@ module tb_csr_file
     read_csr(CSR_SSTATUS, 32'h0000_0020, "sret sets spie and leaves spp clear");
 
     // Return to machine mode for the remaining machine trap checks.
-    take_trap(32'h0000_0000, '{is_interrupt: 1'b0, code: MCAUSE_ECALL_U}, '0);
+    take_trap(32'h0000_0000, '{is_interrupt: 1'b0, code: CAUSE_ECALL_U}, '0);
 
     // Supervisor trap CSRs have independent state. `sie` and `sip` expose
     // only interrupt positions delegated by `mideleg`.
@@ -253,6 +255,8 @@ module tb_csr_file
     read_csr(CSR_SCAUSE, 32'h8000_0009, "read scause");
     write_csr(CSR_STVAL, 32'hdead_beef, "write stval");
     read_csr(CSR_STVAL, 32'hdead_beef, "read stval");
+    write_csr(CSR_SSCRATCH, 32'hcafe_babe, "write sscratch");
+    read_csr(CSR_SSCRATCH, 32'hcafe_babe, "read sscratch");
     write_csr(CSR_MEDELEG, 32'h0000_0100, "write medeleg");
     read_csr(CSR_MEDELEG, 32'h0000_0100, "read medeleg");
     write_csr(CSR_MIDELEG, 32'h0000_0222, "delegate supervisor interrupt positions");
@@ -280,7 +284,12 @@ module tb_csr_file
     read_csr(CSR_MIP, 32'h0000_0888, "read mip");
 
     write_csr(CSR_MSTATUS, 32'hffff_ffff, "write all mstatus bits");
-    read_csr(CSR_MSTATUS, 32'h0000_19aa, "mstatus keeps only supported fields");
+    read_csr(CSR_MSTATUS, 32'h0040_19aa, "mstatus keeps only supported fields");
+    expect_bool(_status.mstatus.tsr, 1'b1, "status exposes written tsr");
+
+    write_csr(CSR_MSTATUS, 32'h0040_0000, "write tsr only");
+    read_csr(CSR_MSTATUS, 32'h0040_0000, "mstatus preserves tsr bit");
+    expect_bool(_status.mstatus.tsr, 1'b1, "status exposes tsr-only write");
 
     write_csr(CSR_MSTATUS, 32'h0000_1000, "write invalid mpp encoding");
     read_csr(CSR_MSTATUS, 32'h0000_1800, "invalid mpp coerces to machine");
@@ -305,7 +314,7 @@ module tb_csr_file
 
     // Trap entry updates trap CSRs.
     write_csr(CSR_MSTATUS, 32'h0000_0008, "seed mstatus before trap");
-    take_trap(32'h0000_0080, '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR}, 32'h0000_0013);
+    take_trap(32'h0000_0080, '{is_interrupt: 1'b0, code: CAUSE_ILLEGAL_INSTR}, 32'h0000_0013);
     read_csr(CSR_MEPC, 32'h0000_0080, "trap writes mepc");
     expect_bits(_status.mepc, 32'h0000_0080, "status exposes trap mepc");
     read_csr(CSR_MCAUSE, 32'h0000_0002, "trap writes mcause");
@@ -322,9 +331,59 @@ module tb_csr_file
     expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR), "mret restores supervisor mode");
     read_csr(CSR_MSTATUS, 32'h0000_0080, "mret clears mpp after supervisor return");
 
-    take_trap(32'h0000_0090, '{is_interrupt: 1'b0, code: MCAUSE_ECALL_S}, 32'h0000_0000);
+    take_trap(32'h0000_0090, '{is_interrupt: 1'b0, code: CAUSE_ECALL_S}, 32'h0000_0000);
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "supervisor trap enters machine mode");
     read_csr(CSR_MSTATUS, 32'h0000_0800, "supervisor trap saves mpp");
+
+    // A supervisor-targeted trap saves supervisor trap state and stacks the
+    // supervisor interrupt-enable state without disturbing machine trap CSRs.
+    write_csr(CSR_MEPC, 32'h1111_1110, "seed mepc before supervisor trap");
+    write_csr(CSR_MCAUSE, 32'h0000_0003, "seed mcause before supervisor trap");
+    write_csr(CSR_MTVAL, 32'h2222_2222, "seed mtval before supervisor trap");
+    write_csr(CSR_MSTATUS, 32'h0000_0102, "seed user-to-supervisor trap status");
+    retire_mret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_USER), "mret enters user before delegated trap");
+    take_target_trap(32'h0000_0200, '{is_interrupt: 1'b0, code: CAUSE_ILLEGAL_INSTR},
+                     32'hdead_beef, PRIV_SUPERVISOR);
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
+                "user trap enters supervisor mode");
+    read_csr(CSR_SEPC, 32'h0000_0200, "user trap writes sepc");
+    read_csr(CSR_SCAUSE, 32'h0000_0002, "user trap writes scause");
+    read_csr(CSR_STVAL, 32'hdead_beef, "user trap writes stval");
+    read_csr(CSR_SSTATUS, 32'h0000_0020, "user trap stacks sie and clears spp");
+    read_csr(CSR_MEPC, 32'h1111_1110, "supervisor trap preserves mepc");
+    read_csr(CSR_MCAUSE, 32'h0000_0003, "supervisor trap preserves mcause");
+    read_csr(CSR_MTVAL, 32'h2222_2222, "supervisor trap preserves mtval");
+    read_csr(CSR_SSCRATCH, 32'hcafe_babe, "supervisor trap preserves sscratch");
+
+    retire_sret();
+    read_csr(CSR_SSCRATCH, 32'hcafe_babe, "sret preserves sscratch");
+
+    // An S-to-S trap records S in SPP and also replaces the prior supervisor
+    // trap values without touching the machine trap state.
+    take_trap(32'h0000_0300, '{is_interrupt: 1'b0, code: CAUSE_ECALL_U}, '0);
+    write_csr(CSR_MSTATUS, 32'h0000_0820, "seed supervisor-to-supervisor trap status");
+    retire_mret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
+                "mret enters supervisor before delegated trap");
+    take_target_trap(32'h0000_0240, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT},
+                     32'h0000_0240, PRIV_SUPERVISOR);
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
+                "supervisor trap remains in supervisor mode");
+    read_csr(CSR_SEPC, 32'h0000_0240, "supervisor trap writes sepc");
+    read_csr(CSR_SCAUSE, 32'h0000_0003, "supervisor trap writes scause");
+    read_csr(CSR_STVAL, 32'h0000_0240, "supervisor trap writes stval");
+    read_csr(CSR_SSTATUS, 32'h0000_0100, "supervisor trap clears spie and sets spp");
+
+    // Unsupported target encodings defensively take the machine trap path.
+    take_target_trap(32'h0000_0280, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT},
+                     32'h0000_00cc, priv_mode_t'(2'b10));
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE),
+                "reserved trap target falls back to machine mode");
+    read_csr(CSR_MEPC, 32'h0000_0280, "fallback trap writes mepc");
+    read_csr(CSR_MCAUSE, 32'h0000_0003, "fallback trap writes mcause");
+    read_csr(CSR_MTVAL, 32'h0000_00cc, "fallback trap writes mtval");
+    read_csr(CSR_MSTATUS, 32'h0000_0900, "fallback trap saves supervisor origin in mpp");
 
     // Trap entry wins over a simultaneous normal CSR write.
     @(negedge _clk);
@@ -333,9 +392,10 @@ module tb_csr_file
     _csr_addr.raw = CSR_MEPC;
     _csr_write_data = 32'hffff_ffff;
     _trap_valid = 1'b1;
-    _trap_mepc = 32'h0000_00c0;
-    _trap_mcause = '{is_interrupt: 1'b0, code: MCAUSE_BREAKPOINT};
-    _trap_mtval = 32'h0000_00cc;
+    _trap.epc = 32'h0000_00c0;
+    _trap.cause = '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT};
+    _trap.tval = 32'h0000_00cc;
+    _trap.target_priv = PRIV_MACHINE;
     #1;
     expect_bool(_illegal_csr, 1'b0, "simultaneous trap/write legal CSR address");
     @(negedge _clk);

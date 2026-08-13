@@ -83,7 +83,7 @@ package riscv_pkg;
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
   typedef logic [3:0] mem_write_mask_t;
-  typedef word_t mtval_t;
+  typedef word_t tval_t;
 
   // RV32I opcode map used by the main decoder.
   //
@@ -313,13 +313,16 @@ package riscv_pkg;
     TRAP_SRC_STORE_ADDR_MISALIGNED,
     TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
     TRAP_SRC_MACHINE_TIMER_INTERRUPT,
-    TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT
+    TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
+    TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
+    TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT,
+    TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT
   } trap_src_t;
 
   typedef struct packed {
     logic      valid;  // stage requests a synchronous trap
     trap_src_t src;    // trap source
-    mtval_t    mtval;  // trap-specific value
+    tval_t     tval;  // trap-specific value
   } trap_req_t;
 
   typedef struct packed {
@@ -453,36 +456,35 @@ package riscv_pkg;
   typedef mip_t mie_t;
 
   typedef enum logic [1:0] {
-    MTVEC_MODE_DIRECT   = 2'b00,
-    MTVEC_MODE_VECTORED = 2'b01
-  } mtvec_mode_t;
+    TVEC_MODE_DIRECT   = 2'b00,
+    TVEC_MODE_VECTORED = 2'b01
+  } tvec_mode_t;
 
   typedef struct packed {
     logic [29:0] base;  // [31:2] trap-vector base addres
-    mtvec_mode_t mode;  // [1:0] trap-vector mode
-  } mtvec_t;
+    tvec_mode_t mode;  // [1:0] trap-vector mode
+  } tvec_t;
 
-  typedef pc_t mepc_t;
-  typedef pc_t sepc_t;
+  typedef pc_t epc_t;
 
   typedef enum logic [30:0] {
-    MCAUSE_INSTR_ADDR_MISALIGNED = 31'd0,
-    MCAUSE_INSTR_ACCESS_FAULT    = 31'd1,
-    MCAUSE_ILLEGAL_INSTR         = 31'd2,
-    MCAUSE_BREAKPOINT            = 31'd3,
-    MCAUSE_LOAD_ADDR_MISALIGNED  = 31'd4,
-    MCAUSE_LOAD_ACCESS_FAULT     = 31'd5,
-    MCAUSE_STORE_ADDR_MISALIGNED = 31'd6,
-    MCAUSE_STORE_ACCESS_FAULT    = 31'd7,
-    MCAUSE_ECALL_U               = 31'd8,
-    MCAUSE_ECALL_S               = 31'd9,
-    MCAUSE_ECALL_M               = 31'd11
-  } exception_code_t;
+    CAUSE_INSTR_ADDR_MISALIGNED = 31'd0,
+    CAUSE_INSTR_ACCESS_FAULT    = 31'd1,
+    CAUSE_ILLEGAL_INSTR         = 31'd2,
+    CAUSE_BREAKPOINT            = 31'd3,
+    CAUSE_LOAD_ADDR_MISALIGNED  = 31'd4,
+    CAUSE_LOAD_ACCESS_FAULT     = 31'd5,
+    CAUSE_STORE_ADDR_MISALIGNED = 31'd6,
+    CAUSE_STORE_ACCESS_FAULT    = 31'd7,
+    CAUSE_ECALL_U               = 31'd8,
+    CAUSE_ECALL_S               = 31'd9,
+    CAUSE_ECALL_M               = 31'd11
+  } cause_code_t;
 
   typedef struct packed {
     logic            is_interrupt;  // [31] 1 = interrupt, 0 = exception
-    exception_code_t code;          // [30:0] exception/interrupt cause code
-  } mcause_t;
+    cause_code_t code;          // [30:0] exception/interrupt cause code
+  } cause_t;
 
   typedef csr_data_t mvendorid_t;
   typedef csr_data_t marchid_t;
@@ -490,10 +492,11 @@ package riscv_pkg;
   typedef csr_data_t mhartid_t;
 
   typedef struct packed {
-    mepc_t   mepc;    // trapped instruction PC
-    mcause_t mcause;  // trap cause
-    mtval_t  mtval;   // trap-specific value
-    pc_t     pc;      // trap vector target
+    pc_t        epc;          // PC saved in the target privilege's xepc CSR
+    cause_t     cause;        // value saved in the target privilege's xcause CSR
+    tval_t      tval;         // value saved in the target privilege's xtval CSR
+    pc_t        handler_pc;   // resolved trap-vector target
+    priv_mode_t target_priv;  // privilege mode entered by this trap
   } trap_t;
 
   typedef struct packed {
@@ -502,13 +505,13 @@ package riscv_pkg;
   } trap_stage_t;
 
   typedef struct packed {
-    mtvec_t     mtvec;
-    mtvec_t     stvec;
+    tvec_t      mtvec;
+    tvec_t      stvec;
     mstatus_t   mstatus;
     mie_t       mie;
     mip_t       mip;
-    mepc_t      mepc;
-    sepc_t      sepc;
+    epc_t       mepc;
+    epc_t       sepc;
     word_t      medeleg;
     word_t      mideleg;
     priv_mode_t priv_mode;

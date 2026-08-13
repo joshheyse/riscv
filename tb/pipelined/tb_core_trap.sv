@@ -116,11 +116,12 @@ module tb_core_trap
     expect_word(_dut._if_id.slot.pc, 32'h0000_0000, "IF/ID carries illegal instruction pc");
     expect_word(_dut._if_id.slot.instr.raw, IllegalInstr, "IF/ID carries illegal instruction");
     expect_bit(_dut._id_trap.valid, 1'b1, "illegal instruction asserts trap");
-    expect_word(_dut._id_trap.payload.mepc, 32'h0000_0000, "trap mepc is illegal instruction pc");
-    expect_word(_dut._id_trap.payload.mcause, 32'h0000_0002, "trap mcause is illegal instruction");
-    expect_word(_dut._id_trap.payload.mtval, IllegalInstr,
-                "trap mtval is illegal instruction bits");
-    expect_word(_dut._id_trap.payload.pc, 32'h0000_0000, "temporary zero mtvec traps to zero");
+    expect_word(_dut._id_trap.payload.epc, 32'h0000_0000, "trap epc is illegal instruction pc");
+    expect_word(_dut._id_trap.payload.cause, 32'h0000_0002, "trap cause is illegal instruction");
+    expect_word(_dut._id_trap.payload.tval, IllegalInstr,
+                "trap tval is illegal instruction bits");
+    expect_word(_dut._id_trap.payload.handler_pc, 32'h0000_0000,
+                "temporary zero mtvec traps to zero");
     expect_bit(_halted, 1'b0, "trap is visible before retirement");
 
     @(posedge _clk);

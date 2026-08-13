@@ -20,6 +20,7 @@ module tb_core_privilege_return
 
   localparam instr_t ECALL = 32'h0000_0073;
   localparam instr_t MRET = 32'h3020_0073;
+  localparam instr_t SRET = 32'h1020_0073;
   localparam instr_t ILLEGAL = 32'h0000_0000;
   localparam instr_t ADDI_X3_1 = 32'h0010_0193;
   localparam instr_t ADDI_X5_8 = 32'h0080_0293;
@@ -286,6 +287,52 @@ module tb_core_privilege_return
     expect_word(_dut._reg_file._regs[3], 32'h0000_0001, "handler executed");
     expect_word(_dut._reg_file._regs[5], 32'h0000_0008, "handler loaded resume PC");
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, "privilege returned to user");
+
+    // Repeat the complete path with exception delegation to supervisor mode.
+    reset_core();
+    _dut._csr_file._stvec.base = MTVEC_HANDLER_BASE;
+    _dut._csr_file._medeleg = 32'h0000_0004;
+    _dut._csr_file._priv_mode = PRIV_USER;
+    _dut._reg_file._regs[2] = '0;
+    _dut._reg_file._regs[5] = '0;
+    _dut._csr_file._mepc = 32'h1111_1110;
+    _dut._csr_file._mcause = '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT};
+    _dut._csr_file._mtval = 32'h2222_2222;
+
+    fetch_instr(32'h0000_0000, ILLEGAL, "delegated illegal instruction from user");
+    offer_squashed_instr(32'h0000_0004, ADDI_X2_2,
+                         "younger instruction after delegated trap is squashed");
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while (((_dut._csr_file._scause != 32'h0000_0002) ||
+              (_dut._csr_file._priv_mode != PRIV_SUPERVISOR)) && (waits < TrapTimeout)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < TrapTimeout, 1'b1, "delegated exception enters supervisor mode");
+    end
+
+    expect_word(_dut._csr_file._sepc, 32'h0000_0000, "delegated trap sepc");
+    expect_word(_dut._csr_file._scause, 32'h0000_0002, "delegated trap scause");
+    expect_word(_dut._csr_file._stval, ILLEGAL, "delegated trap stval");
+    expect_word(_dut._csr_file._mepc, 32'h1111_1110, "delegated trap preserves mepc");
+    expect_word(_dut._csr_file._mcause, 32'h0000_0003, "delegated trap preserves mcause");
+    expect_word(_dut._csr_file._mtval, 32'h2222_2222, "delegated trap preserves mtval");
+
+    fetch_instr(32'h0000_0040, ADDI_X5_8, "supervisor handler loads resume PC");
+    fetch_instr(32'h0000_0044, csr_instr(CSR_SEPC, 5'd5, SYS_F3_RW, 5'd0),
+                "supervisor handler rewrites sepc");
+    fetch_instr(32'h0000_0048, SRET, "supervisor handler returns with sret");
+    fetch_instr(32'h0000_004c, ILLEGAL, "younger illegal instruction after sret");
+
+    verify_resume_executes_after_mret("delegated supervisor return");
+    wait_for_user_privilege_after_mret("sret returns to user mode");
+    expect_word(_dut._csr_file._sepc, 32'h0000_0008, "handler prepared user sepc");
+    expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1,
+               "supervisor privilege returned to user");
 
     if (_errors == 0) begin
       $display("tb_core_privilege_return: PASS (%0d checks)", _checks);

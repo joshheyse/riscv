@@ -117,6 +117,11 @@ module core
   logic _mie_pending_meip;
   logic _mie_pending_mtip;
   logic _mie_pending_msip;
+  logic _mie_pending_seip;
+  logic _mie_pending_stip;
+  logic _mie_pending_ssip;
+  logic _machine_interrupts_enabled;
+  logic _supervisor_interrupts_enabled;
 
   always_comb begin
     _ex_trap = '0;
@@ -134,34 +139,53 @@ module core
 
   assign _trap_from_if_id = _if_id.valid && _id_trap.valid && !_trap_held;
 
-  // Machine-level interrupt checks. For now we implement machine mode
-  // interrupt delivery only; supervisor interrupts remain a future enhancement.
   always_comb begin
-    _interrupt_trap_req = '0;
-    _mie_pending_meip   = 1'b0;
-    _mie_pending_mtip   = 1'b0;
-    _mie_pending_msip   = 1'b0;
+    _interrupt_trap_req         = '0;
+    _mie_pending_meip           = _csr_status.mip.meip | irq.pending.meip;
+    _mie_pending_mtip           = _csr_status.mip.mtip | irq.pending.mtip;
+    _mie_pending_msip           = _csr_status.mip.msip | irq.pending.msip;
+    _mie_pending_seip           = _csr_status.mip.seip | irq.pending.seip;
+    _mie_pending_stip           = _csr_status.mip.stip | irq.pending.stip;
+    _mie_pending_ssip           = _csr_status.mip.ssip | irq.pending.ssip;
+    _machine_interrupts_enabled = (_csr_status.priv_mode != PRIV_MACHINE) ||
+        _csr_status.mstatus.mie;
+    _supervisor_interrupts_enabled = (_csr_status.priv_mode == PRIV_USER) ||
+        ((_csr_status.priv_mode == PRIV_SUPERVISOR) && _csr_status.mstatus.sie);
 
-    if (_csr_status.priv_mode == PRIV_MACHINE && _csr_status.mstatus.mie) begin
-      _mie_pending_meip = _csr_status.mip.meip | irq.pending.meip;
-      _mie_pending_mtip = _csr_status.mip.mtip | irq.pending.mtip;
-      _mie_pending_msip = _csr_status.mip.msip | irq.pending.msip;
-
-      if (_csr_status.mie.meip && _mie_pending_meip) begin
-        _interrupt_trap_req = '{
-            valid: 1'b1,
-            src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
-            mtval: '0
-        };
-      end else if (_csr_status.mie.mtip && _mie_pending_mtip) begin
-        _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, mtval: '0};
-      end else if (_csr_status.mie.msip && _mie_pending_msip) begin
-        _interrupt_trap_req = '{
-            valid: 1'b1,
-            src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
-            mtval: '0
-        };
-      end
+    if (_csr_status.mie.meip && _mie_pending_meip && _machine_interrupts_enabled) begin
+      _interrupt_trap_req = '{
+          valid: 1'b1,
+          src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
+          tval: '0
+      };
+    end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_enabled) begin
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, tval: '0};
+    end else if (_csr_status.mie.msip && _mie_pending_msip && _machine_interrupts_enabled) begin
+      _interrupt_trap_req = '{
+          valid: 1'b1,
+          src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
+          tval: '0
+      };
+    end else if (_csr_status.mie.seip && _mie_pending_seip &&
+                 (_csr_status.mideleg[9] ? _supervisor_interrupts_enabled :
+                                          _machine_interrupts_enabled)) begin
+      _interrupt_trap_req = '{
+          valid: 1'b1,
+          src: TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
+          tval: '0
+      };
+    end else if (_csr_status.mie.stip && _mie_pending_stip &&
+                 (_csr_status.mideleg[5] ? _supervisor_interrupts_enabled :
+                                          _machine_interrupts_enabled)) begin
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT, tval: '0};
+    end else if (_csr_status.mie.ssip && _mie_pending_ssip &&
+                 (_csr_status.mideleg[1] ? _supervisor_interrupts_enabled :
+                                          _machine_interrupts_enabled)) begin
+      _interrupt_trap_req = '{
+          valid: 1'b1,
+          src: TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
+          tval: '0
+      };
     end
   end
 
@@ -175,13 +199,13 @@ module core
   assign _csr_illegal_trap_req = '{
           valid: _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid && _csr_illegal,
           src: TRAP_SRC_ILLEGAL_CSR,
-          mtval: _id_ex.slot.instr.raw
+          tval: _id_ex.slot.instr.raw
       };
 
   assign _system_illegal_trap_req = '{
           valid: _id_ex.valid && !_id_ex.trap.valid && _system_access_illegal,
           src: TRAP_SRC_ILLEGAL_INSTR,
-          mtval: _id_ex.slot.instr.raw
+          tval: _id_ex.slot.instr.raw
       };
 
   // Files
@@ -204,9 +228,7 @@ module core
     .csr_addr(_csr.addr),
     .csr_write_data(_csr.write_data),
     .trap_valid(_retire.trap),
-    .trap_mepc(_mem_wb.trap.payload.mepc),
-    .trap_mcause(_mem_wb.trap.payload.mcause),
-    .trap_mtval(_mem_wb.trap.payload.mtval),
+    .trap(_mem_wb.trap.payload),
     .mret_valid(_retire.mret),
     .sret_valid(_retire.sret),
     .csr_read_data(_csr.read_data),
@@ -225,6 +247,7 @@ module core
   system_access_control _system_access_control (
     .system_ctrl(_id_ex.ctrl.system),
     .priv_mode(_csr_status.priv_mode),
+    .tsr(_csr_status.mstatus.tsr),
     .illegal_system_access(_system_access_illegal)
   );
 
@@ -241,32 +264,28 @@ module core
   trap_control _id_trap_control (
     .trap_req(_id_trap_req),
     .pc(_if_id.slot.pc),
-    .mtvec(_csr_status.mtvec),
-    .priv_mode(_csr_status.priv_mode),
+    .csr_status(_csr_status),
     .trap(_id_trap)
   );
 
   trap_control _ex_trap_control (
     .trap_req(_csr_illegal_trap_req),
     .pc(_id_ex.slot.pc),
-    .mtvec(_csr_status.mtvec),
-    .priv_mode(_csr_status.priv_mode),
+    .csr_status(_csr_status),
     .trap(_csr_trap)
   );
 
   trap_control _system_trap_control (
     .trap_req(_system_illegal_trap_req),
     .pc(_id_ex.slot.pc),
-    .mtvec(_csr_status.mtvec),
-    .priv_mode(_csr_status.priv_mode),
+    .csr_status(_csr_status),
     .trap(_system_trap)
   );
 
   trap_control _redirect_trap_control (
     .trap_req(_redirect_trap_req),
     .pc(_id_ex.slot.pc),
-    .mtvec(_csr_status.mtvec),
-    .priv_mode(_csr_status.priv_mode),
+    .csr_status(_csr_status),
     .trap(_redirect_trap)
   );
 
@@ -456,8 +475,7 @@ module core
 
   mem_stage _mem_stage (
     .ex_mem(_ex_mem),
-    .mtvec(_csr_status.mtvec),
-    .priv_mode(_csr_status.priv_mode),
+    .csr_status(_csr_status),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(dbus)

@@ -75,10 +75,11 @@ module tb_trap_orchestrator
     trap = '{
         valid: valid,
         payload: '{
-            mepc: pc,
-            mcause: '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR},
-            mtval: raw,
-            pc: vec_pc
+            epc: pc,
+            cause: '{is_interrupt: 1'b0, code: CAUSE_ILLEGAL_INSTR},
+            tval: raw,
+            handler_pc: vec_pc,
+            target_priv: PRIV_MACHINE
         }
     };
   endtask
@@ -109,8 +110,8 @@ module tb_trap_orchestrator
     tick_and_capture(1);
     expect_bit(_trap_in_flight, 1'b1, "trap_in_flight asserts with pending trap");
     expect_bit(_trap_held, 1'b1, "trap is held while in-flight");
-    expect_word(_trap.payload.mepc, 32'h0000_0018, "oldest trap has MEM/WB priority");
-    expect_word(_trap.payload.mtval, 32'h3333_3333, "oldest trap payload selected");
+    expect_word(_trap.payload.epc, 32'h0000_0018, "oldest trap has MEM/WB priority");
+    expect_word(_trap.payload.tval, 32'h3333_3333, "oldest trap payload selected");
 
     @(negedge _clk);
     set_trap(_mem_trap, 1'b0, 32'h0000_0020, 32'h0000_000c, 32'h4444_4444);
@@ -118,7 +119,7 @@ module tb_trap_orchestrator
     set_trap(_id_trap, 1'b1, 32'h0000_0030, 32'h0000_0014, 32'h1111_1111);
 
     tick_and_capture(1);
-    expect_word(_trap.payload.mepc, 32'h0000_0018,
+    expect_word(_trap.payload.epc, 32'h0000_0018,
                 "held trap stays stable while older trap not cleared");
     expect_bit(_trap_in_flight, 1'b1, "trap still in flight while held");
     expect_bit(_trap_held, 1'b1, "trap remains held after clear");
@@ -128,7 +129,7 @@ module tb_trap_orchestrator
 
     tick_and_capture(1);
     _clear_trap = 1'b0;
-    expect_word(_trap.payload.mepc, 32'h0000_0028,
+    expect_word(_trap.payload.epc, 32'h0000_0028,
                 "next oldest trap selected after clear");
     expect_bit(_trap_in_flight, 1'b1, "trap still in flight from next candidate");
 

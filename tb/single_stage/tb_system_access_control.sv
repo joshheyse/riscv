@@ -13,6 +13,7 @@ module tb_system_access_control
 
   system_ctrl_t _system_ctrl;
   priv_mode_t   _priv_mode;
+  logic         _tsr;
   logic         _illegal_system_access;
 
   int unsigned _errors = 0;
@@ -21,6 +22,7 @@ module tb_system_access_control
   system_access_control _dut (
     .system_ctrl(_system_ctrl),
     .priv_mode(_priv_mode),
+    .tsr(_tsr),
     .illegal_system_access(_illegal_system_access)
   );
 
@@ -33,9 +35,10 @@ module tb_system_access_control
   endtask
 
   task automatic check(input logic en, input system_op_t op, input priv_mode_t priv_mode,
-                       input logic exp_illegal, input string what);
+                       input logic tsr, input logic exp_illegal, input string what);
     _system_ctrl = '{en: en, op: op};
     _priv_mode   = priv_mode;
+    _tsr         = tsr;
     #1;
     expect_bit(_illegal_system_access, exp_illegal, what);
   endtask
@@ -46,20 +49,25 @@ module tb_system_access_control
       $dumpvars(0, tb_system_access_control);
     end
 
-    check(1'b0, SYSTEM_OP_MRET, PRIV_USER, 1'b0, "idle mret is legal");
+    check(1'b0, SYSTEM_OP_MRET, PRIV_USER, 1'b0, 1'b0, "idle mret is legal");
 
-    check(1'b1, SYSTEM_OP_MRET, PRIV_MACHINE, 1'b0, "machine mret is legal");
-    check(1'b1, SYSTEM_OP_MRET, PRIV_SUPERVISOR, 1'b1, "supervisor mret is illegal");
-    check(1'b1, SYSTEM_OP_MRET, PRIV_USER, 1'b1, "user mret is illegal");
+    check(1'b1, SYSTEM_OP_MRET, PRIV_MACHINE, 1'b0, 1'b0, "machine mret is legal");
+    check(1'b1, SYSTEM_OP_MRET, PRIV_SUPERVISOR, 1'b0, 1'b1, "supervisor mret is illegal");
+    check(1'b1, SYSTEM_OP_MRET, PRIV_USER, 1'b0, 1'b1, "user mret is illegal");
 
-    check(1'b1, SYSTEM_OP_SRET, PRIV_MACHINE, 1'b0, "machine sret is legal");
-    check(1'b1, SYSTEM_OP_SRET, PRIV_SUPERVISOR, 1'b0, "supervisor sret is legal");
-    check(1'b1, SYSTEM_OP_SRET, PRIV_USER, 1'b1, "user sret is illegal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_MACHINE, 1'b0, 1'b0, "machine sret is legal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_MACHINE, 1'b1, 1'b0, "tsr does not block machine sret");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_SUPERVISOR, 1'b0, 1'b0, "supervisor sret is legal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_SUPERVISOR, 1'b1, 1'b1,
+          "tsr blocks supervisor sret");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_USER, 1'b0, 1'b1, "user sret is illegal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_USER, 1'b1, 1'b1, "user sret remains illegal with tsr");
 
-    check(1'b1, SYSTEM_OP_ECALL, PRIV_USER, 1'b0, "ecall access is not checked here");
-    check(1'b1, SYSTEM_OP_EBREAK, PRIV_USER, 1'b0, "ebreak access is not checked here");
-    check(1'b1, SYSTEM_OP_WFI, PRIV_USER, 1'b0, "wfi access is not checked here");
-    check(1'b1, SYSTEM_OP_ILLEGAL, PRIV_USER, 1'b0, "decode illegal is not checked here");
+    check(1'b1, SYSTEM_OP_ECALL, PRIV_USER, 1'b1, 1'b0, "ecall access is not checked here");
+    check(1'b1, SYSTEM_OP_EBREAK, PRIV_USER, 1'b1, 1'b0, "ebreak access is not checked here");
+    check(1'b1, SYSTEM_OP_WFI, PRIV_USER, 1'b1, 1'b0, "wfi access is not checked here");
+    check(1'b1, SYSTEM_OP_ILLEGAL, PRIV_USER, 1'b1, 1'b0,
+          "decode illegal is not checked here");
 
     if (_errors == 0) begin
       $display("tb_system_access_control: PASS (%0d checks)", _checks);

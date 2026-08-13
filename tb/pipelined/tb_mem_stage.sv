@@ -11,8 +11,7 @@ module tb_mem_stage
 ();
 
   ex_mem_t    _ex_mem;
-  mtvec_t     _mtvec;
-  priv_mode_t _priv_mode;
+  csr_status_t _csr_status;
   logic       _mem_wait;
   mem_wb_t    _mem_wb_payload;
 
@@ -23,8 +22,7 @@ module tb_mem_stage
 
   mem_stage _dut (
     .ex_mem(_ex_mem),
-    .mtvec(_mtvec),
-    .priv_mode(_priv_mode),
+    .csr_status(_csr_status),
     .mem_wait(_mem_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(_dbus)
@@ -48,8 +46,9 @@ module tb_mem_stage
 
   task automatic clear_inputs();
     _ex_mem = '0;
-    _mtvec = '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT};
-    _priv_mode = PRIV_MACHINE;
+    _csr_status = '0;
+    _csr_status.mtvec = '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT};
+    _csr_status.priv_mode = PRIV_MACHINE;
     _dbus.rsp = '0;
     _dbus.rsp.ready = 1'b1;
   endtask
@@ -118,9 +117,9 @@ module tb_mem_stage
     expect_bit(_dbus.req.valid, 1'b0, "misaligned load does not request dbus");
     expect_bit(_mem_wait, 1'b0, "misaligned load does not wait");
     expect_bit(_mem_wb_payload.trap.valid, 1'b1, "misaligned load produces trap");
-    expect_word(_mem_wb_payload.trap.payload.mepc, 32'h0000_0040, "misaligned load mepc");
-    expect_word(_mem_wb_payload.trap.payload.mcause, 32'h0000_0004, "misaligned load mcause");
-    expect_word(_mem_wb_payload.trap.payload.mtval, 32'h1000_0002, "misaligned load mtval");
+    expect_word(_mem_wb_payload.trap.payload.epc, 32'h0000_0040, "misaligned load epc");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'h0000_0004, "misaligned load cause");
+    expect_word(_mem_wb_payload.trap.payload.tval, 32'h1000_0002, "misaligned load tval");
 
     clear_inputs();
     _ex_mem.valid = 1'b1;
@@ -131,9 +130,9 @@ module tb_mem_stage
     #1;
     expect_bit(_dbus.req.valid, 1'b0, "misaligned store does not request dbus");
     expect_bit(_mem_wb_payload.trap.valid, 1'b1, "misaligned store produces trap");
-    expect_word(_mem_wb_payload.trap.payload.mepc, 32'h0000_0044, "misaligned store mepc");
-    expect_word(_mem_wb_payload.trap.payload.mcause, 32'h0000_0006, "misaligned store mcause");
-    expect_word(_mem_wb_payload.trap.payload.mtval, 32'h1000_0001, "misaligned store mtval");
+    expect_word(_mem_wb_payload.trap.payload.epc, 32'h0000_0044, "misaligned store epc");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'h0000_0006, "misaligned store cause");
+    expect_word(_mem_wb_payload.trap.payload.tval, 32'h1000_0001, "misaligned store tval");
 
     if (_errors == 0) begin
       $display("tb_mem_stage: PASS (%0d checks)", _checks);

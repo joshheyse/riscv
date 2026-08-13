@@ -13,8 +13,7 @@ module tb_trap_control
 
   trap_req_t   _trap_req;
   pc_t         _pc;
-  mtvec_t      _mtvec;
-  priv_mode_t  _priv_mode;
+  csr_status_t _csr_status;
   trap_stage_t _trap;
 
   int unsigned _errors = 0;
@@ -23,8 +22,7 @@ module tb_trap_control
   trap_control _dut (
     .trap_req(_trap_req),
     .pc(_pc),
-    .mtvec(_mtvec),
-    .priv_mode(_priv_mode),
+    .csr_status(_csr_status),
     .trap(_trap)
   );
 
@@ -44,31 +42,58 @@ module tb_trap_control
     end
   endtask
 
-  task automatic drive(input logic trap_valid, input trap_src_t trap_src, input mtval_t mtval,
-                       input pc_t pc, input mtvec_t mtvec, input priv_mode_t priv_mode);
-    _trap_req  = '{valid: trap_valid, src: trap_src, mtval: mtval};
+  task automatic drive(input logic trap_valid, input trap_src_t trap_src, input tval_t tval,
+                       input pc_t pc, input tvec_t tvec, input priv_mode_t priv_mode);
+    _trap_req  = '{valid: trap_valid, src: trap_src, tval: tval};
     _pc        = pc;
-    _mtvec     = mtvec;
-    _priv_mode = priv_mode;
+    _csr_status           = '0;
+    _csr_status.mtvec     = tvec;
+    _csr_status.priv_mode = priv_mode;
     #1;
   endtask
 
   task automatic expect_illegal_trap(input instr_t instr, input pc_t pc, input pc_t trap_pc,
                                      input string what);
     expect_bool(_trap.valid, 1'b1, {what, " valid"});
-    expect_bits(_trap.payload.mepc, pc, {what, " mepc"});
-    expect_bits(_trap.payload.mcause, 32'h0000_0002, {what, " mcause"});
-    expect_bits(_trap.payload.mtval, instr, {what, " mtval"});
-    expect_bits(_trap.payload.pc, trap_pc, {what, " trap_pc"});
+    expect_bits(_trap.payload.epc, pc, {what, " epc"});
+    expect_bits(_trap.payload.cause, 32'h0000_0002, {what, " cause"});
+    expect_bits(_trap.payload.tval, instr, {what, " tval"});
+    expect_bits(_trap.payload.handler_pc, trap_pc, {what, " handler_pc"});
+    expect_bits(32'(_trap.payload.target_priv), 32'(PRIV_MACHINE), {what, " target_priv"});
   endtask
 
   task automatic expect_trap(input word_t mcause, input word_t mtval, input pc_t pc,
                              input pc_t trap_pc, input string what);
     expect_bool(_trap.valid, 1'b1, {what, " valid"});
-    expect_bits(_trap.payload.mepc, pc, {what, " mepc"});
-    expect_bits(_trap.payload.mcause, mcause, {what, " mcause"});
-    expect_bits(_trap.payload.mtval, mtval, {what, " mtval"});
-    expect_bits(_trap.payload.pc, trap_pc, {what, " trap_pc"});
+    expect_bits(_trap.payload.epc, pc, {what, " epc"});
+    expect_bits(_trap.payload.cause, mcause, {what, " cause"});
+    expect_bits(_trap.payload.tval, mtval, {what, " tval"});
+    expect_bits(_trap.payload.handler_pc, trap_pc, {what, " handler_pc"});
+    expect_bits(32'(_trap.payload.target_priv), 32'(PRIV_MACHINE), {what, " target_priv"});
+  endtask
+
+  task automatic drive_delegated(input trap_src_t trap_src, input tval_t tval, input pc_t pc,
+                                 input priv_mode_t priv_mode, input word_t medeleg,
+                                 input tvec_t mtvec, input tvec_t stvec);
+    _trap_req             = '{valid: 1'b1, src: trap_src, tval: tval};
+    _pc                   = pc;
+    _csr_status           = '0;
+    _csr_status.priv_mode = priv_mode;
+    _csr_status.medeleg   = medeleg;
+    _csr_status.mtvec     = mtvec;
+    _csr_status.stvec     = stvec;
+    #1;
+  endtask
+
+  task automatic expect_delegated_trap(input word_t cause, input tval_t tval, input pc_t epc,
+                                       input pc_t handler_pc, input priv_mode_t target_priv,
+                                       input string what);
+    expect_bool(_trap.valid, 1'b1, {what, " valid"});
+    expect_bits(_trap.payload.epc, epc, {what, " epc"});
+    expect_bits(_trap.payload.cause, cause, {what, " cause"});
+    expect_bits(_trap.payload.tval, tval, {what, " tval"});
+    expect_bits(_trap.payload.handler_pc, handler_pc, {what, " handler_pc"});
+    expect_bits(32'(_trap.payload.target_priv), 32'(target_priv), {what, " target_priv"});
   endtask
 
   initial begin
@@ -78,71 +103,116 @@ module tb_trap_control
     end
 
     drive(1'b0, TRAP_SRC_NONE, 32'h0000_0000, 32'h0000_0000,
-          '{base: 30'h0000_0400, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0400, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_bool(_trap.valid, 1'b0, "legal instruction has no trap");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0020,
-          '{base: 30'h0000_0100, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0100, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_illegal_trap(32'hffff_ffff, 32'h0000_0020, 32'h0000_0400,
                         "illegal instruction direct mtvec");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h0000_0000, 32'h0000_0084,
-          '{base: 30'h0000_0200, mode: MTVEC_MODE_VECTORED}, PRIV_MACHINE);
+          '{base: 30'h0000_0200, mode: TVEC_MODE_VECTORED}, PRIV_MACHINE);
     expect_illegal_trap(32'h0000_0000, 32'h0000_0084, 32'h0000_0800,
                         "illegal instruction vectored mtvec");
 
     drive(1'b1, TRAP_SRC_ILLEGAL_INSTR, 32'h1234_5678, 32'h0000_00c0,
-          '{base: 30'h0000_0000, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0000, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_illegal_trap(32'h1234_5678, 32'h0000_00c0, 32'h0000_0000,
                         "illegal instruction zero mtvec");
 
     drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_000b, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
                 "ecall from machine mode");
 
     drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_SUPERVISOR);
+          '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT}, PRIV_SUPERVISOR);
     expect_trap(32'h0000_0009, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100,
                 "ecall from supervisor mode");
 
     drive(1'b1, TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0100,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_USER);
+          '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT}, PRIV_USER);
     expect_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0100, 32'h0000_0100, "ecall from user mode");
 
     drive(1'b1, TRAP_SRC_EBREAK, 32'h0000_0000, 32'h0000_0104,
-          '{base: 30'h0000_0044, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0044, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0003, 32'h0000_0000, 32'h0000_0104, 32'h0000_0110, "ebreak");
 
     drive(1'b1, TRAP_SRC_INSTR_ADDR_MISALIGNED, 32'h0000_0082, 32'h0000_0200,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0000, 32'h0000_0082, 32'h0000_0200, 32'h0000_0200,
                 "instruction address misaligned");
 
     drive(1'b1, TRAP_SRC_LOAD_ADDR_MISALIGNED, 32'h0000_1002, 32'h0000_0204,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0004, 32'h0000_1002, 32'h0000_0204, 32'h0000_0200,
                 "load address misaligned");
 
     drive(1'b1, TRAP_SRC_STORE_ADDR_MISALIGNED, 32'h0000_1002, 32'h0000_0208,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h0000_0006, 32'h0000_1002, 32'h0000_0208, 32'h0000_0200,
                 "store address misaligned");
 
     drive(1'b1, TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, 32'h0000_0000, 32'h0000_0300,
-          '{base: 30'h0000_0080, mode: MTVEC_MODE_VECTORED}, PRIV_MACHINE);
+          '{base: 30'h0000_0080, mode: TVEC_MODE_VECTORED}, PRIV_MACHINE);
     expect_trap(32'h8000_0003, 32'h0000_0000, 32'h0000_0300, 32'h0000_020c,
                 "machine software interrupt");
 
     drive(1'b1, TRAP_SRC_MACHINE_TIMER_INTERRUPT, 32'h0000_0000, 32'h0000_0304,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h8000_0007, 32'h0000_0000, 32'h0000_0304, 32'h0000_0100,
                 "machine timer interrupt");
 
     drive(1'b1, TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, 32'h0000_0000, 32'h0000_0308,
-          '{base: 30'h0000_0040, mode: MTVEC_MODE_DIRECT}, PRIV_MACHINE);
+          '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT}, PRIV_MACHINE);
     expect_trap(32'h8000_000b, 32'h0000_0000, 32'h0000_0308, 32'h0000_0100,
                 "machine external interrupt");
+
+    drive(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT, 32'h0000_0000, 32'h0000_030c,
+          '{base: 30'h0000_0080, mode: TVEC_MODE_VECTORED}, PRIV_MACHINE);
+    expect_trap(32'h8000_0001, 32'h0000_0000, 32'h0000_030c, 32'h0000_0204,
+                "supervisor software interrupt cause");
+
+    drive(1'b1, TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT, 32'h0000_0000, 32'h0000_0310,
+          '{base: 30'h0000_0080, mode: TVEC_MODE_VECTORED}, PRIV_MACHINE);
+    expect_trap(32'h8000_0005, 32'h0000_0000, 32'h0000_0310, 32'h0000_0214,
+                "supervisor timer interrupt cause");
+
+    drive(1'b1, TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT, 32'h0000_0000, 32'h0000_0314,
+          '{base: 30'h0000_0080, mode: TVEC_MODE_VECTORED}, PRIV_MACHINE);
+    expect_trap(32'h8000_0009, 32'h0000_0000, 32'h0000_0314, 32'h0000_0224,
+                "supervisor external interrupt cause");
+
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0400, PRIV_USER,
+                    32'h0000_0004, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+                    '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0400, 32'h0000_0200,
+                          PRIV_SUPERVISOR, "delegated illegal instruction from user mode");
+
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0404, PRIV_SUPERVISOR,
+                    32'h0000_0004, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+                    '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0404, 32'h0000_0200,
+                          PRIV_SUPERVISOR, "delegated illegal instruction from supervisor mode");
+
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0408, PRIV_MACHINE,
+                    32'h0000_0004, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+                    '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0408, 32'h0000_0100,
+                          PRIV_MACHINE, "machine-mode exception ignores delegation");
+
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_040c, PRIV_USER,
+                    32'h0000_0000, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+                    '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_040c, 32'h0000_0100,
+                          PRIV_MACHINE, "clear delegation bit targets machine mode");
+
+    drive_delegated(TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0410, PRIV_USER,
+                    32'h0000_0100, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+                    '{base: 30'h0000_00c0, mode: TVEC_MODE_DIRECT});
+    expect_delegated_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0410, 32'h0000_0300,
+                          PRIV_SUPERVISOR, "ecall delegation uses computed cause bit");
 
     if (_errors == 0) begin
       $display("tb_trap_control: PASS (%0d checks)", _checks);

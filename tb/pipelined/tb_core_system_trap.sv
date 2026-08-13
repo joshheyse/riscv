@@ -16,6 +16,7 @@ module tb_core_system_trap
   localparam instr_t ECALL = 32'h0000_0073;
   localparam instr_t EBREAK = 32'h0010_0073;
   localparam instr_t MRET = 32'h3020_0073;
+  localparam instr_t SRET = 32'h1020_0073;
 
   logic _clk;
   logic _rst;
@@ -126,9 +127,9 @@ module tb_core_system_trap
     expect_bit(_dut._ctrl.trap.valid, 1'b1, {what, " decoded trap valid"});
     expect_word(32'(_dut._ctrl.trap.src), 32'(src), {what, " decoded trap src"});
     expect_bit(_dut._id_trap.valid, 1'b1, {what, " trap valid"});
-    expect_word(_dut._id_trap.payload.mepc, 32'h0000_0000, {what, " trap mepc"});
-    expect_word(_dut._id_trap.payload.mcause, mcause, {what, " trap mcause"});
-    expect_word(_dut._id_trap.payload.mtval, 32'h0000_0000, {what, " trap mtval"});
+    expect_word(_dut._id_trap.payload.epc, 32'h0000_0000, {what, " trap epc"});
+    expect_word(_dut._id_trap.payload.cause, mcause, {what, " trap cause"});
+    expect_word(_dut._id_trap.payload.tval, 32'h0000_0000, {what, " trap tval"});
   endtask
 
   task automatic check_mret_privilege_trap(input priv_mode_t priv_mode, input string what);
@@ -152,6 +153,29 @@ module tb_core_system_trap
     expect_word(_dut._csr_file._mtval, MRET, {what, " mtval"});
   endtask
 
+  task automatic check_tsr_sret_trap();
+    int unsigned waits;
+
+    reset_core();
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.tsr = 1'b1;
+    issue_first_instr(SRET, "supervisor sret with tsr");
+
+    waits = 0;
+    while ((_dut._csr_file._mcause != 32'h0000_0002) && (waits < 40)) begin
+      waits++;
+      @(posedge _clk);
+      #1;
+    end
+
+    expect_bit(waits < 40, 1'b1, "tsr-blocked sret trap retired");
+    expect_word(_dut._csr_file._mepc, 32'h0000_0000, "tsr-blocked sret mepc");
+    expect_word(_dut._csr_file._mcause, 32'h0000_0002, "tsr-blocked sret mcause");
+    expect_word(_dut._csr_file._mtval, SRET, "tsr-blocked sret mtval");
+    expect_bit(_dut._csr_file._priv_mode == PRIV_MACHINE, 1'b1,
+               "tsr-blocked sret enters machine mode");
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -165,6 +189,7 @@ module tb_core_system_trap
     check_system_trap(EBREAK, TRAP_SRC_EBREAK, 32'h0000_0003, "ebreak");
     check_mret_privilege_trap(PRIV_SUPERVISOR, "supervisor mret");
     check_mret_privilege_trap(PRIV_USER, "user mret");
+    check_tsr_sret_trap();
 
     if (_errors == 0) begin
       $display("tb_core_system_trap: PASS (%0d checks)", _checks);

@@ -57,10 +57,10 @@ module tb_mem_trap_control
     expect_bit(_trap.valid, 1'b0, {what, " valid"});
   endtask
 
-  task automatic expect_trap(input trap_src_t src, input mtval_t mtval, input string what);
+  task automatic expect_trap(input trap_src_t src, input tval_t tval, input string what);
     expect_bit(_trap.valid, 1'b1, {what, " valid"});
     expect_word(32'(_trap.src), 32'(src), {what, " source"});
-    expect_word(_trap.mtval, mtval, {what, " mtval"});
+    expect_word(_trap.tval, tval, {what, " tval"});
   endtask
 
   initial begin

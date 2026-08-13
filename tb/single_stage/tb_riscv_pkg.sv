@@ -20,8 +20,8 @@ module tb_riscv_pkg
   senvcfg_t           _senvcfg;
   menvcfg_t           _menvcfg;
   mip_t               _mip;
-  mtvec_t             _mtvec;
-  mcause_t            _mcause;
+  tvec_t              _mtvec;
+  cause_t             _cause;
   csr_addr_t          _csr_addr;
   logic        [31:0] _packed;
 
@@ -54,17 +54,17 @@ module tb_riscv_pkg
     expect_int($bits(menvcfg_t), 32, "menvcfg_t width");
     expect_int($bits(mip_t), 32, "mip_t width");
     expect_int($bits(mie_t), 32, "mie_t width");
-    expect_int($bits(mtvec_t), 32, "mtvec_t width");
-    expect_int($bits(mepc_t), 32, "mepc_t width");
-    expect_int($bits(mcause_t), 32, "mcause_t width");
-    expect_int($bits(mtval_t), 32, "mtval_t width");
+    expect_int($bits(tvec_t), 32, "tvec_t width");
+    expect_int($bits(epc_t), 32, "epc_t width");
+    expect_int($bits(cause_t), 32, "cause_t width");
+    expect_int($bits(tval_t), 32, "tval_t width");
     expect_int($bits(satp_t), 32, "satp_t width");
     expect_int($bits(mvendorid_t), 32, "mvendorid_t width");
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");
     expect_int($bits(mhartid_t), 32, "mhartid_t width");
-    expect_int($bits(mtvec_mode_t), 2, "mtvec_mode_t width");
-    expect_int($bits(exception_code_t), 31, "exception_code_t width");
+    expect_int($bits(tvec_mode_t), 2, "tvec_mode_t width");
+    expect_int($bits(cause_code_t), 31, "cause_code_t width");
     expect_int($bits(csr_addr_raw_t), 12, "csr_addr_raw_t width");
     expect_int($bits(csr_addr_t), 12, "csr_addr_t width");
     expect_int($bits(csr_addr_fields_t), 12, "csr_addr_fields_t width");
@@ -89,9 +89,9 @@ module tb_riscv_pkg
     expect_bits(32'(MPP_SUPERVISOR), 32'h0000_0001, "MPP supervisor encoding");
     expect_bits(32'(MPP_MACHINE), 32'h0000_0003, "MPP machine encoding");
 
-    expect_bits(32'(MTVEC_MODE_DIRECT), 32'h0000_0000, "mtvec direct encoding");
-    expect_bits(32'(MTVEC_MODE_VECTORED), 32'h0000_0001, "mtvec vectored encoding");
-    expect_bits(32'(MCAUSE_ILLEGAL_INSTR), 32'h0000_0002, "illegal instruction cause encoding");
+    expect_bits(32'(TVEC_MODE_DIRECT), 32'h0000_0000, "tvec direct encoding");
+    expect_bits(32'(TVEC_MODE_VECTORED), 32'h0000_0001, "tvec vectored encoding");
+    expect_bits(32'(CAUSE_ILLEGAL_INSTR), 32'h0000_0002, "illegal instruction cause encoding");
     expect_bits(32'(SYS_IMM_ECALL), 32'h0000_0000, "SYS_IMM_ECALL encoding");
     expect_bits(32'(SYS_IMM_EBREAK), 32'h0000_0001, "SYS_IMM_EBREAK encoding");
     expect_bits(32'(SYS_IMM_WFI), 32'h0000_0105, "SYS_IMM_WFI encoding");
@@ -276,19 +276,19 @@ module tb_riscv_pkg
     expect_bits(_packed, 32'h0000_4000, "mtvec.base bits");
 
     _mtvec = '0;
-    _mtvec.mode = MTVEC_MODE_VECTORED;
+    _mtvec.mode = TVEC_MODE_VECTORED;
     _packed = _mtvec;
     expect_bits(_packed, 32'h0000_0001, "mtvec.mode bits");
 
-    _mcause = '0;
-    _mcause.is_interrupt = 1'b1;
-    _packed = _mcause;
-    expect_bits(_packed, 32'h8000_0000, "mcause.is_interrupt bit");
+    _cause = '0;
+    _cause.is_interrupt = 1'b1;
+    _packed = _cause;
+    expect_bits(_packed, 32'h8000_0000, "cause.is_interrupt bit");
 
-    _mcause = '0;
-    _mcause.code = MCAUSE_ILLEGAL_INSTR;
-    _packed = _mcause;
-    expect_bits(_packed, 32'h0000_0002, "mcause.code bits");
+    _cause = '0;
+    _cause.code = CAUSE_ILLEGAL_INSTR;
+    _packed = _cause;
+    expect_bits(_packed, 32'h0000_0002, "cause.code bits");
 
     if (errors == 0) begin
       $display("tb_riscv_pkg: PASS (%0d checks)", checks);

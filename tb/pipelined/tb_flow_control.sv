@@ -16,8 +16,8 @@ module tb_flow_control
   trap_stage_t _trap;
   logic        _mret_valid;
   logic        _sret_valid;
-  mepc_t       _mepc;
-  sepc_t       _sepc;
+  epc_t        _mepc;
+  epc_t        _sepc;
   flow_ctrl_t  _flow;
 
   int unsigned _errors = 0;
@@ -93,10 +93,11 @@ module tb_flow_control
 
     _trap.valid = 1'b1;
     _trap.payload = '{
-        mepc: 32'h0000_0004,
-        mcause: '{is_interrupt: 1'b0, code: MCAUSE_ILLEGAL_INSTR},
-        mtval: 32'h0000_0000,
-        pc: 32'h0000_0100
+        epc: 32'h0000_0004,
+        cause: '{is_interrupt: 1'b0, code: CAUSE_ILLEGAL_INSTR},
+        tval: 32'h0000_0000,
+        handler_pc: 32'h0000_0100,
+        target_priv: PRIV_MACHINE
     };
     check("trap beats xret and redirect", FLOW_ACTION_TRAP, 1'b1, 32'h0000_0100);
 

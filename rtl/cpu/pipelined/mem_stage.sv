@@ -7,8 +7,7 @@ module mem_stage
   /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t    ex_mem,
   /* verilator lint_on UNUSEDSIGNAL */
-  input mtvec_t     mtvec,
-  input priv_mode_t priv_mode,
+  input csr_status_t csr_status,
 
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
@@ -43,8 +42,7 @@ module mem_stage
   trap_control _trap_control (
     .trap_req(_mem_trap_req),
     .pc(ex_mem.pc),
-    .mtvec(mtvec),
-    .priv_mode(priv_mode),
+    .csr_status(csr_status),
     .trap(_mem_trap)
   );
 

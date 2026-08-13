@@ -36,7 +36,7 @@ module mem_trap_control
     if (valid && _address_misaligned) begin
       trap.valid = 1'b1;
       trap.src   = mem_write_en ? TRAP_SRC_STORE_ADDR_MISALIGNED : TRAP_SRC_LOAD_ADDR_MISALIGNED;
-      trap.mtval = addr;
+      trap.tval = addr;
     end
   end
 

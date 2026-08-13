@@ -32,7 +32,7 @@ module redirect_control
   assign trap = '{
           valid: _target_misaligned,
           src: TRAP_SRC_INSTR_ADDR_MISALIGNED,
-          mtval: _target_pc
+          tval: _target_pc
       };
 
 endmodule

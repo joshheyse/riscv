@@ -10,8 +10,8 @@ module flow_control
   /* verilator lint_on UNUSEDSIGNAL */
   input  logic        mret_valid,
   input  logic        sret_valid,
-  input  mepc_t       mepc,
-  input  sepc_t       sepc,
+  input  epc_t        mepc,
+  input  epc_t        sepc,
   output flow_ctrl_t  flow
 
 );
@@ -21,7 +21,7 @@ module flow_control
     if (trap.valid) begin
       flow.action         = FLOW_ACTION_TRAP;
       flow.redirect.valid = 1'b1;
-      flow.redirect.pc    = trap.payload.pc;
+      flow.redirect.pc    = trap.payload.handler_pc;
     end else if (mret_valid) begin
       flow.action         = FLOW_ACTION_MRET;
       flow.redirect.valid = 1'b1;

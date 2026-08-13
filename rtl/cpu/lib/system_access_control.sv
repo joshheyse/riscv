@@ -5,18 +5,25 @@ module system_access_control
 (
   input  system_ctrl_t system_ctrl,
   input  priv_mode_t   priv_mode,
+  input  logic         tsr,
   output logic         illegal_system_access
 );
 
   always_comb begin
     illegal_system_access = 1'b0;
     if (system_ctrl.en) begin
+      // slang lint_off case-enum-explicit
       case (system_ctrl.op)
-        SYSTEM_OP_MRET: illegal_system_access = priv_mode != PRIV_MACHINE;
-        SYSTEM_OP_SRET: illegal_system_access = priv_mode == PRIV_USER;
+        SYSTEM_OP_MRET: begin
+          illegal_system_access = priv_mode != PRIV_MACHINE;
+        end
+        SYSTEM_OP_SRET: begin
+          illegal_system_access = (priv_mode == PRIV_USER) || ((priv_mode == PRIV_SUPERVISOR) && tsr);
+        end
         default: begin
         end
       endcase
+      // slang lint_on case-enum-explicit
     end
   end
 
