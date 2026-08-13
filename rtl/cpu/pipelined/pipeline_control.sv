@@ -56,7 +56,7 @@ module pipeline_control
     end else if (trap_in_flight) begin
       pipe_ctrl.fetch = STAGE_HOLD;
       pipe_ctrl.if_id = STAGE_FLUSH;
-    end else if (flow.action == FLOW_ACTION_MRET) begin
+    end else if ((flow.action == FLOW_ACTION_MRET) || (flow.action == FLOW_ACTION_SRET)) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,

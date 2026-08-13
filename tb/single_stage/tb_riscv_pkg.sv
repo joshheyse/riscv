@@ -96,6 +96,7 @@ module tb_riscv_pkg
     expect_bits(32'(SYS_IMM_EBREAK), 32'h0000_0001, "SYS_IMM_EBREAK encoding");
     expect_bits(32'(SYS_IMM_WFI), 32'h0000_0105, "SYS_IMM_WFI encoding");
     expect_bits(32'(SYS_IMM_MRET), 32'h0000_0302, "SYS_IMM_MRET encoding");
+    expect_bits(32'(SYS_IMM_SRET), 32'h0000_0102, "SYS_IMM_SRET encoding");
 
     expect_bits(32'(CSR_SSTATUS), 32'h0000_0100, "CSR_SSTATUS address");
     expect_bits(32'(CSR_SENVCFG), 32'h0000_010a, "CSR_SENVCFG address");

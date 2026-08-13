@@ -52,6 +52,10 @@ module tb_system_access_control
     check(1'b1, SYSTEM_OP_MRET, PRIV_SUPERVISOR, 1'b1, "supervisor mret is illegal");
     check(1'b1, SYSTEM_OP_MRET, PRIV_USER, 1'b1, "user mret is illegal");
 
+    check(1'b1, SYSTEM_OP_SRET, PRIV_MACHINE, 1'b0, "machine sret is legal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_SUPERVISOR, 1'b0, "supervisor sret is legal");
+    check(1'b1, SYSTEM_OP_SRET, PRIV_USER, 1'b1, "user sret is illegal");
+
     check(1'b1, SYSTEM_OP_ECALL, PRIV_USER, 1'b0, "ecall access is not checked here");
     check(1'b1, SYSTEM_OP_EBREAK, PRIV_USER, 1'b0, "ebreak access is not checked here");
     check(1'b1, SYSTEM_OP_WFI, PRIV_USER, 1'b0, "wfi access is not checked here");

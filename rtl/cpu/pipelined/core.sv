@@ -95,6 +95,7 @@ module core
   retire_ctrl_t   _retire;
   logic           _trap_from_if_id;
   logic           _ex_mret_valid;
+  logic           _ex_sret_valid;
 
   assign _id_branch_flags = '0;
 
@@ -105,8 +106,12 @@ module core
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
+  assign _retire.sret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_SRET) && !_mem_wb.trap.valid;
   assign _ex_mret_valid = _id_ex.valid && _id_ex.ctrl.system.en &&
       (_id_ex.ctrl.system.op == SYSTEM_OP_MRET) && !_id_ex.trap.valid &&
+      !_system_access_illegal;
+  assign _ex_sret_valid = _id_ex.valid && _id_ex.ctrl.system.en &&
+      (_id_ex.ctrl.system.op == SYSTEM_OP_SRET) && !_id_ex.trap.valid &&
       !_system_access_illegal;
 
   logic _mie_pending_meip;
@@ -203,6 +208,7 @@ module core
     .trap_mcause(_mem_wb.trap.payload.mcause),
     .trap_mtval(_mem_wb.trap.payload.mtval),
     .mret_valid(_retire.mret),
+    .sret_valid(_retire.sret),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
     .status(_csr_status)
@@ -267,7 +273,7 @@ module core
   trap_orchestrator _trap_orchestrator (
     .clk(clk),
     .rst(rst),
-    .id_trap((_if_id.valid && !_ex_mret_valid) ? _id_trap : '0),
+    .id_trap((_if_id.valid && !_ex_mret_valid && !_ex_sret_valid) ? _id_trap : '0),
     .ex_trap(_id_ex.valid ? _ex_trap : '0),
     .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
     .clear_trap(_retire.trap),
@@ -280,7 +286,9 @@ module core
     .redirect(_redirect),
     .trap(_trap),
     .mret_valid(_ex_mret_valid),
+    .sret_valid(_ex_sret_valid),
     .mepc(_csr_status.mepc),
+    .sepc(_csr_status.sepc),
     .flow(_flow)
   );
 

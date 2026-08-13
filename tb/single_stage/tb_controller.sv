@@ -316,6 +316,7 @@ module tb_controller
 
     case (imm)
       SYS_IMM_MRET:   return SYSTEM_OP_MRET;
+      SYS_IMM_SRET:   return SYSTEM_OP_SRET;
       SYS_IMM_ECALL:  return SYSTEM_OP_ECALL;
       SYS_IMM_EBREAK: return SYSTEM_OP_EBREAK;
       SYS_IMM_WFI:    return SYSTEM_OP_WFI;

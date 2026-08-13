@@ -23,9 +23,12 @@ module tb_csr_file
   mcause_t     _trap_mcause;
   mtval_t      _trap_mtval;
   logic        _mret_valid;
+  logic        _sret_valid;
   csr_data_t   _csr_read_data;
   logic        _illegal_csr;
+  /* verilator lint_off UNUSEDSIGNAL */
   csr_status_t _status;
+  /* verilator lint_on UNUSEDSIGNAL */
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -42,6 +45,7 @@ module tb_csr_file
     .trap_mcause(_trap_mcause),
     .trap_mtval(_trap_mtval),
     .mret_valid(_mret_valid),
+    .sret_valid(_sret_valid),
     .csr_read_data(_csr_read_data),
     .illegal_csr(_illegal_csr),
     .status(_status)
@@ -83,6 +87,14 @@ module tb_csr_file
     _trap_mcause = '0;
     _trap_mtval = '0;
     _mret_valid = 1'b0;
+    _sret_valid = 1'b0;
+  endtask
+
+  task automatic retire_sret();
+    @(negedge _clk);
+    _sret_valid = 1'b1;
+    @(negedge _clk);
+    _sret_valid = 1'b0;
   endtask
 
   task automatic read_csr(input logic [11:0] addr, input csr_data_t exp, input string what);
@@ -209,6 +221,51 @@ module tb_csr_file
     expect_bits(_status.mepc, 32'h0000_0000, "status exposes reset mepc");
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "status exposes reset privilege mode");
 
+    // `sstatus` is a masked view of shared `mstatus` storage. Writes through
+    // the supervisor view must preserve machine-only fields.
+    write_csr(CSR_MSTATUS, 32'h0000_19aa, "seed machine and supervisor status fields");
+    read_csr(CSR_SSTATUS, 32'h0000_0122, "sstatus reads supervisor fields from mstatus");
+    write_csr(CSR_SSTATUS, 32'h0000_0002, "write supervisor status view");
+    read_csr(CSR_MSTATUS, 32'h0000_188a, "sstatus write preserves machine status fields");
+    read_csr(CSR_SSTATUS, 32'h0000_0002, "sstatus write updates shared supervisor fields");
+    write_csr(CSR_MSTATUS, 32'h0000_0000, "clear status after alias checks");
+
+    write_csr(CSR_SSTATUS, 32'h0000_0120, "seed supervisor return to supervisor");
+    retire_sret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
+                "sret restores supervisor mode from spp");
+    read_csr(CSR_SSTATUS, 32'h0000_0022, "sret restores sie and clears spp");
+    write_csr(CSR_SSTATUS, 32'h0000_0000, "seed supervisor return to user");
+    retire_sret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_USER), "sret restores user mode");
+    read_csr(CSR_SSTATUS, 32'h0000_0020, "sret sets spie and leaves spp clear");
+
+    // Return to machine mode for the remaining machine trap checks.
+    take_trap(32'h0000_0000, '{is_interrupt: 1'b0, code: MCAUSE_ECALL_U}, '0);
+
+    // Supervisor trap CSRs have independent state. `sie` and `sip` expose
+    // only interrupt positions delegated by `mideleg`.
+    write_csr(CSR_STVEC, 32'h0000_2001, "write stvec with unsupported vectored mode");
+    read_csr(CSR_STVEC, 32'h0000_2000, "stvec coerces mode to direct");
+    write_csr(CSR_SEPC, 32'h0000_0080, "write sepc");
+    read_csr(CSR_SEPC, 32'h0000_0080, "read sepc");
+    write_csr(CSR_SCAUSE, 32'h8000_0009, "write scause");
+    read_csr(CSR_SCAUSE, 32'h8000_0009, "read scause");
+    write_csr(CSR_STVAL, 32'hdead_beef, "write stval");
+    read_csr(CSR_STVAL, 32'hdead_beef, "read stval");
+    write_csr(CSR_MEDELEG, 32'h0000_0100, "write medeleg");
+    read_csr(CSR_MEDELEG, 32'h0000_0100, "read medeleg");
+    write_csr(CSR_MIDELEG, 32'h0000_0222, "delegate supervisor interrupt positions");
+    read_csr(CSR_MIDELEG, 32'h0000_0222, "read mideleg");
+    write_csr(CSR_MIE, 32'h0000_0aaa, "seed machine and supervisor enables");
+    read_csr(CSR_SIE, 32'h0000_0222, "sie exposes delegated enables");
+    write_csr(CSR_SIE, 32'h0000_0020, "write sie view");
+    read_csr(CSR_MIE, 32'h0000_08a8, "sie write preserves machine interrupt enables");
+    write_csr(CSR_MIP, 32'h0000_0aaa, "seed machine and supervisor pending bits");
+    read_csr(CSR_SIP, 32'h0000_0222, "sip exposes delegated pending bits");
+    write_csr(CSR_SIP, 32'h0000_0002, "write sip view");
+    read_csr(CSR_MIP, 32'h0000_088a, "sip write preserves machine pending bits");
+
     write_csr(CSR_MEPC, 32'h0000_0040, "write mepc");
     read_csr(CSR_MEPC, 32'h0000_0040, "read mepc");
     expect_bits(_status.mepc, 32'h0000_0040, "status exposes written mepc");
@@ -223,7 +280,7 @@ module tb_csr_file
     read_csr(CSR_MIP, 32'h0000_0888, "read mip");
 
     write_csr(CSR_MSTATUS, 32'hffff_ffff, "write all mstatus bits");
-    read_csr(CSR_MSTATUS, 32'h0000_1888, "mstatus keeps only supported fields");
+    read_csr(CSR_MSTATUS, 32'h0000_19aa, "mstatus keeps only supported fields");
 
     write_csr(CSR_MSTATUS, 32'h0000_1000, "write invalid mpp encoding");
     read_csr(CSR_MSTATUS, 32'h0000_1800, "invalid mpp coerces to machine");

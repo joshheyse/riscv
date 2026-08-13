@@ -169,6 +169,7 @@ package riscv_pkg;
   typedef enum logic [11:0] {
     SYS_IMM_ECALL  = 12'h000,
     SYS_IMM_EBREAK = 12'h001,
+    SYS_IMM_SRET   = 12'h102,
     SYS_IMM_WFI    = 12'h105,
     SYS_IMM_MRET   = 12'h302
   } sys_imm_t;
@@ -281,6 +282,7 @@ package riscv_pkg;
   typedef enum logic [2:0] {
     SYSTEM_OP_NONE,
     SYSTEM_OP_MRET,
+    SYSTEM_OP_SRET,
     SYSTEM_OP_ECALL,
     SYSTEM_OP_EBREAK,
     SYSTEM_OP_WFI,
@@ -461,6 +463,7 @@ package riscv_pkg;
   } mtvec_t;
 
   typedef pc_t mepc_t;
+  typedef pc_t sepc_t;
 
   typedef enum logic [30:0] {
     MCAUSE_INSTR_ADDR_MISALIGNED = 31'd0,
@@ -500,10 +503,14 @@ package riscv_pkg;
 
   typedef struct packed {
     mtvec_t     mtvec;
+    mtvec_t     stvec;
     mstatus_t   mstatus;
     mie_t       mie;
     mip_t       mip;
     mepc_t      mepc;
+    sepc_t      sepc;
+    word_t      medeleg;
+    word_t      mideleg;
     priv_mode_t priv_mode;
   } csr_status_t;
 

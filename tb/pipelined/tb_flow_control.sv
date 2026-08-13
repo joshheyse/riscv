@@ -15,7 +15,9 @@ module tb_flow_control
   redirect_t   _redirect;
   trap_stage_t _trap;
   logic        _mret_valid;
+  logic        _sret_valid;
   mepc_t       _mepc;
+  sepc_t       _sepc;
   flow_ctrl_t  _flow;
 
   int unsigned _errors = 0;
@@ -25,7 +27,9 @@ module tb_flow_control
     .redirect(_redirect),
     .trap(_trap),
     .mret_valid(_mret_valid),
+    .sret_valid(_sret_valid),
     .mepc(_mepc),
+    .sepc(_sepc),
     .flow(_flow)
   );
 
@@ -65,7 +69,9 @@ module tb_flow_control
     _redirect = '0;
     _trap = '0;
     _mret_valid = 1'b0;
+    _sret_valid = 1'b0;
     _mepc = '0;
+    _sepc = '0;
 
     check("idle", FLOW_ACTION_NONE, 1'b0, '0);
 
@@ -80,6 +86,11 @@ module tb_flow_control
     _redirect = '{valid: 1'b1, pc: 32'h0000_0040};
     check("mret beats redirect", FLOW_ACTION_MRET, 1'b1, 32'h0000_0080);
 
+    _mret_valid = 1'b0;
+    _sret_valid = 1'b1;
+    _sepc = 32'h0000_00c0;
+    check("sret beats redirect", FLOW_ACTION_SRET, 1'b1, 32'h0000_00c0);
+
     _trap.valid = 1'b1;
     _trap.payload = '{
         mepc: 32'h0000_0004,
@@ -87,7 +98,7 @@ module tb_flow_control
         mtval: 32'h0000_0000,
         pc: 32'h0000_0100
     };
-    check("trap beats mret and redirect", FLOW_ACTION_TRAP, 1'b1, 32'h0000_0100);
+    check("trap beats xret and redirect", FLOW_ACTION_TRAP, 1'b1, 32'h0000_0100);
 
     if (_errors == 0) begin
       $display("tb_flow_control: PASS (%0d checks)", _checks);

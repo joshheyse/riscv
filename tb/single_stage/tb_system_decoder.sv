@@ -105,6 +105,8 @@ module tb_system_decoder
 
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_MRET}, "mret");
+    check(OP_SYSTEM, SYS_IMM_SRET, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
+          '{en: 1'b1, op: SYSTEM_OP_SRET}, "sret");
     check(OP_SYSTEM, SYS_IMM_ECALL, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_ECALL}, "ecall");
     check(OP_SYSTEM, SYS_IMM_EBREAK, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,

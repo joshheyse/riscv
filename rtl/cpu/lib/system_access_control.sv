@@ -8,7 +8,16 @@ module system_access_control
   output logic         illegal_system_access
 );
 
-  assign illegal_system_access = system_ctrl.en && (system_ctrl.op == SYSTEM_OP_MRET)
-                               && (priv_mode != PRIV_MACHINE);
+  always_comb begin
+    illegal_system_access = 1'b0;
+    if (system_ctrl.en) begin
+      case (system_ctrl.op)
+        SYSTEM_OP_MRET: illegal_system_access = priv_mode != PRIV_MACHINE;
+        SYSTEM_OP_SRET: illegal_system_access = priv_mode == PRIV_USER;
+        default: begin
+        end
+      endcase
+    end
+  end
 
 endmodule

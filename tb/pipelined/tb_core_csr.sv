@@ -138,10 +138,10 @@ module tb_core_csr
     expect_word(_dut._reg_file._regs[6], 32'h0000_1808, "csrrs returns old mstatus");
     expect_word(_dut._reg_file._regs[7], 32'h0000_1888, "csrrc returns old mstatus");
     expect_word(_dut._reg_file._regs[8], 32'h0000_1880, "csrrwi returns old mstatus");
-    expect_word(_dut._reg_file._regs[9], 32'h0000_0008, "csrrsi zimm=0 returns old mstatus");
-    expect_word(_dut._reg_file._regs[10], 32'h0000_0008, "csrrc x0 returns old mstatus");
+    expect_word(_dut._reg_file._regs[9], 32'h0000_000a, "csrrsi zimm=0 returns old mstatus");
+    expect_word(_dut._reg_file._regs[10], 32'h0000_000a, "csrrc x0 returns old mstatus");
     expect_word(_dut._reg_file._regs[0], 32'h0000_0000, "csrrw rd=x0 does not write x0");
-    expect_word(_dut._csr_file._mstatus, 32'h0000_1888, "final csrrw rd=x0 writes mstatus");
+    expect_word(_dut._csr_file._mstatus, 32'h0000_19aa, "final csrrw rd=x0 writes mstatus");
     expect_bit(_halted, 1'b0, "legal CSR sequence does not halt");
 
     if (_errors == 0) begin

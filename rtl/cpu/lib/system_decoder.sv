@@ -35,6 +35,9 @@ module system_decoder
               SYS_IMM_MRET: begin
                 system_ctrl.op = SYSTEM_OP_MRET;
               end
+              SYS_IMM_SRET: begin
+                system_ctrl.op = SYSTEM_OP_SRET;
+              end
               SYS_IMM_ECALL: begin
                 system_ctrl.op = SYSTEM_OP_ECALL;
               end
