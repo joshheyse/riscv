@@ -58,6 +58,7 @@ module tb_riscv_pkg
     expect_int($bits(mepc_t), 32, "mepc_t width");
     expect_int($bits(mcause_t), 32, "mcause_t width");
     expect_int($bits(mtval_t), 32, "mtval_t width");
+    expect_int($bits(satp_t), 32, "satp_t width");
     expect_int($bits(mvendorid_t), 32, "mvendorid_t width");
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");
@@ -98,6 +99,7 @@ module tb_riscv_pkg
 
     expect_bits(32'(CSR_SSTATUS), 32'h0000_0100, "CSR_SSTATUS address");
     expect_bits(32'(CSR_SENVCFG), 32'h0000_010a, "CSR_SENVCFG address");
+    expect_bits(32'(CSR_SATP), 32'h0000_0180, "CSR_SATP address");
     expect_bits(32'(CSR_MSTATUS), 32'h0000_0300, "CSR_MSTATUS address");
     expect_bits(32'(CSR_MIE), 32'h0000_0304, "CSR_MIE address");
     expect_bits(32'(CSR_MTVEC), 32'h0000_0305, "CSR_MTVEC address");
@@ -118,6 +120,13 @@ module tb_riscv_pkg
     expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0000, "CSR_SSTATUS rw field");
     expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_SUPERVISOR), "CSR_SSTATUS min privilege");
     expect_bits(32'(_csr_addr.fields.index), 32'h0000_0000, "CSR_SSTATUS index field");
+
+    _csr_addr.raw = CSR_SATP;
+    expect_bits(32'(_csr_addr.named), 32'(CSR_SATP), "CSR_SATP named view");
+    expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0000, "CSR_SATP rw field");
+    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_SUPERVISOR),
+                "CSR_SATP min privilege");
+    expect_bits(32'(_csr_addr.fields.index), 32'h0000_0080, "CSR_SATP index field");
 
     _csr_addr.raw = CSR_MHARTID;
     expect_bits(32'(_csr_addr.named), 32'(CSR_MHARTID), "CSR_MHARTID named view");

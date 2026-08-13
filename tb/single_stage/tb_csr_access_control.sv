@@ -66,6 +66,13 @@ module tb_csr_access_control
     check(1'b1, 1'b1, CSR_SSTATUS, PRIV_SUPERVISOR, 1'b0, "supervisor writes supervisor CSR");
     check(1'b1, 1'b0, CSR_SSTATUS, PRIV_USER, 1'b1, "user cannot read supervisor CSR");
 
+    check(1'b1, 1'b0, CSR_SATP, PRIV_MACHINE, 1'b0, "machine reads satp");
+    check(1'b1, 1'b1, CSR_SATP, PRIV_MACHINE, 1'b0, "machine writes satp");
+    check(1'b1, 1'b0, CSR_SATP, PRIV_SUPERVISOR, 1'b0, "supervisor reads satp");
+    check(1'b1, 1'b1, CSR_SATP, PRIV_SUPERVISOR, 1'b0, "supervisor writes satp");
+    check(1'b1, 1'b0, CSR_SATP, PRIV_USER, 1'b1, "user cannot read satp");
+    check(1'b1, 1'b1, CSR_SATP, PRIV_USER, 1'b1, "user cannot write satp");
+
     check(1'b1, 1'b0, CSR_MHARTID, PRIV_MACHINE, 1'b0, "machine reads read-only CSR");
     check(1'b1, 1'b1, CSR_MHARTID, PRIV_MACHINE, 1'b1, "machine cannot write read-only CSR");
     check(1'b1, 1'b1, CSR_MHARTID, PRIV_SUPERVISOR, 1'b1,

@@ -182,6 +182,7 @@ module tb_csr_file
     read_csr(CSR_MCAUSE, 32'h0000_0000, "reset mcause");
     read_csr(CSR_MTVAL, 32'h0000_0000, "reset mtval");
     read_csr(CSR_MIP, 32'h0000_0000, "reset mip");
+    read_csr(CSR_SATP, 32'h0000_0000, "reset satp is Bare");
     read_csr(CSR_MVENDORID, 32'h0000_0000, "read mvendorid");
     read_csr(CSR_MARCHID, 32'h0000_0000, "read marchid");
     read_csr(CSR_MIMPID, 32'h0000_0000, "read mimpid");
@@ -229,6 +230,15 @@ module tb_csr_file
     retire_mret();
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "mret after invalid mpp stays machine");
     read_csr(CSR_MSTATUS, 32'h0000_0080, "mret clears legalized mpp");
+
+    // This implementation supports only Bare address translation. `satp` is
+    // still a legal read/write CSR, but every write leaves it reading zero.
+    write_csr(CSR_SATP, 32'h0000_0000, "write Bare satp");
+    read_csr(CSR_SATP, 32'h0000_0000, "Bare satp remains zero");
+    write_csr(CSR_SATP, 32'h8048_d159, "write unsupported Sv32 satp");
+    read_csr(CSR_SATP, 32'h0000_0000, "unsupported Sv32 satp remains Bare");
+    write_csr(CSR_SATP, 32'hffff_ffff, "write all satp bits");
+    read_csr(CSR_SATP, 32'h0000_0000, "all satp fields remain hardwired zero");
 
     // Unknown CSRs and read-only ID writes should be illegal.
     expect_illegal_read(12'hfff, "unknown CSR read illegal");

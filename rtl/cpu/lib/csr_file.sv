@@ -109,6 +109,8 @@ module csr_file
         CSR_MCAUSE:  _mcause <= csr_write_data;
         CSR_MTVAL:   _mtval <= csr_write_data;
         CSR_MIP:     _mip <= csr_write_data;
+        CSR_SATP: begin
+        end
         default: begin
         end
       endcase
@@ -123,7 +125,7 @@ module csr_file
     if (csr_en && csr_write_en) begin
       // slang lint_off case-enum-explicit
       case (_csr_addr.named)
-        CSR_MSTATUS, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE, CSR_MTVAL, CSR_MIP: begin
+        CSR_MSTATUS, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE, CSR_MTVAL, CSR_MIP, CSR_SATP: begin
         end
         default: illegal_csr = 1'b1;
       endcase
@@ -140,6 +142,7 @@ module csr_file
         CSR_MCAUSE:    csr_read_data = _mcause;
         CSR_MTVAL:     csr_read_data = _mtval;
         CSR_MIP:       csr_read_data = _mip;
+        CSR_SATP:      csr_read_data = 32'h0000_0000;
         CSR_MVENDORID: csr_read_data = MVENDORID;
         CSR_MARCHID:   csr_read_data = MARCHID;
         CSR_MIMPID:    csr_read_data = MIMPID;

@@ -17,8 +17,8 @@ package riscv_pkg;
   typedef word_t mem_data_t;  // data-memory or MMIO payload
   typedef struct packed {
     mem_addr_t start_addr;  // inclusive base address
-    mem_addr_t end_addr;  // exclusive upper bound
-    logic      writeable;  // write enable allowed for this source
+    mem_addr_t end_addr;    // exclusive upper bound
+    logic      writeable;   // write enable allowed for this source
   } mmio_source_t;
   typedef word_t csr_data_t;  // CSR read/write payload
   typedef logic [31:0] instr_t;  // an instruction
@@ -42,6 +42,7 @@ package riscv_pkg;
     CSR_SCAUSE   = 12'h142,
     CSR_STVAL    = 12'h143,
     CSR_SIP      = 12'h144,
+    CSR_SATP     = 12'h180,
 
     CSR_MSTATUS    = 12'h300,
     CSR_MISA       = 12'h301,
@@ -506,5 +507,10 @@ package riscv_pkg;
     priv_mode_t priv_mode;
   } csr_status_t;
 
+  typedef struct packed {
+    logic        mode;
+    logic [8:0]  asid;
+    logic [21:0] ppn;
+  } satp_t;
 
 endpackage
