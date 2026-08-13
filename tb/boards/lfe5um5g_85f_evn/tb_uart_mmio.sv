@@ -155,22 +155,15 @@ module tb_uart_mmio
     int i;
     @(negedge _clk);
     _uart.rx = 1'b0;
-
-    wait (_dut._state == UART_RX_DATA);
+    repeat (ClocksPerBit) @(negedge _clk);
 
     for (i = 0; i < 8; i++) begin
-      @(negedge _clk);
       _uart.rx = data[i];
-      do begin
-        @(posedge _clk);
-      end while (!_dut._rx_stg_tick);
+      repeat (ClocksPerBit) @(negedge _clk);
     end
 
-    @(negedge _clk);
     _uart.rx = 1'b1;
-    do begin
-      @(posedge _clk);
-    end while (_dut._state != UART_RX_IDLE);
+    repeat (ClocksPerBit) @(negedge _clk);
   endtask
 
   // ---------------------------------------------------------------- tests --

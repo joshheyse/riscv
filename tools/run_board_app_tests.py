@@ -15,6 +15,7 @@ class AppTest:
     name: str
     app: str
     expected: tuple[str, ...]
+    run_args: tuple[str, ...] = ()
 
 
 APP_TESTS = (
@@ -67,6 +68,24 @@ APP_TESTS = (
         app="examples/apps/led_count_halt",
         expected=("_led: 0xaa", "top_sim: halt code 0x00000000"),
     ),
+    AppTest(
+        name="plic_uart_irq_halt",
+        app="examples/apps/plic_uart_irq_halt",
+        expected=(
+            "top_sim: checkpoint plic claim id=0x00000001",
+            "top_sim: checkpoint plic complete id=0x00000001",
+            "top_sim: checkpoint mret retired",
+            "top_sim: checkpoint uart tx accepted",
+            "top_sim: checkpoint simulation halt code=0x00000000",
+            "top_sim: uart byte 0x50",
+            "top_sim: uart byte 0x41",
+            "top_sim: uart byte 0x53",
+            "top_sim: uart byte 0x53",
+            "top_sim: uart byte 0x0a",
+            "top_sim: halt code 0x00000000",
+        ),
+        run_args=("+uart_rx=P", "+plic-checkpoints"),
+    ),
 )
 
 
@@ -93,7 +112,7 @@ def run_test(repo: Path, design: str, board: str, sim: str, test: AppTest) -> bo
         f"BOARD={board}",
         f"BOARD_SIM={sim}",
         f"APP={test.app}",
-        "RUN_ARGS=+uart-bytes",
+        f"RUN_ARGS={'+uart-bytes ' + ' '.join(test.run_args)}",
     ]
 
     result = subprocess.run(

@@ -26,25 +26,31 @@ module uart_mmio
   irq_if.source  irq
 );
 
-  byte_t             _tx_data;
-  logic        [3:0] _tx_bit_idx;
-  logic              _tx_busy;
-  logic              _tx_ready;
-  logic        [2:0] _tx_data_bit_idx;
-  logic              _rx_stg_tick;
+  byte_t       _tx_data;
+  logic  [3:0] _tx_bit_idx;
+  logic        _tx_busy;
+  logic        _tx_ready;
+  logic  [2:0] _tx_data_bit_idx;
 
-  logic              _rx_busy;
-  logic              _rx_ready;
-  byte_t             _rx_data;
-  logic        [2:0] _rx_bit_idx;
-  logic              _tx_stg_tick;
-  logic              _rx_overrun;
-  logic              _rx_data_consumed;
-  logic              _rx_irq_en;
+  logic        _rx_ready;
+  byte_t       _rx_data;
+  logic  [2:0] _rx_bit_idx;
+  logic        _tx_stg_tick;
+  logic        _rx_overrun;
+  logic        _rx_data_consumed;
+  logic        _rx_irq_en;
+  logic        _rx_prev;
 
-  uart_state_t       _state;
+  localparam int unsigned RxCounterBits = (ClocksPerBit <= 1) ? 1 : $clog2(ClocksPerBit);
+  localparam logic [RxCounterBits-1:0] RxHalfBitCount =
+      RxCounterBits'(((ClocksPerBit + 1) / 2) - 1);
+  localparam logic [RxCounterBits-1:0] RxFullBitCount = RxCounterBits'(ClocksPerBit - 1);
+  logic        [RxCounterBits-1:0] _rx_counter;
+
+  uart_state_t                     _state;
 
   initial begin
+    assert (ClocksPerBit >= 2);
     assert (TxDataAddr != StatusAddr);
     assert (TxDataAddr != RxDataAddr);
     assert (RxDataAddr != StatusAddr);
@@ -89,16 +95,6 @@ module uart_mmio
     .tick(_tx_stg_tick)
   );
 
-  serial_tick_generator #(
-    .ClocksPerTick(ClocksPerBit)
-  ) _rx_tick_generator (
-    .clk(clk),
-    .rst(rst),
-    .en(_rx_busy),
-    .clear(!_rx_busy),
-    .tick(_rx_stg_tick)
-  );
-
   always_ff @(posedge clk) begin
 
     if (rst) begin
@@ -108,14 +104,17 @@ module uart_mmio
 
       _rx_ready <= 1'b0;
       _rx_data <= 8'h0;
-      _rx_busy <= 1'b0;
       _rx_bit_idx <= '0;
       _rx_overrun <= '0;
+      _rx_prev <= 1'b1;
+      _rx_counter <= '0;
 
       _rx_irq_en <= 1'b0;
 
       _state <= UART_RX_IDLE;
     end else begin
+      _rx_prev <= uart.rx;
+
       if (mem.req.write_en && mem.req.valid && (mem.req.addr == IrqEnableAddr)) begin
         _rx_irq_en <= mem.req.write_data[0];
       end
@@ -138,34 +137,45 @@ module uart_mmio
       end else begin
         case (_state)
           UART_RX_IDLE: begin
-            if (!uart.rx) begin
+            if (_rx_prev && !uart.rx) begin
               _rx_overrun <= _rx_ready;
               _state <= UART_RX_START;
               _rx_bit_idx <= 3'd0;
-              _rx_busy <= 1'b1;
               _rx_ready <= 1'b0;
+              _rx_counter <= RxHalfBitCount;
             end
           end
           UART_RX_START: begin
-            if (_rx_stg_tick) begin
-              _state <= UART_RX_DATA;
-              _rx_bit_idx <= 3'd0;
+            if (_rx_counter == '0) begin
+              if (!uart.rx) begin
+                _state <= UART_RX_DATA;
+                _rx_bit_idx <= 3'd0;
+                _rx_counter <= RxFullBitCount;
+              end else begin
+                _state <= UART_RX_IDLE;
+              end
+            end else begin
+              _rx_counter <= _rx_counter - 1'b1;
             end
           end
           UART_RX_DATA: begin
-            if (_rx_stg_tick) begin
+            if (_rx_counter == '0) begin
               _rx_data[_rx_bit_idx] <= uart.rx;
               _rx_bit_idx <= _rx_bit_idx + 3'd1;
+              _rx_counter <= RxFullBitCount;
               if (_rx_bit_idx == 3'd7) begin
                 _state <= UART_RX_STOP;
               end
+            end else begin
+              _rx_counter <= _rx_counter - 1'b1;
             end
           end
           UART_RX_STOP: begin
-            if (_rx_stg_tick) begin
-              _rx_busy <= 1'b0;
-              _rx_ready <= 1'b1;
+            if (_rx_counter == '0) begin
+              _rx_ready <= uart.rx;
               _state <= UART_RX_IDLE;
+            end else begin
+              _rx_counter <= _rx_counter - 1'b1;
             end
           end
           default: begin

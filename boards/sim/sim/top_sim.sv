@@ -26,8 +26,13 @@ module top_sim
   logic              _retire;
   logic              _sim_halt_fire;
   logic              _sim_done;
+  mem_data_t         _sim_halt_code;
   int unsigned       _cycle;
   int unsigned       _instret;
+  logic              _plic_claim_seen;
+  logic              _plic_complete_seen;
+  logic              _plic_mret_seen;
+  logic              _plic_uart_tx_seen;
   dbus_if _core_dbus ();
   dbus_if _board_dbus ();
 
@@ -80,6 +85,11 @@ module top_sim
       _cycle <= 0;
       _instret <= 0;
       _sim_done <= 1'b0;
+      _sim_halt_code <= '0;
+      _plic_claim_seen <= 1'b0;
+      _plic_complete_seen <= 1'b0;
+      _plic_mret_seen <= 1'b0;
+      _plic_uart_tx_seen <= 1'b0;
     end else if (!_sim_done) begin
       _cycle <= _cycle + 1;
       if (_retire) begin
@@ -87,6 +97,32 @@ module top_sim
       end
       if (_sim_halt_fire) begin
         _sim_done <= 1'b1;
+        _sim_halt_code <= _core_dbus.req.write_data;
+      end
+
+      if ($test$plusargs("plic-checkpoints")) begin
+        if (_core_dbus.req.valid && _core_dbus.rsp.ready && !_core_dbus.req.write_en &&
+            (_core_dbus.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
+          _plic_claim_seen <= 1'b1;
+          $display("top_sim: checkpoint plic claim id=0x%08h", _core_dbus.rsp.read_data);
+        end
+        if (_core_dbus.req.valid && _core_dbus.rsp.ready && _core_dbus.req.write_en &&
+            (_core_dbus.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
+          _plic_complete_seen <= 1'b1;
+          $display("top_sim: checkpoint plic complete id=0x%08h", _core_dbus.req.write_data);
+        end
+        if (_core_dbus.req.valid && _core_dbus.rsp.ready && _core_dbus.req.write_en &&
+            (_core_dbus.req.addr == board_constants_pkg::UartTxAddr)) begin
+          _plic_uart_tx_seen <= 1'b1;
+          $display("top_sim: checkpoint uart tx accepted byte=0x%02h",
+                   _core_dbus.req.write_data[7:0]);
+        end
+`ifdef CPU_DESIGN_pipelined
+        if (_core._retire.mret) begin
+          _plic_mret_seen <= 1'b1;
+          $display("top_sim: checkpoint mret retired");
+        end
+`endif
       end
     end
   end
@@ -227,9 +263,20 @@ module top_sim
     forever begin
       @(posedge _clk);
       if (_sim_halt_fire) begin
+        if ($test$plusargs("plic-checkpoints")) begin
+          assert (_plic_claim_seen)
+          else $fatal(1, "top_sim: missing PLIC claim checkpoint");
+          assert (_plic_complete_seen)
+          else $fatal(1, "top_sim: missing PLIC completion checkpoint");
+          assert (_plic_mret_seen)
+          else $fatal(1, "top_sim: missing mret retirement checkpoint");
+          assert (_plic_uart_tx_seen)
+          else $fatal(1, "top_sim: missing accepted UART TX checkpoint");
+          $display("top_sim: checkpoint simulation halt code=0x%08h", _core_dbus.req.write_data);
+        end
         repeat (ClocksPerBit * 12) @(posedge _clk);
         $write("\n");
-        $display("top_sim: halt code 0x%08h _pc=0x%08h", _core_dbus.req.write_data, _pc);
+        $display("top_sim: halt code 0x%08h _pc=0x%08h", _sim_halt_code, _pc);
         $display("top_sim: stats cycles=%0d instret=%0d", _cycle, _instret);
         $finish;
       end
@@ -249,6 +296,14 @@ module top_sim
         _cycle, _pc, _halted, _core_ibus.req.valid, _core_ibus.req.addr, _core_ibus.rsp.ready,
         _core_dbus.req.valid, _core_dbus.req.write_en, _core_dbus.req.addr,
         _core_dbus.req.write_data, _core_dbus.rsp.ready);
+`ifdef CPU_DESIGN_pipelined
+    $display(
+        "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
+        _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,
+        _core._fetched.valid, _core._if_id.valid, _core._id_ex.valid, _core._ex_mem.valid,
+        _core._mem_wb.valid, _core._pipe_ctrl.fetch, _core._data_stall, _core._dbus_wait,
+        _core._flow.action);
+`endif
     $fatal(1, "top_sim: watchdog timeout after %0d cycles", TimeoutCycles);
   end
 
