@@ -1,4 +1,4 @@
-// tb_csr_file.sv - self-checking testbench for the machine CSR file.
+// tb_csr_file.sv - self-checking testbench for machine/supervisor CSR state.
 //
 //   make sim  TB=csr_file
 //   make wave TB=csr_file
@@ -259,6 +259,9 @@ module tb_csr_file
     read_csr(CSR_SSCRATCH, 32'hcafe_babe, "read sscratch");
     write_csr(CSR_MEDELEG, 32'h0000_0100, "write medeleg");
     read_csr(CSR_MEDELEG, 32'h0000_0100, "read medeleg");
+    write_csr(CSR_MEDELEG, 32'hffff_ffff, "write all medeleg bits");
+    read_csr(CSR_MEDELEG, 32'h0000_035d, "medeleg keeps implemented exception positions");
+    write_csr(CSR_MEDELEG, 32'h0000_0100, "restore user ecall delegation");
     write_csr(CSR_MIDELEG, 32'h0000_0222, "delegate supervisor interrupt positions");
     read_csr(CSR_MIDELEG, 32'h0000_0222, "read mideleg");
     write_csr(CSR_MIE, 32'h0000_0aaa, "seed machine and supervisor enables");

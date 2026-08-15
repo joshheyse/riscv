@@ -320,9 +320,9 @@ package riscv_pkg;
   } trap_src_t;
 
   typedef struct packed {
-    logic      valid;  // stage requests a synchronous trap
+    logic      valid;  // stage requests a trap
     trap_src_t src;    // trap source
-    tval_t     tval;  // trap-specific value
+    tval_t     tval;   // trap-specific value
   } trap_req_t;
 
   typedef struct packed {
@@ -461,7 +461,7 @@ package riscv_pkg;
   } tvec_mode_t;
 
   typedef struct packed {
-    logic [29:0] base;  // [31:2] trap-vector base addres
+    logic [29:0] base;  // [31:2] trap-vector base address
     tvec_mode_t mode;  // [1:0] trap-vector mode
   } tvec_t;
 

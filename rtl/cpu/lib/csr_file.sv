@@ -45,6 +45,10 @@ module csr_file
   localparam marchid_t   MARCHID   = '0;
   localparam mimpid_t    MIMPID    = '0;
   localparam mhartid_t   MHARTID   = '0;
+  // Delegatable exceptions implemented by this core: instruction-address
+  // misaligned, illegal instruction, breakpoint, load/store-address
+  // misaligned, and U/S-mode ECALL. M-mode ECALL cannot delegate downward.
+  localparam word_t      MEDELEG_WRITABLE_MASK = 32'h0000_035d;
   localparam word_t      MIDELEG_WRITABLE_MASK = 32'h0000_0222;
   // verilog_format: on
 
@@ -165,7 +169,7 @@ module csr_file
           _mstatus.spie <= csr_write_data[5];
           _mstatus.spp  <= csr_write_data[8];
         end
-        CSR_MEDELEG:  _medeleg <= csr_write_data;
+        CSR_MEDELEG:  _medeleg <= csr_write_data & MEDELEG_WRITABLE_MASK;
         CSR_MIDELEG:  _mideleg <= csr_write_data & MIDELEG_WRITABLE_MASK;
         CSR_MIE:      _mie <= csr_write_data;
         CSR_SIE: begin

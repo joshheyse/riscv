@@ -18,3 +18,9 @@ The first supervisor-mode implementation uses physical addressing only:
 This scope still includes supervisor CSRs, M-to-S trap delegation, supervisor
 trap entry, supervisor interrupt handling, and `sret`; those are independent of
 Sv32 translation.
+
+Implemented supervisor state includes `sstatus`, `sie`, `sip`, `stvec`,
+`sscratch`, `sepc`, `scause`, and `stval`. `medeleg` and `mideleg` are WARL and
+retain only trap causes implemented by this core. `mstatus.TSR` controls S-mode
+use of `sret`. `senvcfg` remains intentionally unsupported until the extensions
+it controls are implemented.

@@ -12,7 +12,8 @@ module system_decoder
   /*
   2. System instruction privilege checks
       - mret should only be legal in machine mode.
-      - Later sret only supervisor mode or higher, depending on status bits.
+      - sret is legal in supervisor or machine mode; mstatus.TSR can block it
+        in supervisor mode.
       - wfi can stay illegal/unimplemented for now.
 */
 

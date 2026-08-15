@@ -87,9 +87,30 @@ Current `just board-cpi top_sim sim` snapshot:
 | `memory_copy_halt`  |             3.03 |          3.17 |
 | `led_count_halt`    |             3.00 |          2.77 |
 
-Known limitations: no privileged execution, no caches, no MMU, no branch
-prediction, simple IFU/LSU timing, and a memory hierarchy that will change in
-later book chapters.
+Known limitations at this milestone: no privileged execution, caches, MMU, or
+branch prediction; simple IFU/LSU timing; and a memory hierarchy that will
+change in later book chapters.
 
 Key commits: `19943b6`, `afdac51`, `4967a92`, `c914e27`, `b365925`,
 `041f413`, `2bc52c2`.
+
+### 7. Bare Supervisor Mode
+
+- Added machine, supervisor, and user privilege-state transitions with
+  privilege-aware CSR and SYSTEM-instruction access checks.
+- Added supervisor trap CSRs and views: `sstatus`, `sie`, `sip`, `stvec`,
+  `sscratch`, `sepc`, `scause`, and `stval`.
+- Added synchronous-exception delegation through WARL `medeleg`, supervisor
+  software/timer/external interrupt delegation through WARL `mideleg`, and
+  direct/vectored trap routing through the selected privilege's `xtvec`.
+- Added supervisor trap entry, `SIE`/`SPIE`/`SPP` stacking, `sret`, and
+  `mstatus.TSR` enforcement.
+- Added a legal Bare-only `satp`; Sv32 translation, page-table walking, TLBs,
+  page faults, `SFENCE.VMA`, and PMP remain separate future work.
+- Added module and pipelined integration coverage for delegated exceptions,
+  delegated interrupts, supervisor trap-state preservation, `sret`, TSR, and
+  `sscratch`.
+- Kept `senvcfg` intentionally unsupported because the optional cache-block,
+  pointer-masking, and FIOM behavior it controls is not implemented.
+
+Key commits: `a8b9e2f`, `a6be1a3`, `70243df`.
