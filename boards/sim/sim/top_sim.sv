@@ -45,11 +45,7 @@ module top_sim
   assign _sim_halt_fire = !_rst && _core_dbus.req.valid && _core_dbus.req.write_en
                           && _sim_halt_selected;
 
-`ifdef CPU_DESIGN_pipelined
   assign _retire = _core._ex_mem.valid && !_core._dbus_wait;
-`else
-  assign _retire = _core._retire;
-`endif
 
   assign _core_dbus.rsp.read_data = _sim_halt_selected ? '0 : _board_dbus.rsp.read_data;
   assign _core_dbus.rsp.ready = _sim_halt_selected ? _core_dbus.req.valid : _board_dbus.rsp.ready;
@@ -117,12 +113,10 @@ module top_sim
           $display("top_sim: checkpoint uart tx accepted byte=0x%02h",
                    _core_dbus.req.write_data[7:0]);
         end
-`ifdef CPU_DESIGN_pipelined
         if (_core._retire.mret) begin
           _plic_mret_seen <= 1'b1;
           $display("top_sim: checkpoint mret retired");
         end
-`endif
       end
     end
   end
@@ -296,14 +290,12 @@ module top_sim
         _cycle, _pc, _halted, _core_ibus.req.valid, _core_ibus.req.addr, _core_ibus.rsp.ready,
         _core_dbus.req.valid, _core_dbus.req.write_en, _core_dbus.req.addr,
         _core_dbus.req.write_data, _core_dbus.rsp.ready);
-`ifdef CPU_DESIGN_pipelined
     $display(
         "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
         _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,
         _core._fetched.valid, _core._if_id.valid, _core._id_ex.valid, _core._ex_mem.valid,
         _core._mem_wb.valid, _core._pipe_ctrl.fetch, _core._data_stall, _core._dbus_wait,
         _core._flow.action);
-`endif
     $fatal(1, "top_sim: watchdog timeout after %0d cycles", TimeoutCycles);
   end
 

@@ -1,7 +1,7 @@
 // Self-checking tests for mmio_router.
 //
-//   make sim  DESIGN=single_stage TB=mmio_router
-//   make wave DESIGN=single_stage TB=mmio_router
+//   make sim  TB=mmio_router
+//   make wave TB=mmio_router
 
 `timescale 1ns / 1ps
 

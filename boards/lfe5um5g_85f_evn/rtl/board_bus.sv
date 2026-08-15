@@ -1,9 +1,6 @@
 `timescale 1ns / 1ps
 
-// Lattice ECP5 Evaluation Board top.
-//
-// Board-specific shell around the portable single-stage core: clock/reset pins,
-// active-low LEDs, instruction memory, data memory, and LED MMIO live here.
+// Lattice ECP5 Evaluation Board bus and memory-mapped peripherals.
 module board_bus
   import riscv_pkg::*;
 #(

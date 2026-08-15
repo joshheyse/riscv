@@ -93,7 +93,7 @@ generally wants a testbench without him having to ask for one.
 **Layout** — one testbench per RTL module, name-matched:
 
 ```
-rtl/single_stage/reg_file.sv   →   tb/single_stage/tb_reg_file.sv
+rtl/cpu/lib/reg_file.sv   →   tb/cpu/lib/tb_reg_file.sv
 ```
 
 **Conventions:**
@@ -122,7 +122,7 @@ and then green. A test suite that has never failed proves nothing.
 ```sh
 make lint                  # lint whole design (top = fpga_top)
 make lint TOP=reg_file     # lint one module standalone
-make sim  TB=reg_file      # build + run tb/single_stage/tb_reg_file.sv
+make sim  TB=reg_file      # build + run tb/cpu/lib/tb_reg_file.sv
 make wave TB=reg_file      # same, with VCD, opened in GTKWave
 make fmt                   # verible-verilog-format, in place
 make clean
@@ -130,7 +130,7 @@ make clean
 
 `just lint` / `just sim` / `just wave` / `just fmt` wrap these for the default
 design. `DESIGN` selects the `rtl/<design>` + `tb/<design>` pair and defaults to
-`single_stage`.
+`pipelined`.
 
 ## Design decisions already made
 

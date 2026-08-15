@@ -16,7 +16,7 @@ module tb_lsu
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 1_000;
   localparam int unsigned DepthWords = 8;
-  localparam string InitFile = "/home/josh/code/riscv-soc/tb/single_stage/tb_lsu_init.mem";
+  localparam string InitFile = "/home/josh/code/riscv-soc/tb/cpu/lib/tb_lsu_init.mem";
 
   logic              _clk;
   logic              _rst;

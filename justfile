@@ -1,7 +1,7 @@
 cross := env_var_or_default("CROSS_COMPILE", "riscv64-none-elf-")
 
 # Which rtl/<design> + tb/<design> pair the recipes act on.
-design := "single_stage"
+design := "pipelined"
 arch := "rv32i"
 board := "lfe5um5g_85f_evn"
 app := ""
@@ -49,12 +49,6 @@ board-app-test sim="top_sim" target="sim":
     board="${board#boards/}"; \
     make board-app-test DESIGN={{ design }} BOARD="$board" BOARD_SIM="{{ sim }}" RISCV_ARCH="{{ arch }}"
 
-# Compare simulated-board CPI between single_stage and pipelined.
-board-cpi sim="top_sim" target="sim":
-    @board="{{ target }}"; \
-    board="${board#boards/}"; \
-    make board-cpi BOARD="$board" BOARD_SIM="{{ sim }}"
-
 # Run a board peripheral testbench: just board-tb timer_mmio
 board-tb tb="timer_mmio" target=board:
     @board="{{ target }}"; \
@@ -95,7 +89,7 @@ flash target=board app=default_app:
 test:
     make style DESIGN={{ design }}
     @fail=0; \
-    for f in tb/{{ design }}/tb_*.sv; do \
+    for f in tb/cpu/{{ design }}/tb_*.sv tb/cpu/lib/tb_*.sv tb/lib/tb_*.sv tb/periph/tb_*.sv; do \
         [ -e "$f" ] || continue; \
         name=$(basename "$f" .sv); name=$(echo "$name" | sed 's/^tb_//'); \
         printf '%-20s ' "$name"; \

@@ -91,7 +91,7 @@ APP_TESTS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--design", default="single_stage")
+    parser.add_argument("--design", default="pipelined")
     parser.add_argument("--board", default="sim")
     parser.add_argument("--sim", default="top_sim")
     parser.add_argument("--repo", type=Path, default=Path.cwd())

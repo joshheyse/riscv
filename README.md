@@ -30,20 +30,13 @@ Synopsys DC) for some chapters — Verilator substitutes for simulation.
 
 ## Current State
 
-The project is a learning implementation of an RV32I SoC. There are now two CPU
-variants selected with `DESIGN`:
-
-- `single_stage`: the original portable core, matching the book's early
-  single-cycle structure.
-- `pipelined`: a Chapter 7-style baseline pipeline with IF/ID, ID/EX, EX/MEM,
-  and MEM/WB stage registers.
+The project is a learning implementation of an RV32I SoC. Its CPU is a
+Chapter 7-style pipeline with IF/ID, ID/EX, EX/MEM, and MEM/WB stage registers.
 
 The current design has:
 
 - shared CPU building blocks for decode, ALU, branch logic, register file,
   instruction/data buses, instruction/data memory, LSU, and writeback muxing
-- a `single_stage` CPU core with IFU, controller, datapath, ALU, branch logic,
-  register file, LSU, and a valid/ready data bus
 - a `pipelined` CPU core with buffered fetch, execute-stage branch resolution,
   forwarding into execute, load-use stalls, store-data forwarding, and
   forwarding-aware hazard detection
@@ -63,13 +56,13 @@ prediction, and simple IFU/LSU/bus timing.
 
 ```
 rtl/cpu/lib/          reusable CPU RTL: decode, ALU, reg file, ISA package
-rtl/cpu/single_stage/ single-stage core and SoC wrapper
 rtl/cpu/pipelined/    pipelined core, SoC wrapper, IFU, hazard/control helpers
 rtl/periph/           memory-mapped peripheral RTL
 rtl/lib/              shared non-CPU RTL helpers
 boards/<board>/       board constants, top-level RTL, pins, board headers
-tb/single_stage/      CPU and single-stage SoC testbenches
-tb/pipelined/         pipelined CPU testbenches
+tb/cpu/lib/           reusable CPU RTL testbenches
+tb/cpu/pipelined/     pipelined CPU testbenches
+tb/lib/               shared non-CPU RTL testbenches
 tb/boards/<board>/    board/peripheral testbenches
 sdk/riscv32/          RV32I bare-metal startup, linker script, headers
 examples/apps/        RV32I example firmware
@@ -79,24 +72,8 @@ tools/                generated constants / tooling helpers
 .slang/               slang-server workspace config and design-specific build filelists
 ```
 
-`DESIGN` is the CPU variant. It defaults to `single_stage`; use
-`DESIGN=pipelined` to build, lint, simulate, or run board firmware against the
-pipelined core.
-
-## CPI Snapshot
-
-`just board-cpi top_sim sim` compares the simulated-board firmware suite against
-both CPU variants. Current CPI after the initial forwarding work:
-
-| App                 | Single-stage CPI | Pipelined CPI |
-| ------------------- | ---------------: | ------------: |
-| `uart_halt_c`       |             3.01 |          3.26 |
-| `uart_pattern_halt` |             3.00 |          3.30 |
-| `memory_copy_halt`  |             3.03 |          3.17 |
-| `led_count_halt`    |             3.00 |          2.77 |
-
-Pipeline throughput should be evaluated as `Fmax / CPI`; the pipelined core can
-still be faster overall even before CPI beats the single-stage design.
+`DESIGN` defaults to `pipelined` for build, lint, simulation, and board firmware
+targets.
 
 ## Project Docs
 
@@ -119,8 +96,8 @@ still be faster overall even before CPI beats the single-stage design.
 ```sh
 nix develop
 just smoke   # cross-compile sw/smoke, run it on spike and sail
-just lint    # Verilator lint of the default single_stage design
-just sim     # build + run the default single_stage testbench
+just lint    # Verilator lint of the pipelined design
+just sim     # build + run the default pipelined core testbench
 just wave    # same, with a VCD, opened in GTKWave
 ```
 
@@ -131,18 +108,15 @@ a design or turn on tracing:
 make lint TOP=core
 make sim TB=rv32i
 make sim TB=core TRACE=1
-make lint DESIGN=pipelined TOP=soc
-make board-app-test DESIGN=pipelined BOARD=sim BOARD_SIM=top_sim
-just board-cpi top_sim sim
+make lint TOP=soc
+make board-app-test BOARD=sim BOARD_SIM=top_sim
 ```
 
 ## Editor Setup
 
 SystemVerilog semantic navigation and diagnostics use `slang-server`, installed
 through the Home Manager editor toolchain. The checked-in `.slang/server.json`
-discovers the design-specific filelists in `.slang/builds/`; select only one
-build view at a time in the editor to avoid duplicate module definitions between
-`single_stage` and `pipelined`.
+discovers the design-specific filelists in `.slang/builds/`.
 
 Verible remains the formatter/style-lint tool. It is intentionally not used as
 the semantic language server.

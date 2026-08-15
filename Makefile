@@ -6,11 +6,11 @@
 #
 #   make lint                  # lint the whole design (top = core)
 #   make lint TOP=reg_file     # lint one module standalone
-#   make sim  TB=reg_file      # build + run tb/<design>/tb_reg_file.sv
+#   make sim  TB=reg_file      # build + run the matching mirrored testbench
 #   make wave TB=reg_file      # same, with a VCD, opened in GTKWave
 #   make DESIGN=multicycle ...
 
-DESIGN ?= single_stage
+DESIGN ?= pipelined
 TOP    ?= soc
 
 DEFAULT_BOARD     := lfe5um5g_85f_evn
@@ -31,7 +31,9 @@ RTL_LIB_DIR    := rtl/lib
 RTL_PERIPH_DIR := rtl/periph
 CPU_LIB_DIR    := rtl/cpu/lib
 CPU_DESIGN_DIR := rtl/cpu/$(DESIGN)
-TB_DIR         := tb/$(DESIGN)
+TB_DIR         := tb/cpu/$(DESIGN)
+CPU_LIB_TB_DIR := tb/cpu/lib
+RTL_LIB_TB_DIR := tb/lib
 PERIPH_TB_DIR  := tb/periph
 BUILD_ROOT    := build/$(DESIGN)
 SIM_DIR       := $(BUILD_ROOT)/$(TB_TOP)
@@ -48,7 +50,10 @@ CPU_DESIGN_SRCS := $(filter-out $(CPU_PKG_SRCS), \
                     $(sort $(wildcard $(CPU_DESIGN_DIR)/*.sv) $(wildcard $(CPU_DESIGN_DIR)/*.v)))
 PERIPH_SRCS := $(sort $(wildcard $(RTL_PERIPH_DIR)/*.sv) $(wildcard $(RTL_PERIPH_DIR)/*.v))
 RTL_SRCS := $(CPU_PKG_SRCS) $(RTL_LIB_SRCS) $(CPU_LIB_SRCS) $(CPU_DESIGN_SRCS)
-TB_SRC   := $(if $(wildcard $(TB_DIR)/$(TB_TOP).sv),$(TB_DIR)/$(TB_TOP).sv,$(PERIPH_TB_DIR)/$(TB_TOP).sv)
+TB_SRC   := $(firstword $(wildcard $(TB_DIR)/$(TB_TOP).sv \
+                            $(CPU_LIB_TB_DIR)/$(TB_TOP).sv \
+                            $(RTL_LIB_TB_DIR)/$(TB_TOP).sv \
+                            $(PERIPH_TB_DIR)/$(TB_TOP).sv))
 SRCS     := $(RTL_SRCS) $(PERIPH_SRCS) $(TB_SRC)
 
 BOARD_DIR       := boards/$(BOARD)
@@ -152,6 +157,8 @@ ECP5_FREQ    ?= 12
 # compiles just the one selected by TB, so sibling top-level modules don't
 # collide.
 ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v) \
+                       $(wildcard $(CPU_LIB_TB_DIR)/*.sv) $(wildcard $(CPU_LIB_TB_DIR)/*.v) \
+                       $(wildcard $(RTL_LIB_TB_DIR)/*.sv) $(wildcard $(RTL_LIB_TB_DIR)/*.v) \
                        $(wildcard $(PERIPH_TB_DIR)/*.sv) $(wildcard $(PERIPH_TB_DIR)/*.v))
 ALL_BOARD_TB_SRCS := $(sort $(wildcard tb/boards/*/*.sv) $(wildcard tb/boards/*/*.v))
 ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*.v) \
@@ -159,9 +166,9 @@ ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*
 
 VERILATOR ?= verilator
 VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
-                   -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) -I$(TB_DIR)
+                   -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
+                   -I$(TB_DIR) -I$(CPU_LIB_TB_DIR) -I$(RTL_LIB_TB_DIR)
 BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
-                              +define+CPU_DESIGN_$(DESIGN) \
                               -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
                               -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                               -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
@@ -179,7 +186,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-cpi board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -319,10 +326,6 @@ board-sim: board-run
 ## board-app-test: run simulated-board firmware regressions
 board-app-test:
 	tools/run_board_app_tests.py --design $(DESIGN) --board $(BOARD) --sim $(BOARD_SIM)
-
-## board-cpi: compare simulated-board CPI for single_stage and pipelined
-board-cpi:
-	tools/compare_cpi.py --board $(BOARD) --sim $(BOARD_SIM)
 
 $(BOARD_TB_BIN): $(BOARD_SRCS) $(BOARD_TB_SRC)
 	@test -f $(BOARD_TB_SRC) || { echo "no such board testbench: $(BOARD_TB_SRC)"; exit 1; }

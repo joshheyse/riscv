@@ -11,7 +11,8 @@ module tb_core_boot_branch
 
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 80;
-  localparam string ProgramFile = "/home/josh/code/riscv-soc/tb/pipelined/tb_core_boot_branch.mem";
+  localparam string ProgramFile =
+      "/home/josh/code/riscv-soc/tb/cpu/pipelined/tb_core_boot_branch.mem";
 
   logic _clk;
   logic _rst;

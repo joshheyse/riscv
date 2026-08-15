@@ -2,7 +2,7 @@
 
 // Lattice ECP5 Evaluation Board top.
 //
-// Board-specific shell around the portable single-stage core: clock/reset pins,
+// Board-specific shell around the portable pipelined core: clock/reset pins,
 // active-low LEDs, instruction memory, data memory, and LED MMIO live here.
 module top
   import riscv_pkg::*;

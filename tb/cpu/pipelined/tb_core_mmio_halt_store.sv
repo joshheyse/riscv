@@ -12,7 +12,7 @@ module tb_core_mmio_halt_store
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 200;
   localparam string       ProgramFile   =
-      "/home/josh/code/riscv-soc/tb/pipelined/tb_core_mmio_halt_store.mem";
+      "/home/josh/code/riscv-soc/tb/cpu/pipelined/tb_core_mmio_halt_store.mem";
 
   logic _clk;
   logic _rst;

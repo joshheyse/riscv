@@ -1,4 +1,3 @@
-+define+CPU_DESIGN_pipelined
 -Irtl/lib
 -Irtl/periph
 -Irtl/cpu/lib
