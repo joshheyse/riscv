@@ -16,11 +16,9 @@ rtl/cpu/lib/comparator.sv
 rtl/cpu/lib/controller.sv
 rtl/cpu/lib/csr_execute.sv
 rtl/cpu/lib/csr_file.sv
-rtl/cpu/lib/dbus_if.sv
-rtl/cpu/lib/dmem.sv
+rtl/cpu/lib/memory.sv
 rtl/cpu/lib/execute_result_mux.sv
 rtl/cpu/lib/extend.sv
-rtl/cpu/lib/ibus_if.sv
 rtl/cpu/lib/imem.sv
 rtl/cpu/lib/integer_execute.sv
 rtl/cpu/lib/lsu.sv

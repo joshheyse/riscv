@@ -3,8 +3,8 @@ sv_package: board_constants_pkg
 c_prefix: BOARD
 
 constants:
-  dmem_base: 0x00000000
-  dmem_size: 0x00000800
+  mem_base: 0x00000000
+  mem_size: 0x00001000
   num_leds: 8
   num_dip_switches: 8
   num_push_buttons: 1

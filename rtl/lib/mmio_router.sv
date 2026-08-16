@@ -4,8 +4,8 @@ module mmio_router
   import riscv_pkg::*;
 #(
   parameter int unsigned NumSources = 1,
-  parameter int unsigned DmemIdx = 0,  // index of DMem source
-  parameter bit DmemHasPrio = 1'b1,  // DMem loses to any MMIO hit
+  parameter int unsigned MemIdx = 0,  // index of default memory source
+  parameter bit MemHasPrio = 1'b1,  // default memory loses to any MMIO hit
   parameter mmio_source_t SourceMap[NumSources] = '{
       default: '{start_addr: '0, end_addr: '0, writeable: 1'b0}
   }
@@ -19,15 +19,15 @@ module mmio_router
   logic        [NumSources-1:0] _selected;
   logic        [NumSources-1:0] _source_ready;
   logic        [  WordBits-1:0] _source_read_data[NumSources];
-  logic        [NumSources-1:0] _dmem_mask;
+  logic        [NumSources-1:0] _mem_mask;
 
   int unsigned                  _i;
   logic                         _mmio_selected;
 
   always_comb begin
-    _dmem_mask = '0;
-    if (DmemIdx < NumSources) begin
-      _dmem_mask[DmemIdx] = 1'b1;
+    _mem_mask = '0;
+    if (MemIdx < NumSources) begin
+      _mem_mask[MemIdx] = 1'b1;
     end
 
     _selected = '0;
@@ -37,10 +37,10 @@ module mmio_router
       end
     end
 
-    _mmio_selected = |(_selected & ~_dmem_mask);
+    _mmio_selected = |(_selected & ~_mem_mask);
 
-    if (DmemHasPrio && (DmemIdx < NumSources)) begin
-      _selected[DmemIdx] = _selected[DmemIdx] & ~_mmio_selected;
+    if (MemHasPrio && (MemIdx < NumSources)) begin
+      _selected[MemIdx] = _selected[MemIdx] & ~_mmio_selected;
     end
   end
 

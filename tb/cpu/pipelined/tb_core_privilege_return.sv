@@ -32,8 +32,8 @@ module tb_core_privilege_return
   logic _halted;
   pc_t  _pc;
 
-  ibus_if _ibus ();
-  dbus_if _dbus ();
+  mem_if _ibus ();
+  mem_if _dbus ();
   irq_if _irq ();
 
   always_comb begin
@@ -133,7 +133,7 @@ module tb_core_privilege_return
 
     @(negedge _clk);
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = instr;
+    _ibus.rsp.read_data = instr;
 
     @(posedge _clk);
     #1;
@@ -153,7 +153,7 @@ module tb_core_privilege_return
 
     @(negedge _clk);
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = instr;
+    _ibus.rsp.read_data = instr;
 
     @(posedge _clk);
     #1;
@@ -178,7 +178,7 @@ module tb_core_privilege_return
     expect_word(_dut._ifu._request_pc, exp_addr, {what, " request addr"});
 
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = instr;
+    _ibus.rsp.read_data = instr;
 
     @(posedge _clk);
     #1;

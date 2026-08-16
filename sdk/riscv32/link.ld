@@ -1,13 +1,11 @@
 OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
-IMEM_LENGTH = DEFINED(ImemBytes) ? ImemBytes : 2048;
-DMEM_LENGTH = DEFINED(DmemBytes) ? DmemBytes : 2048;
+MEM_LENGTH = DEFINED(MemBytes) ? MemBytes : 4096;
 
 MEMORY
 {
-  IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = IMEM_LENGTH
-  DMEM (rw)  : ORIGIN = 0x00000000, LENGTH = DMEM_LENGTH
+  MEM (rwx) : ORIGIN = 0x00000000, LENGTH = MEM_LENGTH
 }
 
 SECTIONS
@@ -17,20 +15,20 @@ SECTIONS
     *(.text .text.*)
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
-  } > IMEM
+  } > MEM
 
   .data : {
     *(.sdata .sdata.*)
     *(.data .data.*)
-  } > DMEM
+  } > MEM
 
   .init_array : {
     KEEP(*(.init_array .init_array.*))
-  } > IMEM
+  } > MEM
 
   .fini_array : {
     KEEP(*(.fini_array .fini_array.*))
-  } > IMEM
+  } > MEM
 
   .bss (NOLOAD) : {
     __bss_start = .;
@@ -39,11 +37,10 @@ SECTIONS
     *(COMMON)
     . = ALIGN(4);
     __bss_end = .;
-  } > DMEM
+  } > MEM
 
-  __stack_top = ORIGIN(DMEM) + LENGTH(DMEM);
+  __stack_top = ORIGIN(MEM) + LENGTH(MEM);
 
-  ASSERT(SIZEOF(.data) == 0, "initialized .data is not supported yet; use const/immediates or add a dmem image")
   ASSERT(SIZEOF(.init_array) == 0, "global constructors are not supported yet")
   ASSERT(SIZEOF(.fini_array) == 0, "global destructors are not supported yet")
 }

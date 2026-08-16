@@ -21,7 +21,7 @@ module tb_ifu
   if_id_t    _fetched;
 
   /* verilator lint_off UNUSEDSIGNAL */
-  ibus_if _ibus ();
+  mem_if _ibus ();
   /* verilator lint_on UNUSEDSIGNAL */
 
   int unsigned errors = 0;
@@ -79,15 +79,17 @@ module tb_ifu
     @(negedge _clk);
     _rst = 1'b0;
     _ibus.rsp.ready = 1'b0;
-    _ibus.rsp.instr.raw = 32'h0050_0093;  // addi x1, x0, 5
+    _ibus.rsp.read_data = 32'h0050_0093;  // addi x1, x0, 5
     #1;
-    expect_bit(_ibus.req.valid, 1'b1, "pipe enabled requests instruction");
+    expect_bit(_ibus.req.valid, 1'b0, "pipe enabled schedules instruction request");
     expect_word(_ibus.req.addr, 32'h0000_0000, "first request starts at pc zero");
 
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b0, "not-ready response does not produce fetch");
     expect_word(_pc, 32'h0000_0004, "first request issue advances pc");
+    expect_bit(_ibus.req.valid, 1'b1, "pending request remains valid");
+    expect_word(_ibus.req.addr, 32'h0000_0000, "pending request holds its address");
 
     @(negedge _clk);
     _ibus.rsp.ready = 1'b1;
@@ -98,11 +100,10 @@ module tb_ifu
     expect_word(_fetched.slot.pc, 32'h0000_0000, "first fetch records pc");
     expect_word(_fetched.slot.instr.raw, 32'h0050_0093, "first fetch records instruction");
     expect_word(_pc, 32'h0000_0004, "accepted fetch keeps next request pc");
-    expect_word(_ibus.req.addr, 32'h0000_0004, "next request uses advanced pc");
 
     @(negedge _clk);
     _fetch_en = 1'b0;
-    _ibus.rsp.instr.raw = 32'h0031_00b3;  // add x1, x2, x3
+    _ibus.rsp.read_data = 32'h0031_00b3;  // add x1, x2, x3
     #1;
     expect_bit(_ibus.req.valid, 1'b0, "pipe disabled suppresses instruction request");
 
@@ -116,8 +117,7 @@ module tb_ifu
     @(negedge _clk);
     _fetch_en = 1'b1;
     #1;
-    expect_bit(_ibus.req.valid, 1'b1, "reenabled pipe requests instruction");
-    expect_word(_ibus.req.addr, 32'h0000_0004, "reenabled request resumes held pc");
+    expect_bit(_ibus.req.valid, 1'b0, "reenabled pipe schedules instruction request");
 
     @(posedge _clk);
     #1;
@@ -140,27 +140,28 @@ module tb_ifu
     _redirect.valid = 1'b1;
     _redirect.pc = 32'h0000_0040;
     _ibus.rsp.ready = 1'b0;
-    _ibus.rsp.instr.raw = 32'hffff_ffff;
+    _ibus.rsp.read_data = 32'hffff_ffff;
 
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b0, "redirect squashes old fetch response");
     expect_word(_pc, 32'h0000_0040, "redirect loads target pc");
-    expect_word(_ibus.req.addr, 32'h0000_0040, "redirect request uses target pc");
+    expect_bit(_ibus.req.valid, 1'b1, "redirect keeps old request active until response");
+    expect_word(_ibus.req.addr, 32'h0000_0008, "redirect holds old request address");
 
     @(negedge _clk);
     _redirect.valid = 1'b0;
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = 32'hffff_ffff;
+    _ibus.rsp.read_data = 32'hffff_ffff;
 
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b0, "post-redirect stale response is ignored");
     expect_word(_pc, 32'h0000_0040, "stale response after redirect does not advance pc");
-    expect_word(_ibus.req.addr, 32'h0000_0040, "stale response keeps target request active");
+    expect_bit(_ibus.req.valid, 1'b0, "stale response completes before target request");
 
     @(negedge _clk);
-    _ibus.rsp.instr.raw = 32'h0000_0093;  // addi x1, x0, 0
+    _ibus.rsp.read_data = 32'h0000_0093;  // addi x1, x0, 0
 
     @(posedge _clk);
     #1;
@@ -174,16 +175,36 @@ module tb_ifu
     expect_word(_fetched.slot.instr.raw, 32'h0000_0093, "post-redirect fetch records instruction");
     expect_word(_pc, 32'h0000_0044, "post-redirect fetch keeps next request pc");
 
+    // A redirect may coincide with completion of the outstanding request.
+    // The completed wrong-path request must not remain asserted afterward.
+    @(posedge _clk);
+    #1;
+    expect_bit(_fetched.valid, 1'b0, "coincident redirect setup issues wrong-path request");
+
     @(negedge _clk);
+    _redirect.valid = 1'b1;
+    _redirect.pc = 32'h0000_0080;
+    _ibus.rsp.ready = 1'b1;
+    _ibus.rsp.read_data = 32'hffff_ffff;
+
+    @(posedge _clk);
+    #1;
+    expect_bit(_fetched.valid, 1'b0, "redirect discards coincident response");
+    expect_word(_pc, 32'h0000_0080, "coincident redirect loads target pc");
+    expect_bit(_ibus.req.valid, 1'b0, "coincident response completes old request");
+
+    @(negedge _clk);
+    _redirect.valid = 1'b0;
+
     _ibus.rsp.ready = 1'b0;
-    _ibus.rsp.instr = '0;
+    _ibus.rsp.read_data = '0;
 
     @(posedge _clk);
     #1;
     expect_bit(_fetched.valid, 1'b0, "ready low clears fetched output");
-    expect_word(_pc, 32'h0000_0048, "ready low next request issue advances pc");
-    expect_bit(_ibus.req.valid, 1'b0, "outstanding request suppresses duplicate request");
-    expect_word(_ibus.req.addr, 32'h0000_0048, "pending request leaves next pc on address bus");
+    expect_word(_pc, 32'h0000_0084, "ready low next request issue advances pc");
+    expect_bit(_ibus.req.valid, 1'b1, "outstanding request remains asserted");
+    expect_word(_ibus.req.addr, 32'h0000_0080, "outstanding request holds requested pc");
 
     if (errors == 0) begin
       $display("tb_ifu: PASS (%0d checks)", checks);

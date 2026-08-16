@@ -27,7 +27,7 @@ module tb_top_led;
   assign _observed_outputs = _uart_tx | _spi_sck | _spi_mosi | _spi_cs_n | (|gpio) | _i2c_sda | _i2c_scl;
 
   top #(
-    .ImemInitFile(ProgramFile),
+    .MemInitFile(ProgramFile),
     .PowerOnResetCycles(4)
   ) _dut (
     .clk_12mhz(_clk_12mhz),

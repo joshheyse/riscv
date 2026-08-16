@@ -22,8 +22,8 @@ module tb_core_csr
   instr_t        _program    [ProgramWords-1:0];
   logic   [31:0] _imem_index;
 
-  ibus_if _ibus ();
-  dbus_if _dbus ();
+  mem_if _ibus ();
+  mem_if _dbus ();
   irq_if _irq ();
 
   always_comb begin
@@ -102,9 +102,9 @@ module tb_core_csr
     end else if (_ibus.req.valid) begin
       _ibus.rsp.ready <= 1'b1;
       if (_imem_index < ProgramWords) begin
-        _ibus.rsp.instr.raw <= _program[_imem_index];
+        _ibus.rsp.read_data <= _program[_imem_index];
       end else begin
-        _ibus.rsp.instr.raw <= Nop;
+        _ibus.rsp.read_data <= Nop;
       end
     end else begin
       _ibus.rsp <= '0;

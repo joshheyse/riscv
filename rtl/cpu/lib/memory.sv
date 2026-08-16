@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module dmem
+module memory
   import riscv_pkg::*;
 #(
   parameter int unsigned DepthWords = 512,

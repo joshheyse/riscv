@@ -11,8 +11,8 @@ module tb_mmio_router
 
   localparam realtime Timeout            = 200ns;
   localparam int unsigned NumSources     = 3;
-  localparam int unsigned DmemIdx        = 0;
-  localparam logic [NumSources-1:0] SourceDmemIdx = 3'b001;
+  localparam int unsigned MemIdx        = 0;
+  localparam logic [NumSources-1:0] SourceMemIdx = 3'b001;
   localparam logic [NumSources-1:0] SourceRoIdx   = 3'b010;
   localparam logic [NumSources-1:0] SourceRwIdx   = 3'b100;
 
@@ -38,8 +38,8 @@ module tb_mmio_router
 
   mmio_router #(
     .NumSources(NumSources),
-    .DmemIdx(DmemIdx),
-    .DmemHasPrio(1'b1),
+    .MemIdx(MemIdx),
+    .MemHasPrio(1'b1),
     .SourceMap(_source_map)
   ) _dut (
     .dbus(_dbus_mem),
@@ -161,7 +161,7 @@ module tb_mmio_router
     _source_ready = '1;
     clear_dbus_request();
 
-    // DMem overlaps MMIO ranges; MMIO has priority and must win.
+    // default memory overlaps MMIO ranges; MMIO has priority and must win.
     apply_and_check(
       1'b1,
       1'b0,
@@ -200,14 +200,14 @@ module tb_mmio_router
       "rw_mmio_write"
     );
 
-    // DMem-only address range selects DMem path.
+    // default memory-only address range selects default memory path.
     apply_and_check(
       1'b1,
       1'b0,
       32'h0000_0030,
       32'h0000_0000,
       4'b0000,
-      SourceDmemIdx,
+      SourceMemIdx,
       1'b1,
       32'h1000_0000,
       "dmem_after_mmio_ranges"

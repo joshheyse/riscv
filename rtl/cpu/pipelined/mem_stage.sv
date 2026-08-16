@@ -12,7 +12,7 @@ module mem_stage
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
 
-  dbus_if.master dbus
+  mem_if.master dbus
 );
 
   mem_data_t   _mem_read_data;

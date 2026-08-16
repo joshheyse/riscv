@@ -57,10 +57,10 @@ module tb_lsu
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _write_mask;
 
-  dmem #(
+  memory #(
     .DepthWords(DepthWords),
     .InitFile(InitFile)
-  ) _dmem (
+  ) _memory (
     .clk(_clk),
     .rst(_rst),
     .mem(_mem)

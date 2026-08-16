@@ -3,10 +3,8 @@
 module top_sim
   import riscv_pkg::*;
 #(
-  parameter string       ImemInitFile   = "",
-  parameter int unsigned ImemDepthWords = 512,
-  parameter int unsigned DmemDepthWords = 512,
-  parameter string       DmemInitFile   = "",
+  parameter string       MemInitFile    = "",
+  parameter int unsigned MemDepthWords  = 1024,
   parameter int unsigned ClockHz        = board_constants_pkg::ClockHz,
   parameter int unsigned UartBaud       = board_constants_pkg::UartBaud,
   parameter int unsigned ClocksPerBit   = ClockHz / UartBaud,
@@ -33,35 +31,29 @@ module top_sim
   logic              _plic_complete_seen;
   logic              _plic_mret_seen;
   logic              _plic_uart_tx_seen;
-  dbus_if _core_dbus ();
-  dbus_if _board_dbus ();
-
-  ibus_if _core_ibus ();
-  ibus_if _imem_ibus ();
+  mem_if _core_mem ();
+  mem_if _board_mem ();
   irq_if _irq ();
   uart_if _uart ();
 
-  assign _sim_halt_selected = (_core_dbus.req.addr == SimHaltAddr);
-  assign _sim_halt_fire = !_rst && _core_dbus.req.valid && _core_dbus.req.write_en
+  assign _sim_halt_selected = (_core_mem.req.addr == SimHaltAddr);
+  assign _sim_halt_fire = !_rst && _core_mem.req.valid && _core_mem.req.write_en
                           && _sim_halt_selected;
 
   assign _retire = _core._ex_mem.valid && !_core._dbus_wait;
 
-  assign _core_dbus.rsp.read_data = _sim_halt_selected ? '0 : _board_dbus.rsp.read_data;
-  assign _core_dbus.rsp.ready = _sim_halt_selected ? _core_dbus.req.valid : _board_dbus.rsp.ready;
-  assign _board_dbus.req.valid = _core_dbus.req.valid & !_sim_halt_selected;
-  assign _board_dbus.req.write_en = _core_dbus.req.write_en & !_sim_halt_selected;
-  assign _board_dbus.req.addr = _core_dbus.req.addr;
-  assign _board_dbus.req.write_data = _core_dbus.req.write_data;
-  assign _board_dbus.req.write_mask = _core_dbus.req.write_mask;
-
-  assign _core_ibus.rsp = _imem_ibus.rsp;
-  assign _imem_ibus.req = _core_ibus.req;
+  assign _core_mem.rsp.read_data = _sim_halt_selected ? '0 : _board_mem.rsp.read_data;
+  assign _core_mem.rsp.ready = _sim_halt_selected ? _core_mem.req.valid : _board_mem.rsp.ready;
+  assign _board_mem.req.valid = _core_mem.req.valid & !_sim_halt_selected;
+  assign _board_mem.req.write_en = _core_mem.req.write_en & !_sim_halt_selected;
+  assign _board_mem.req.addr = _core_mem.req.addr;
+  assign _board_mem.req.write_data = _core_mem.req.write_data;
+  assign _board_mem.req.write_mask = _core_mem.req.write_mask;
   assign _uart.rx = _uart_rx;
 
   initial begin
-    if (ImemInitFile == "") begin
-      $fatal(1, "top_sim needs -GImemInitFile=<program.mem>");
+    if (MemInitFile == "") begin
+      $fatal(1, "top_sim needs -GMemInitFile=<program.mem>");
     end
   end
 
@@ -93,25 +85,25 @@ module top_sim
       end
       if (_sim_halt_fire) begin
         _sim_done <= 1'b1;
-        _sim_halt_code <= _core_dbus.req.write_data;
+        _sim_halt_code <= _core_mem.req.write_data;
       end
 
       if ($test$plusargs("plic-checkpoints")) begin
-        if (_core_dbus.req.valid && _core_dbus.rsp.ready && !_core_dbus.req.write_en &&
-            (_core_dbus.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
+        if (_core_mem.req.valid && _core_mem.rsp.ready && !_core_mem.req.write_en &&
+            (_core_mem.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
           _plic_claim_seen <= 1'b1;
-          $display("top_sim: checkpoint plic claim id=0x%08h", _core_dbus.rsp.read_data);
+          $display("top_sim: checkpoint plic claim id=0x%08h", _core_mem.rsp.read_data);
         end
-        if (_core_dbus.req.valid && _core_dbus.rsp.ready && _core_dbus.req.write_en &&
-            (_core_dbus.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
+        if (_core_mem.req.valid && _core_mem.rsp.ready && _core_mem.req.write_en &&
+            (_core_mem.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
           _plic_complete_seen <= 1'b1;
-          $display("top_sim: checkpoint plic complete id=0x%08h", _core_dbus.req.write_data);
+          $display("top_sim: checkpoint plic complete id=0x%08h", _core_mem.req.write_data);
         end
-        if (_core_dbus.req.valid && _core_dbus.rsp.ready && _core_dbus.req.write_en &&
-            (_core_dbus.req.addr == board_constants_pkg::UartTxAddr)) begin
+        if (_core_mem.req.valid && _core_mem.rsp.ready && _core_mem.req.write_en &&
+            (_core_mem.req.addr == board_constants_pkg::UartTxAddr)) begin
           _plic_uart_tx_seen <= 1'b1;
           $display("top_sim: checkpoint uart tx accepted byte=0x%02h",
-                   _core_dbus.req.write_data[7:0]);
+                   _core_mem.req.write_data[7:0]);
         end
         if (_core._retire.mret) begin
           _plic_mret_seen <= 1'b1;
@@ -121,35 +113,25 @@ module top_sim
     end
   end
 
-  imem #(
-    .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
-  ) _imem (
-    .clk(_clk),
-    .rst(_rst),
-    .ibus(_imem_ibus)
-  );
-
   core _core (
     .clk(_clk),
     .rst(_rst),
     .pc(_pc),
     .halted(_halted),
-    .dbus(_core_dbus),
-    .ibus(_core_ibus),
+    .mem(_core_mem),
     .irq(_irq)
   );
 
   board_bus #(
-    .DmemDepthWords(DmemDepthWords),
-    .DmemInitFile(DmemInitFile)
+    .MemDepthWords(MemDepthWords),
+    .MemInitFile(MemInitFile)
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),
     .led(_led),
     .uart(_uart),
     .irq(_irq),
-    .dbus(_board_dbus)
+    .mem(_board_mem)
   );
 
   task automatic uart_getc(output byte ch);
@@ -222,7 +204,7 @@ module top_sim
 
     _uart_rx = 1'b1;
 
-    $display("top_sim: IMEM %s", ImemInitFile);
+    $display("top_sim: MEM %s", MemInitFile);
     $write("uart: ");
 
     @(negedge _rst);
@@ -266,7 +248,7 @@ module top_sim
           else $fatal(1, "top_sim: missing mret retirement checkpoint");
           assert (_plic_uart_tx_seen)
           else $fatal(1, "top_sim: missing accepted UART TX checkpoint");
-          $display("top_sim: checkpoint simulation halt code=0x%08h", _core_dbus.req.write_data);
+          $display("top_sim: checkpoint simulation halt code=0x%08h", _core_mem.req.write_data);
         end
         repeat (ClocksPerBit * 12) @(posedge _clk);
         $write("\n");
@@ -286,10 +268,9 @@ module top_sim
   initial begin
     repeat (TimeoutCycles) @(posedge _clk);
     $display(
-        "top_sim: watchdog state cycle=%0d _pc=0x%08h halted=%b ibus_valid=%b ibus_addr=0x%08h ibus_ready=%b dbus_valid=%b dbus_write_en=%b dbus_addr=0x%08h dbus_write_data=0x%08h dbus_ready=%b",
-        _cycle, _pc, _halted, _core_ibus.req.valid, _core_ibus.req.addr, _core_ibus.rsp.ready,
-        _core_dbus.req.valid, _core_dbus.req.write_en, _core_dbus.req.addr,
-        _core_dbus.req.write_data, _core_dbus.rsp.ready);
+        "top_sim: watchdog state cycle=%0d _pc=0x%08h halted=%b mem_valid=%b mem_write_en=%b mem_addr=0x%08h mem_write_data=0x%08h mem_ready=%b",
+        _cycle, _pc, _halted, _core_mem.req.valid, _core_mem.req.write_en,
+        _core_mem.req.addr, _core_mem.req.write_data, _core_mem.rsp.ready);
     $display(
         "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
         _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,

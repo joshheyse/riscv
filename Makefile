@@ -131,8 +131,7 @@ APP_DUMP      := $(APP_BUILD_DIR)/$(APP_NAME).dump
 
 RISCV_ARCH ?= rv32i
 RISCV_ABI  ?= ilp32
-IMEM_BYTES ?= 2048
-DMEM_BYTES ?= 2048
+MEM_BYTES ?= 4096
 
 APP_COMMON_FLAGS := -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) \
                     -ffreestanding -nostdlib -nostartfiles \
@@ -143,8 +142,7 @@ APP_CXXFLAGS     ?= $(APP_COMMON_FLAGS) -std=c++20 -fno-exceptions -fno-rtti -fn
 APP_ASFLAGS      ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI)
 APP_LDFLAGS      ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) \
                     -nostdlib -nostartfiles -Wl,--gc-sections \
-                    -Wl,--defsym=ImemBytes=$(IMEM_BYTES) \
-                    -Wl,--defsym=DmemBytes=$(DMEM_BYTES) \
+                    -Wl,--defsym=MemBytes=$(MEM_BYTES) \
                     -T $(SDK_LINKER)
 APP_LINK         := $(if $(APP_CXX_SRCS),$(RISCV_GXX),$(RISCV_GCC))
 
@@ -293,7 +291,7 @@ $(APP_ELF): $(APP_START_OBJS) $(APP_OBJS) $(SDK_LINKER)
 	$(RISCV_SIZE) $@
 
 $(APP_BIN): $(APP_ELF)
-	$(RISCV_OBJCOPY) -O binary -j .text $< $@
+	$(RISCV_OBJCOPY) -O binary $< $@
 
 $(APP_MEM): $(APP_BIN)
 	od -An -v -tx4 -w4 $< | tr -d ' ' > $@
@@ -312,7 +310,7 @@ $(BOARD_HARNESS_BIN): $(BOARD_SIM_HARNESS_SRCS) $(APP_MEM)
 	@mkdir -p $(BOARD_SIM_BUILD_DIR)
 	$(VERILATOR) --binary $(BOARD_SIM_VERILATOR_FLAGS) \
 		--top-module $(BOARD_SIM_TOP) \
-		-GImemInitFile=\"$(abspath $(APP_MEM))\" \
+		-GMemInitFile=\"$(abspath $(APP_MEM))\" \
 		--Mdir $(BOARD_SIM_BUILD_DIR) \
 		-o V$(BOARD_SIM_TOP) \
 		$(BOARD_SIM_HARNESS_SRCS)
@@ -348,7 +346,7 @@ board-program: app-build
 $(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
-	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G ImemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
+	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G MemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
 
 $(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF)
 	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \

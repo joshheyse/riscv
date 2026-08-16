@@ -2,8 +2,8 @@
 #ifndef SIM_BOARD_CONSTANTS_H
 #define SIM_BOARD_CONSTANTS_H
 
-#define BOARD_DMEM_BASE          0x00000000u
-#define BOARD_DMEM_SIZE          0x00000800u
+#define BOARD_MEM_BASE           0x00000000u
+#define BOARD_MEM_SIZE           0x00001000u
 #define BOARD_NUM_LEDS           0x00000008u
 #define BOARD_LED_ADDR           0x10000000u
 #define BOARD_UART_TX_ADDR       0x10001000u

@@ -29,9 +29,8 @@ module core
   output logic halted,
   output pc_t  pc,
 
-  ibus_if.master ibus,
-  dbus_if.master dbus,
-  irq_if.sink    irq
+  mem_if.master mem,
+  irq_if.sink   irq
 );
 
 
@@ -97,6 +96,10 @@ module core
   logic           _ex_mret_valid;
   logic           _ex_sret_valid;
 
+
+  mem_if _data ();
+  mem_if _ifetch ();
+
   assign _id_branch_flags = '0;
 
   assign _csr.addr.raw = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
@@ -140,32 +143,24 @@ module core
   assign _trap_from_if_id = _if_id.valid && _id_trap.valid && !_trap_held;
 
   always_comb begin
-    _interrupt_trap_req         = '0;
-    _mie_pending_meip           = _csr_status.mip.meip | irq.pending.meip;
-    _mie_pending_mtip           = _csr_status.mip.mtip | irq.pending.mtip;
-    _mie_pending_msip           = _csr_status.mip.msip | irq.pending.msip;
-    _mie_pending_seip           = _csr_status.mip.seip | irq.pending.seip;
-    _mie_pending_stip           = _csr_status.mip.stip | irq.pending.stip;
-    _mie_pending_ssip           = _csr_status.mip.ssip | irq.pending.ssip;
+    _interrupt_trap_req = '0;
+    _mie_pending_meip = _csr_status.mip.meip | irq.pending.meip;
+    _mie_pending_mtip = _csr_status.mip.mtip | irq.pending.mtip;
+    _mie_pending_msip = _csr_status.mip.msip | irq.pending.msip;
+    _mie_pending_seip = _csr_status.mip.seip | irq.pending.seip;
+    _mie_pending_stip = _csr_status.mip.stip | irq.pending.stip;
+    _mie_pending_ssip = _csr_status.mip.ssip | irq.pending.ssip;
     _machine_interrupts_enabled = (_csr_status.priv_mode != PRIV_MACHINE) ||
         _csr_status.mstatus.mie;
     _supervisor_interrupts_enabled = (_csr_status.priv_mode == PRIV_USER) ||
         ((_csr_status.priv_mode == PRIV_SUPERVISOR) && _csr_status.mstatus.sie);
 
     if (_csr_status.mie.meip && _mie_pending_meip && _machine_interrupts_enabled) begin
-      _interrupt_trap_req = '{
-          valid: 1'b1,
-          src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
-          tval: '0
-      };
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_enabled) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.msip && _mie_pending_msip && _machine_interrupts_enabled) begin
-      _interrupt_trap_req = '{
-          valid: 1'b1,
-          src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
-          tval: '0
-      };
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.seip && _mie_pending_seip &&
                  (_csr_status.mideleg[9] ? _supervisor_interrupts_enabled :
                                           _machine_interrupts_enabled)) begin
@@ -342,6 +337,14 @@ module core
     endcase
   end
 
+  mem_arbiter _mem_arbiter (
+    .clk(clk),
+    .rst(rst),
+    .ifetch(_ifetch.slave),
+    .data(_data.slave),
+    .mem(mem)
+  );
+
   ifu _ifu (
     .clk(clk),
     .rst(rst),
@@ -349,7 +352,7 @@ module core
     .redirect(_flow.redirect),
     .pc(pc),
     .fetched(_fetched),
-    .ibus(ibus)
+    .ibus(_ifetch.master)
   );
 
   // Decode
@@ -478,7 +481,7 @@ module core
     .csr_status(_csr_status),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
-    .dbus(dbus)
+    .dbus(_data.master)
   );
 
   // Writeback and hazards

@@ -37,11 +37,9 @@ sim tb="core":
 wave tb="core":
     make wave DESIGN={{ design }} TB={{ tb }}
 
-# Run the simulated platform: just design=pipelined app=examples/apps/csr_halt arch=rv32i_zicsr board-sim
-board-sim:
-    @app="{{ app }}"; \
-    [ -n "$app" ] || app="{{ default_sim_app }}"; \
-    make board-sim DESIGN="{{ design }}" BOARD="{{ sim_board }}" BOARD_SIM="{{ sim_top }}" APP="$app" RISCV_ARCH="{{ arch }}"
+# Run the simulated platform: just board-sim examples/apps/csr_halt
+board-sim app=default_sim_app:
+    make board-sim DESIGN="{{ design }}" BOARD="{{ sim_board }}" BOARD_SIM="{{ sim_top }}" APP="{{ app }}" RISCV_ARCH="{{ arch }}"
 
 # Run simulated-board firmware regressions: just design=pipelined board-app-test
 board-app-test sim="top_sim" target="sim":

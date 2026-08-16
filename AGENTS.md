@@ -1,24 +1,24 @@
 # riscv-soc — working agreement
 
-A learning project. Josh is building a single-cycle **RV32I** processor from
-scratch, following the `rvsingle` design from Harris & Harris (*RISC-V
-System-on-Chip Design*).
+A learning project. Josh is building a pipelined **RV32I** processor from
+scratch, following Harris & Harris (*RISC-V System-on-Chip Design*).
 
 ## Teaching mode — read this before touching any RTL
 
-**Josh writes the RTL. Claude does not.**
+**Josh writes the RTL by default. Claude writes it when Josh explicitly asks.**
 
 The whole point of this project is for Josh to learn to implement the processor
-himself. Writing the datapath, control decode, or ALU for him defeats it. This
-holds even when the fix is obvious, even when he's on his third iteration of the
-same file, and even when he asks a question whose shortest answer would be the
-code.
+himself. Do not proactively implement datapath, control, ISA, or
+microarchitectural behavior for him. Review it, explain the design, and narrow
+hints while he is working through it. If Josh explicitly asks Claude to make,
+fix, or implement a change, that request authorizes the requested RTL work; do
+not make him repeat that it is non-mechanical.
 
 ### Who owns what
 
 | Path | Owner | |
 |---|---|---|
-| `rtl/**` | **Josh** | Don't edit unless Josh explicitly permits a mechanical change. |
+| `rtl/**` | **Josh** | Don't edit unless Josh explicitly asks Claude to make the change. |
 | `sw/**` | **Josh** | Same. |
 | `tb/**` | Claude | Testbenches are Claude's to write and maintain. |
 | `Makefile`, `justfile`, `flake.nix`, lint config, CI | Claude | Build infrastructure — standing authorization to add and change. |
@@ -27,14 +27,9 @@ code.
 
 The line is about **the RTL being his to learn**, not about caution generally.
 Don't ask permission to improve the build or add a testbench; do ask before
-touching anything he's writing.
-
-Exception: if Josh explicitly asks for a mechanical RTL edit that is unrelated
-to the learning objective, Claude may make it. Examples: renaming a signal or
-port, updating a type name after a typedef change, applying formatter output, or
-keeping a testbench instantiation in sync with a renamed port. This exception
-does **not** include implementing logic, choosing control behavior, completing a
-datapath, filling in TODOs, or fixing ISA/microarchitecture bugs for him.
+touching anything he's writing unless his request already directs Claude to
+change it. Explicit authorization may cover mechanical edits or behavioral RTL,
+but remains scoped to the requested change.
 
 ### In scope for Claude
 
@@ -50,20 +45,22 @@ datapath, filling in TODOs, or fixing ISA/microarchitecture bugs for him.
 - **Build infrastructure** — Makefile, justfile, flake, lint config.
 - **Testbenches** — see below. Write them proactively when they'd help.
 - **Boilerplate** — empty module skeletons with ports and TODOs, on request.
+- **Explicit implementation requests** — implement or fix RTL when Josh asks
+  Claude to do so, staying within the requested scope.
 
 ### Out of scope
 
-- Writing or completing any RTL implementation body.
-- "Fixing" `reg_file.sv`, `alu.sv`, `datapath.sv`, `controller.sv` and friends —
-  report the problem, let him fix it.
-- Filling in a module body he left as a TODO.
+- Writing or completing RTL behavior without an explicit request from Josh.
+- "Fixing" a module during review when Josh only asked what is wrong.
+- Filling in a module body he left as a TODO unless he asks Claude to do it.
 - Editing anything under `rtl/` or `sw/` without explicit permission, including
   "just to show what I mean." Put design examples in the chat, not in his file.
 
-If he's stuck, **narrow the hint**; don't supply the code. A good escalation
+If he's stuck and has not asked Claude to implement it, **narrow the hint**;
+don't supply the code. A good escalation
 ladder: name the category of problem → point at the line → state the rule being
-violated → give a generic example of the correct idiom. Reaching for his actual
-code is the rung that doesn't exist.
+violated → give a generic example of the correct idiom. If he then asks Claude
+to make the change, implement it directly.
 
 ## Review conventions
 

@@ -4,8 +4,8 @@
 module board_bus
   import riscv_pkg::*;
 #(
-  parameter int unsigned DmemDepthWords = 512,
-  parameter              DmemInitFile   = "",
+  parameter int unsigned MemDepthWords = 1024,
+  parameter              MemInitFile   = "",
   parameter int unsigned NumLeds        = board_constants_pkg::NumLeds,
   parameter int unsigned NumDipSwitches = board_constants_pkg::NumDipSwitches,
   parameter int unsigned NumPushButtons = board_constants_pkg::NumPushButtons,
@@ -24,7 +24,7 @@ module board_bus
   output logic [NumGpio-1:0] gpio_out,
   output logic [NumGpio-1:0] gpio_oe,
 
-  dbus_if.slave dbus,
+  mem_if.slave mem,
   irq_if.source irq
 );
   mem_if _dbus_mem ();
@@ -39,7 +39,7 @@ module board_bus
   localparam int unsigned SpiClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::SpiHz);
   localparam int unsigned I2cClocksPerHalfBit = board_constants_pkg::ClockHz / (2 * board_constants_pkg::I2cHz);
 
-  localparam int unsigned DmemIdx = 0;
+  localparam int unsigned MemIdx = 0;
   localparam int unsigned LedIdx = 1;
   localparam int unsigned DipSwitchIdx = 2;
   localparam int unsigned PushButtonIdx = 3;
@@ -69,8 +69,8 @@ module board_bus
 
   localparam mmio_source_t _source_map[NumSources] = '{
       '{
-          start_addr: board_constants_pkg::DmemBase,
-          end_addr: board_constants_pkg::DmemBase + board_constants_pkg::DmemSize,
+          start_addr: board_constants_pkg::MemBase,
+          end_addr: board_constants_pkg::MemBase + board_constants_pkg::MemSize,
           writeable: 1'b1
       },
       '{
@@ -129,8 +129,8 @@ module board_bus
 
   mmio_router #(
     .NumSources(NumSources),
-    .DmemIdx(DmemIdx),
-    .DmemHasPrio(1'b1),
+    .MemIdx(MemIdx),
+    .MemHasPrio(1'b1),
     .SourceMap(_source_map)
   ) _mmio_router (
     .dbus(_dbus_mem),
@@ -138,9 +138,9 @@ module board_bus
     .mem(_mmio_mem)
   );
 
-  assign _dbus_mem.req = dbus.req;
-  assign dbus.rsp.ready = _dbus_mem.rsp.ready;
-  assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
+  assign _dbus_mem.req = mem.req;
+  assign mem.rsp.ready = _dbus_mem.rsp.ready;
+  assign mem.rsp.read_data = _dbus_mem.rsp.read_data;
 
   always_comb begin
     _meip_sources                 = '0;
@@ -320,13 +320,13 @@ module board_bus
     .mem(_mmio_mem[PlicIdx])
   );
 
-  dmem #(
-    .DepthWords(DmemDepthWords),
-    .InitFile(DmemInitFile)
-  ) _dmem (
+  memory #(
+    .DepthWords(MemDepthWords),
+    .InitFile(MemInitFile)
+  ) _main_memory (
     .clk(clk),
     .rst(rst),
-    .mem(_mmio_mem[DmemIdx])
+    .mem(_mmio_mem[MemIdx])
   );
 
 endmodule

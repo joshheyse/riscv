@@ -3,12 +3,12 @@
 // Lattice ECP5 Evaluation Board top.
 //
 // Board-specific shell around the portable pipelined core: clock/reset pins,
-// active-low LEDs, instruction memory, data memory, and LED MMIO live here.
+// active-low LEDs, unified memory, and MMIO live here.
 module top
   import riscv_pkg::*;
 #(
-  parameter int unsigned ImemDepthWords     = 512,
-  parameter              ImemInitFile       = "",
+  parameter int unsigned MemDepthWords      = 1024,
+  parameter              MemInitFile        = "",
   parameter int unsigned PowerOnResetCycles = 16,
   parameter int unsigned NumGpio            = board_constants_pkg::NumGpio
 ) (
@@ -42,8 +42,7 @@ module top
   pc_t                         _pc;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  dbus_if _dbus ();
-  ibus_if _ibus ();
+  mem_if _mem ();
   irq_if _irq ();
 
   logic [        7:0] _led;
@@ -97,16 +96,10 @@ module top
     end
   end
 
-  imem #(
-    .DepthWords(ImemDepthWords),
-    .InitFile(ImemInitFile)
-  ) _imem (
-    .clk(clk_12mhz),
-    .rst(_rst),
-    .ibus(_ibus)
-  );
-
-  board_bus _board_bus (
+  board_bus #(
+    .MemDepthWords(MemDepthWords),
+    .MemInitFile(MemInitFile)
+  ) _board_bus (
     .clk(clk_12mhz),
     .rst(_rst),
     .led(_led),
@@ -118,7 +111,7 @@ module top
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
     .gpio_oe(_gpio_oe),
-    .dbus(_dbus),
+    .mem(_mem),
     .irq(_irq)
   );
 
@@ -127,8 +120,7 @@ module top
     .rst(_rst),
     .pc(_pc),
     .halted(_halted),
-    .dbus(_dbus),
-    .ibus(_ibus),
+    .mem(_mem),
     .irq(_irq)
   );
 

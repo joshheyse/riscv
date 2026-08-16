@@ -16,7 +16,7 @@ module tb_board_bus
   logic [board_constants_pkg::NumGpio-1:0] _gpio_in;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_out;
   logic [board_constants_pkg::NumGpio-1:0] _gpio_oe;
-  dbus_if dbus ();
+  mem_if dbus ();
   irq_if _irq ();
   uart_if _uart ();
   spi_if _spi ();
@@ -26,7 +26,7 @@ module tb_board_bus
   int unsigned checks = 0;
 
   board_bus #(
-    .DmemDepthWords(16)
+    .MemDepthWords(16)
   ) _dut (
     .clk(_clk),
     .rst(_rst),
@@ -39,7 +39,7 @@ module tb_board_bus
     .gpio_in(_gpio_in),
     .gpio_out(_gpio_out),
     .gpio_oe(_gpio_oe),
-    .dbus(dbus),
+    .mem(dbus),
     .irq(_irq)
   );
 
@@ -160,13 +160,13 @@ module tb_board_bus
     set_read_addr(32'h2000_0000);
     expect_word(dbus.rsp.read_data, '0, "unmapped read still returns zero after write");
 
-    write_bus(board_constants_pkg::DmemBase + 32'h0000_0004, 32'hdead_beef);
-    set_read_addr(board_constants_pkg::DmemBase + 32'h0000_0004);
-    expect_word(dbus.rsp.read_data, 32'hdead_beef, "DMEM write/read routes to LSU");
+    write_bus(board_constants_pkg::MemBase + 32'h0000_0004, 32'hdead_beef);
+    set_read_addr(board_constants_pkg::MemBase + 32'h0000_0004);
+    expect_word(dbus.rsp.read_data, 32'hdead_beef, "memory write/read routes to LSU");
 
     write_bus(board_constants_pkg::LedAddr, 32'h0000_0011);
-    set_read_addr(board_constants_pkg::DmemBase + 32'h0000_0004);
-    expect_word(dbus.rsp.read_data, 32'hdead_beef, "LED write does not change DMEM");
+    set_read_addr(board_constants_pkg::MemBase + 32'h0000_0004);
+    expect_word(dbus.rsp.read_data, 32'hdead_beef, "LED write does not change memory");
 
     write_bus(board_constants_pkg::PlicPriorityBaseAddr + (4 * board_constants_pkg::PlicIrqUart),
               32'd1);

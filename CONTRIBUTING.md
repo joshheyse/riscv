@@ -32,7 +32,7 @@ module example
   output logic      ready,
   output word_t     read_data,
 
-  dbus_if.master dbus
+  mem_if.master mem
 );
 ```
 
@@ -47,7 +47,7 @@ logic          _load_complete;
 word_t         _alu_result;
 branch_flags_t _branch_flags;
 
-dbus_if _dbus();
+mem_if _mem();
 
 alu        _alu (...);
 controller _controller (...);
@@ -131,7 +131,7 @@ Interface fields are already scoped by the interface instance, so avoid
 redundant prefixes inside the interface itself.
 
 ```systemverilog
-interface dbus_if
+interface mem_if
   import riscv_pkg::*;
 ();
 

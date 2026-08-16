@@ -15,7 +15,7 @@ module tb_mem_stage
   logic       _mem_wait;
   mem_wb_t    _mem_wb_payload;
 
-  dbus_if _dbus ();
+  mem_if _dbus ();
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;

@@ -1,70 +1,43 @@
 `timescale 1ns / 1ps
 
-// Minimal pipelined SoC wrapper.
-//
-// This preserves the original "core + instruction ROM + data RAM" integration
-// while keeping memory outside the CPU core. Board-specific wrappers can replace
-// the private data RAM with memory-mapped peripherals without changing the
-// processor interface.
-//
-// The wrapper is mainly useful for core-level simulation and simple integration
-// tests. Real board tops instantiate `core`, `imem`, and `board_bus` directly so
-// the same CPU can run against RAM, MMIO, or simulated halt devices.
+// Minimal pipelined SoC wrapper with one unified instruction/data memory.
+// Board-specific wrappers can replace the private RAM with a memory map that
+// combines RAM and MMIO without changing the processor interface.
 //
 module soc
   import riscv_pkg::*;
 #(
-  parameter int unsigned ImemDepthWords = 512,
-  parameter              ImemInitFile   = "",
-  parameter int unsigned DmemDepthWords = 512,
-  parameter              DmemInitFile   = ""
+  parameter int unsigned MemDepthWords = 512,
+  parameter              MemInitFile   = ""
 ) (
   input logic clk,
   input logic rst,
 
-  output pc_t    pc,
-  output pc_t    imem_addr,
-  output instr_u instr,
-  output logic   halted
+  output pc_t  pc,
+  output logic halted
 );
 
-  dbus_if _dbus ();
-  ibus_if _ibus ();
+  mem_if _mem ();
   irq_if _irq ();
 
-  assign instr = _ibus.rsp.instr;
-  assign imem_addr = _ibus.req.addr;
-
-  imem #(
-    .DepthWords(ImemDepthWords),
-    .InitFile  (ImemInitFile)
-  ) _imem (
-    .clk (clk),
-    .rst (rst),
-    .ibus(_ibus)
-  );
+  assign _irq.pending = '0;
 
   core _core (
     .clk(clk),
     .rst(rst),
     .pc(pc),
     .halted(halted),
-    .dbus(_dbus),
-    .ibus(_ibus),
+    .mem(_mem),
     .irq(_irq)
   );
 
-  mem_if _dmem_mem ();
-  assign _dmem_mem.req = _dbus.req;
-  assign _dbus.rsp = _dmem_mem.rsp;
-
-  dmem #(
-    .DepthWords(DmemDepthWords),
-    .InitFile  (DmemInitFile)
-  ) _dmem (
+  memory #(
+    .DepthWords(MemDepthWords),
+    .InitFile  (MemInitFile)
+  ) _mem_storage (
     .clk(clk),
     .rst(rst),
-    .mem(_dmem_mem)
+    .mem(_mem)
   );
 
 endmodule

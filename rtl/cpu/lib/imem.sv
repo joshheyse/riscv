@@ -12,9 +12,9 @@
 //   0x0000_0000 + 4*N          ibus.req.addr[IndexBits+1:2] = N
 //
 // Reads are synchronous. A valid request is accepted on one rising edge, then
-// `ibus.rsp.ready` and `ibus.rsp.instr` are updated on that edge for the core to
-// observe in the following cycle. `ibus.rsp.instr` is meaningful only when
-// `ibus.rsp.ready` is high.
+// `ibus.rsp.ready` and `ibus.rsp.read_data` are updated on that edge for the
+// core to observe in the following cycle. `ibus.rsp.read_data` is meaningful
+// only when `ibus.rsp.ready` is high.
 //
 // `InitFile`, when non-empty, is a `$readmemh` file with one 32-bit instruction
 // word per line.
@@ -28,7 +28,7 @@ module imem
   input logic         clk,
   input logic         rst,
   /* verilator lint_off UNUSEDSIGNAL */
-        ibus_if.slave ibus
+        mem_if.slave ibus
   /* verilator lint_on UNUSEDSIGNAL */
 );
 
@@ -46,7 +46,7 @@ module imem
       ibus.rsp <= '0;
     end else begin
       if (ibus.req.valid) begin
-        ibus.rsp.instr <= _rom[ibus.req.addr[IndexBits+1:2]];
+        ibus.rsp.read_data <= _rom[ibus.req.addr[IndexBits+1:2]];
         ibus.rsp.ready <= 1'b1;
       end else begin
         ibus.rsp.ready <= 1'b0;

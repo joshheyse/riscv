@@ -3,13 +3,13 @@
 // Simulation platform bus.
 //
 // This is intentionally smaller than a physical board bus. The simulated
-// platform currently models only data memory plus devices that the host harness
+// platform currently models unified memory plus devices that the host harness
 // observes directly: LEDs, UART TX, and a free-running timer.
 module board_bus
   import riscv_pkg::*;
 #(
-  parameter int unsigned DmemDepthWords = 512,
-  parameter              DmemInitFile   = "",
+  parameter int unsigned MemDepthWords = 1024,
+  parameter              MemInitFile   = "",
   parameter int unsigned NumLeds        = board_constants_pkg::NumLeds
 ) (
   input  logic                        clk,
@@ -17,7 +17,7 @@ module board_bus
   output logic          [NumLeds-1:0] led,
          uart_if.source               uart,
 
-  dbus_if.slave dbus,
+  mem_if.slave mem,
   irq_if.source irq
 );
 
@@ -45,7 +45,7 @@ module board_bus
   logic [MtipSources-1:0] _mtip_sources;
   logic [MsipSources-1:0] _msip_sources;
 
-  localparam int unsigned DmemIdx = 0;
+  localparam int unsigned MemIdx = 0;
   localparam int unsigned LedIdx = 1;
   localparam int unsigned UartIdx = 2;
   localparam int unsigned TimerIdx = 3;
@@ -55,8 +55,8 @@ module board_bus
 
   localparam mmio_source_t _source_map[NumSources] = '{
       '{
-          start_addr: board_constants_pkg::DmemBase,
-          end_addr: board_constants_pkg::DmemBase + board_constants_pkg::DmemSize,
+          start_addr: board_constants_pkg::MemBase,
+          end_addr: board_constants_pkg::MemBase + board_constants_pkg::MemSize,
           writeable: 1'b1
       },
       '{
@@ -91,8 +91,8 @@ module board_bus
 
   mmio_router #(
     .NumSources(NumSources),
-    .DmemIdx(DmemIdx),
-    .DmemHasPrio(1'b1),
+    .MemIdx(MemIdx),
+    .MemHasPrio(1'b1),
     .SourceMap(_source_map)
   ) _mmio_router (
     .dbus(_dbus_mem),
@@ -100,9 +100,9 @@ module board_bus
     .mem(_mmio_mem)
   );
 
-  assign _dbus_mem.req = dbus.req;
-  assign dbus.rsp.ready = _dbus_mem.rsp.ready;
-  assign dbus.rsp.read_data = _dbus_mem.rsp.read_data;
+  assign _dbus_mem.req = mem.req;
+  assign mem.rsp.ready = _dbus_mem.rsp.ready;
+  assign mem.rsp.read_data = _dbus_mem.rsp.read_data;
 
   always_comb begin
     _meip_sources = '0;
@@ -205,13 +205,13 @@ module board_bus
     .mem(_mmio_mem[PlicIdx])
   );
 
-  dmem #(
-    .DepthWords(DmemDepthWords),
-    .InitFile(DmemInitFile)
-  ) _dmem (
+  memory #(
+    .DepthWords(MemDepthWords),
+    .InitFile(MemInitFile)
+  ) _main_memory (
     .clk(clk),
     .rst(rst),
-    .mem(_mmio_mem[DmemIdx])
+    .mem(_mmio_mem[MemIdx])
   );
 
 endmodule

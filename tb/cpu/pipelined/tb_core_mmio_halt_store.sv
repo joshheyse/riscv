@@ -19,8 +19,8 @@ module tb_core_mmio_halt_store
   logic _halted;
   pc_t  _pc;
 
-  ibus_if _ibus ();
-  dbus_if _dbus ();
+  mem_if _ibus ();
+  mem_if _dbus ();
   irq_if _irq ();
 
   always_comb begin

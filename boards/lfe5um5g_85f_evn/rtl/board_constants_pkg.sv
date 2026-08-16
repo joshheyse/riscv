@@ -3,8 +3,8 @@
 
 package board_constants_pkg;
   /* verilator lint_off UNUSEDPARAM */
-  localparam logic [31:0] DmemBase = 32'h00000000;
-  localparam logic [31:0] DmemSize = 32'h00000800;
+  localparam logic [31:0] MemBase = 32'h00000000;
+  localparam logic [31:0] MemSize = 32'h00001000;
   localparam logic [31:0] NumLeds = 32'h00000008;
   localparam logic [31:0] NumDipSwitches = 32'h00000008;
   localparam logic [31:0] NumPushButtons = 32'h00000001;

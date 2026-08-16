@@ -19,8 +19,8 @@ module tb_core_trap
   logic _halted;
   pc_t  _pc;
 
-  ibus_if _ibus ();
-  dbus_if _dbus ();
+  mem_if _ibus ();
+  mem_if _dbus ();
   irq_if _irq ();
 
   always_comb begin
@@ -98,7 +98,7 @@ module tb_core_trap
 
     @(negedge _clk);
     _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.instr.raw = IllegalInstr;
+    _ibus.rsp.read_data = IllegalInstr;
 
     @(posedge _clk);
     #1;
