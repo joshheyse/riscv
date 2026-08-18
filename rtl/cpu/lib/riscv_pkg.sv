@@ -83,6 +83,20 @@ package riscv_pkg;
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
   typedef logic [3:0] mem_write_mask_t;
+
+  typedef struct packed {
+    logic            valid;       // request valid; one request at a time
+    logic            write_en;    // 1 = write/store transaction, 0 = read/load
+    mem_addr_t       addr;        // target byte address
+    mem_data_t       write_data;  // write payload
+    mem_write_mask_t write_mask;  // active byte lanes for writes
+  } mem_req_t;
+
+  typedef struct packed {
+    logic      ready;      // response is complete for this cycle
+    mem_data_t read_data;  // read payload when ready=1 and write_en=0
+  } mem_rsp_t;
+
   typedef word_t tval_t;
 
   // RV32I opcode map used by the main decoder.
