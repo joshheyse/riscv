@@ -17,7 +17,7 @@ DEFAULT_BOARD     := lfe5um5g_85f_evn
 DEFAULT_SIM_BOARD := sim
 DEFAULT_SIM_APP   := examples/apps/uart_halt_c
 
-ifneq ($(filter board-sim board-run,$(MAKECMDGOALS)),)
+ifneq ($(filter board-sim board-run board-app-test,$(MAKECMDGOALS)),)
 BOARD ?= $(DEFAULT_SIM_BOARD)
 else
 BOARD ?= $(DEFAULT_BOARD)
@@ -101,7 +101,7 @@ BOARD_CONSTANTS_HDR  := $(BOARD_INCLUDE)/board_constants.h
 BOARD_CONSTANTS_PKG  := $(BOARD_RTL_DIR)/board_constants_pkg.sv
 COMPILE_COMMANDS  := compile_commands.json
 
-ifneq ($(filter board-sim board-run,$(MAKECMDGOALS)),)
+ifneq ($(filter board-sim board-run board-app-test,$(MAKECMDGOALS)),)
 APP ?= $(DEFAULT_SIM_APP)
 else
 APP ?= $(BOARD_PROGRAM_SRC)
@@ -129,7 +129,10 @@ APP_BIN       := $(APP_BUILD_DIR)/$(APP_NAME).bin
 APP_MEM       := $(APP_BUILD_DIR)/$(APP_NAME).mem
 APP_DUMP      := $(APP_BUILD_DIR)/$(APP_NAME).dump
 
-RISCV_ARCH ?= rv32i
+# Zicsr is a separate extension from binutils 2.38 onward; the core implements
+# the CSR instructions, so name it explicitly or `csrrw` and friends fail to
+# assemble.
+RISCV_ARCH ?= rv32i_zicsr
 RISCV_ABI  ?= ilp32
 MEM_BYTES ?= 4096
 
