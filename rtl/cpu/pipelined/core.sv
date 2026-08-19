@@ -22,7 +22,10 @@
 module core
   import riscv_pkg::*;
   import pipelined_pkg::*;
-(
+#(
+  parameter mem_addr_t CacheableBase = '0,
+  parameter mem_addr_t CacheableEnd  = '0
+) (
   input clk,
   input rst,
 
@@ -97,8 +100,10 @@ module core
   logic           _ex_sret_valid;
 
 
-  mem_if _data ();
-  mem_if _ifetch ();
+  mem_if _data_cache_arb ();
+  mem_if _data_lsu_cache ();
+  mem_if _ifetch_cache_arb ();
+  mem_if _ifetch_ifu_cache ();
 
   assign _id_branch_flags = '0;
 
@@ -340,9 +345,19 @@ module core
   mem_arbiter _mem_arbiter (
     .clk(clk),
     .rst(rst),
-    .ifetch(_ifetch.slave),
-    .data(_data.slave),
+    .ifetch(_ifetch_cache_arb.slave),
+    .data(_data_cache_arb.slave),
     .mem(mem)
+  );
+
+  l1_cache #(
+    .CacheableBase(CacheableBase),
+    .CacheableEnd (CacheableEnd)
+  ) _l1i_cache (
+    .clk(clk),
+    .rst(rst),
+    .upstream(_ifetch_ifu_cache.slave),
+    .downstream(_ifetch_cache_arb.master)
   );
 
   ifu _ifu (
@@ -352,7 +367,7 @@ module core
     .redirect(_flow.redirect),
     .pc(pc),
     .fetched(_fetched),
-    .ibus(_ifetch.master)
+    .ibus(_ifetch_ifu_cache.master)
   );
 
   // Decode
@@ -476,12 +491,22 @@ module core
     endcase
   end
 
+  l1_cache #(
+    .CacheableBase(CacheableBase),
+    .CacheableEnd (CacheableEnd)
+  ) _l1d_cache (
+    .clk(clk),
+    .rst(rst),
+    .upstream(_data_lsu_cache.slave),
+    .downstream(_data_cache_arb.master)
+  );
+
   mem_stage _mem_stage (
     .ex_mem(_ex_mem),
     .csr_status(_csr_status),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
-    .dbus(_data.master)
+    .dbus(_data_lsu_cache.master)
   );
 
   // Writeback and hazards

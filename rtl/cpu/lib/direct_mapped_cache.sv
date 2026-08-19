@@ -45,6 +45,7 @@ module direct_mapped_cache
   cache_line_t _upstream_line;
   logic _upstream_hit;
 
+
   cache_line_address_t _request_addr;
   cache_line_t _request_line;
 
@@ -62,6 +63,7 @@ module direct_mapped_cache
     unique case (_state)
       IDLE: begin
         if (upstream.req.valid && _upstream_hit) begin
+
           upstream.rsp.ready = 1'b1;
           if (!upstream.req.write_en) begin
             upstream.rsp.read_data = _upstream_line.data[{_upstream_addr.offset[4:2], 5'b0}+:32];
@@ -69,7 +71,11 @@ module direct_mapped_cache
         end
       end
 
-      WRITE_BACK_REQUEST: begin
+      // The WAIT states keep driving the same beat. `mem_arbiter` ignores
+      // `req.valid` on cycles it is not IDLE and gives no backpressure, so a
+      // request presented for a single cycle is silently lost. Hold it until
+      // `rsp.ready`, the way `ifu` does.
+      WRITE_BACK_REQUEST, WRITE_BACK_WAIT: begin
         downstream.req = '{
             valid: 1'b1,
             write_en: 1'b1,
@@ -79,7 +85,7 @@ module direct_mapped_cache
         };
       end
 
-      REFILL_REQUEST: begin
+      REFILL_REQUEST, REFILL_WAIT: begin
         downstream.req = '{
             valid: 1'b1,
             write_en: 1'b0,
@@ -94,9 +100,6 @@ module direct_mapped_cache
         if (!_request.write_en) begin
           upstream.rsp.read_data = _request_line.data[{_request_addr.offset[4:2], 5'b0}+:32];
         end
-      end
-
-      WRITE_BACK_WAIT, REFILL_WAIT: begin
       end
     endcase
   end

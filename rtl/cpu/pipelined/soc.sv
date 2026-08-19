@@ -8,7 +8,9 @@ module soc
   import riscv_pkg::*;
 #(
   parameter int unsigned MemDepthWords = 512,
-  parameter              MemInitFile   = ""
+  parameter              MemInitFile   = "",
+  parameter mem_addr_t   CacheableBase = '0,
+  parameter mem_addr_t   CacheableEnd  = mem_addr_t'(MemDepthWords * 4)
 ) (
   input logic clk,
   input logic rst,
@@ -22,7 +24,10 @@ module soc
 
   assign _irq.pending = '0;
 
-  core _core (
+  core #(
+    .CacheableBase(CacheableBase),
+    .CacheableEnd (CacheableEnd)
+  ) _core (
     .clk(clk),
     .rst(rst),
     .pc(pc),

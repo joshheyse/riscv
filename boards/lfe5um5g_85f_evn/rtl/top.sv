@@ -10,7 +10,9 @@ module top
   parameter int unsigned MemDepthWords      = 1024,
   parameter              MemInitFile        = "",
   parameter int unsigned PowerOnResetCycles = 16,
-  parameter int unsigned NumGpio            = board_constants_pkg::NumGpio
+  parameter int unsigned NumGpio            = board_constants_pkg::NumGpio,
+  parameter mem_addr_t   CacheableBase       = board_constants_pkg::MemBase,
+  parameter mem_addr_t   CacheableEnd        = board_constants_pkg::MemBase + board_constants_pkg::MemSize
 ) (
   input  logic               clk_12mhz,
   input  logic               rst_n,
@@ -115,7 +117,10 @@ module top
     .irq(_irq)
   );
 
-  core _core (
+  core #(
+    .CacheableBase(CacheableBase),
+    .CacheableEnd (CacheableEnd)
+  ) _core (
     .clk(clk_12mhz),
     .rst(_rst),
     .pc(_pc),
