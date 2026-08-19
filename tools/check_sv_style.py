@@ -96,6 +96,15 @@ def strip_comment(line: str) -> str:
 
 def names_from_decl(rest: str) -> list[str]:
     rest = re.sub(r"\[[^\]]+\]", " ", rest)
+    # Collapse balanced brace and paren groups before looking for initializers.
+    # A concatenation like `= &{1'b0, trap.handler_pc}` carries commas of its
+    # own, and without this the text after one would be read as a second
+    # declaration -- reporting `trap`, which is a port, as an internal name.
+    previous = None
+    while previous != rest:
+        previous = rest
+        rest = re.sub(r"\{[^{}]*\}", " ", rest)
+        rest = re.sub(r"\([^()]*\)", " ", rest)
     rest = re.sub(r"=.*?(?=,|$)", " ", rest)
     names = []
     for part in rest.split(","):
