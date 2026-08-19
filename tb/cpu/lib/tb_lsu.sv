@@ -60,7 +60,7 @@ module tb_lsu
   memory #(
     .DepthWords(DepthWords),
     .InitFile(InitFile)
-  ) _memory (
+  ) _backing_memory (
     .clk(_clk),
     .rst(_rst),
     .mem(_mem)
