@@ -18,24 +18,29 @@ module tb_core_csr_illegal
   localparam word_t X5Sentinel = 32'ha5a5_5a5a;
   localparam word_t X3WriteValue = 32'hffff_ffff;
 
-  logic _clk;
-  logic _rst;
-  logic _halted;
-  pc_t  _pc;
+  logic      _clk;
+  logic      _rst;
+  logic      _halted;
+  pc_t       _pc;
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic      _mmio_write;
+  mem_addr_t _mmio_write_addr;
+  mem_data_t _mmio_write_data;
+  /* verilator lint_on UNUSEDSIGNAL */
+
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
-  _irq.pending.platform = 16'h0000;
-  _irq.pending.meip = 1'b0;
-  _irq.pending.seip = 1'b0;
-  _irq.pending.mtip = 1'b0;
-  _irq.pending.stip = 1'b0;
-  _irq.pending.msip = 1'b0;
-  _irq.pending.ssip = 1'b0;
-  _irq.pending.usip = 1'b0;
+    _irq.pending.platform = 16'h0000;
+    _irq.pending.meip = 1'b0;
+    _irq.pending.seip = 1'b0;
+    _irq.pending.mtip = 1'b0;
+    _irq.pending.stip = 1'b0;
+    _irq.pending.msip = 1'b0;
+    _irq.pending.ssip = 1'b0;
+    _irq.pending.usip = 1'b0;
   end
 
 
@@ -48,10 +53,36 @@ module tb_core_csr_illegal
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
-      .irq(_irq)
+    .mem(_mem),
+    .irq(_irq)
   );
+
+  // `core` has one memory port and the L1 caches are bypass at its default
+  // (empty) cacheable range, so one backing model serves fetch and data alike.
+  tb_core_bus #(
+    .Words(16)
+  ) _bus (
+    .clk(_clk),
+    .rst(_rst),
+    .mem(_mem),
+    .mmio_wait(0),
+    .mmio_read_data('0),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
+  );
+
+  // The younger instruction is left in memory to be fetched speculatively; the
+  // trap redirect is what must stop it retiring. mtvec is zero, so the handler
+  // is the start of the program again.
+  task automatic load_program(input instr_t csr_bad_instr);
+    for (int unsigned word_idx = 0; word_idx < 16; word_idx++) begin
+      _bus._store[word_idx] = 32'h0000_0013;  // nop
+    end
+    _bus._store[0] = ADDI_X1_X0_7;
+    _bus._store[1] = csr_bad_instr;
+    _bus._store[2] = ADDI_X2_X0_9;
+  endtask
 
   initial begin
     _clk = 1'b0;
@@ -79,16 +110,9 @@ module tb_core_csr_illegal
     end
   endtask
 
-  task automatic drive_idle();
-    _ibus.rsp = '0;
-    _dbus.rsp = '0;
-    _dbus.rsp.ready = 1'b1;
-  endtask
-
   task automatic reset_core();
     @(negedge _clk);
     _rst = 1'b1;
-    drive_idle();
     repeat (2) @(posedge _clk);
 
     _dut._reg_file._regs[1] = '0;
@@ -103,68 +127,12 @@ module tb_core_csr_illegal
     expect_word(_pc, 32'h0000_0000, "reset pc");
   endtask
 
-  task automatic wait_fetch_req(input pc_t exp_addr, input string what);
-    int unsigned waits;
-    waits = 0;
-
-    #1;
-    while (!_ibus.req.valid && waits < 20) begin
-      waits++;
-      @(negedge _clk);
-      #1;
-    end
-
-    expect_bit(_ibus.req.valid, 1'b1, {what, " request valid"});
-    expect_word(_ibus.req.addr, exp_addr, {what, " request addr"});
-  endtask
-
-  task automatic fetch_instr(input pc_t exp_addr, input instr_t instr, input string what);
-    wait_fetch_req(exp_addr, what);
-
-    @(posedge _clk);
-    #1;
-    expect_word(_pc, exp_addr + pc_t'(4), {what, " request advances pc"});
-
-    @(negedge _clk);
-    _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.read_data = instr;
-
-    @(posedge _clk);
-    #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
-    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
-    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
-
-    @(negedge _clk);
-    _ibus.rsp = '0;
-  endtask
-
-  task automatic offer_squashed_instr(input pc_t exp_addr, input instr_t instr, input string what);
-    wait_fetch_req(exp_addr, what);
-
-    @(posedge _clk);
-    #1;
-
-    @(negedge _clk);
-    _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.read_data = instr;
-
-    @(posedge _clk);
-    #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " speculative response captured"});
-    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " speculative response pc"});
-    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " speculative response instr"});
-
-    @(negedge _clk);
-    _ibus.rsp = '0;
-  endtask
-
   task automatic drain_until_trap_entry(input word_t exp_mcause, input string what);
     int unsigned waits;
     waits = 0;
 
     #1;
-    while ((_dut._csr_file._mcause != exp_mcause) && waits < 30) begin
+    while ((_dut._csr_file._mcause != exp_mcause) && waits < 80) begin
       waits++;
       @(posedge _clk);
       #1;
@@ -175,11 +143,8 @@ module tb_core_csr_illegal
   endtask
 
   task automatic check_illegal_csr(input instr_t csr_bad_instr, input string what);
+    load_program(csr_bad_instr);
     reset_core();
-
-    fetch_instr(32'h0000_0000, ADDI_X1_X0_7, {what, " older addi"});
-    fetch_instr(32'h0000_0004, csr_bad_instr, {what, " illegal csr"});
-    offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, {what, " younger addi"});
 
     drain_until_trap_entry(32'h0000_0002, what);
 
@@ -193,12 +158,9 @@ module tb_core_csr_illegal
 
   task automatic check_illegal_csr_from_priv(input priv_mode_t priv_mode,
                                              input instr_t csr_bad_instr, input string what);
+    load_program(csr_bad_instr);
     reset_core();
     _dut._csr_file._priv_mode = priv_mode;
-
-    fetch_instr(32'h0000_0000, ADDI_X1_X0_7, {what, " older addi"});
-    fetch_instr(32'h0000_0004, csr_bad_instr, {what, " illegal csr"});
-    offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, {what, " younger addi"});
 
     drain_until_trap_entry(32'h0000_0002, what);
 
@@ -217,10 +179,12 @@ module tb_core_csr_illegal
     end
 
     _rst = 1'b1;
-    drive_idle();
 
-    check_illegal_csr(csr_instr(CSR_SSTATUS, 5'd0, SYS_F3_RS, 5'd5), "unsupported CSR read");
-    check_illegal_csr(csr_instr(CSR_SSTATUS, 5'd3, SYS_F3_RW, 5'd5), "unsupported CSR write");
+    // `sstatus` became a real CSR with supervisor support, so it is no longer
+    // an unsupported address. `senvcfg` is the one the core still declines --
+    // see the supervisor scope note in CLAUDE.md.
+    check_illegal_csr(csr_instr(CSR_SENVCFG, 5'd0, SYS_F3_RS, 5'd5), "unsupported CSR read");
+    check_illegal_csr(csr_instr(CSR_SENVCFG, 5'd3, SYS_F3_RW, 5'd5), "unsupported CSR write");
     check_illegal_csr(csr_instr(CSR_MVENDORID, 5'd3, SYS_F3_RW, 5'd5), "read-only CSR write");
     check_illegal_csr_from_priv(PRIV_SUPERVISOR, csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RS, 5'd5),
                                 "supervisor access to machine CSR");

@@ -11,19 +11,24 @@ module tb_core_trap_precision
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 300;
+  localparam int unsigned TimeoutCycles = 600;
 
   localparam instr_t ADDI_X1_X0_7 = 32'h0070_0093;
   localparam instr_t ILLEGAL = 32'h0000_0000;
   localparam instr_t ADDI_X2_X0_9 = 32'h0090_0113;
 
-  logic _clk;
-  logic _rst;
-  logic _halted;
-  pc_t  _pc;
+  logic      _clk;
+  logic      _rst;
+  logic      _halted;
+  pc_t       _pc;
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic      _mmio_write;
+  mem_addr_t _mmio_write_addr;
+  mem_data_t _mmio_write_data;
+  /* verilator lint_on UNUSEDSIGNAL */
+
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
@@ -47,9 +52,23 @@ module tb_core_trap_precision
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
-      .irq(_irq)
+    .mem(_mem),
+    .irq(_irq)
+  );
+
+  // `core` has one memory port and the L1 caches are bypass at its default
+  // (empty) cacheable range, so one backing model serves fetch and data alike.
+  tb_core_bus #(
+    .Words(16)
+  ) _bus (
+    .clk(_clk),
+    .rst(_rst),
+    .mem(_mem),
+    .mmio_wait(0),
+    .mmio_read_data('0),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
   );
 
   initial begin
@@ -73,16 +92,21 @@ module tb_core_trap_precision
     end
   endtask
 
-  task automatic drive_idle();
-    _ibus.rsp = '0;
-    _dbus.rsp = '0;
-    _dbus.rsp.ready = 1'b1;
+  // The younger instruction is left in memory for the core to fetch
+  // speculatively; the trap redirect is what must stop it retiring. mtvec is
+  // zero, so the handler is the start of the program again.
+  task automatic load_program();
+    for (int unsigned word_idx = 0; word_idx < 16; word_idx++) begin
+      _bus._store[word_idx] = 32'h0000_0013;  // nop
+    end
+    _bus._store[0] = ADDI_X1_X0_7;
+    _bus._store[1] = ILLEGAL;
+    _bus._store[2] = ADDI_X2_X0_9;
   endtask
 
   task automatic reset_core();
     @(negedge _clk);
     _rst = 1'b1;
-    drive_idle();
     repeat (2) @(posedge _clk);
     #1;
     expect_bit(_halted, 1'b0, "reset does not halt");
@@ -93,65 +117,12 @@ module tb_core_trap_precision
     #1;
   endtask
 
-  task automatic wait_fetch_req(input pc_t exp_addr, input string what);
-    int unsigned waits;
-    waits = 0;
-
-    #1;
-    while (!_ibus.req.valid && waits < 20) begin
-      waits++;
-      @(negedge _clk);
-      #1;
-    end
-
-    expect_bit(_ibus.req.valid, 1'b1, {what, " request valid"});
-    expect_word(_ibus.req.addr, exp_addr, {what, " request addr"});
-  endtask
-
-  task automatic fetch_instr(input pc_t exp_addr, input instr_t instr, input string what);
-    wait_fetch_req(exp_addr, what);
-
-    @(posedge _clk);
-    #1;
-    expect_word(_pc, exp_addr + pc_t'(4), {what, " request advances pc"});
-
-    @(negedge _clk);
-    _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.read_data = instr;
-
-    @(posedge _clk);
-    #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
-    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
-    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
-
-    @(negedge _clk);
-    _ibus.rsp = '0;
-  endtask
-
-  task automatic offer_squashed_instr(input pc_t exp_addr, input instr_t instr, input string what);
-    wait_fetch_req(exp_addr, what);
-
-    @(posedge _clk);
-    #1;
-
-    @(negedge _clk);
-    _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.read_data = instr;
-
-    @(posedge _clk);
-    #1;
-    expect_bit(_dut._fetched.valid, 1'b0, {what, " speculative response is suppressed"});
-    @(negedge _clk);
-    _ibus.rsp = '0;
-  endtask
-
   task automatic drain_until_trap_entry();
     int unsigned waits;
     waits = 0;
 
     #1;
-    while ((_dut._csr_file._mcause != 32'h0000_0002) && waits < 20) begin
+    while ((_dut._csr_file._mcause != 32'h0000_0002) && waits < 80) begin
       waits++;
       @(posedge _clk);
       #1;
@@ -168,15 +139,11 @@ module tb_core_trap_precision
     end
 
     _rst = 1'b1;
-    drive_idle();
+    load_program();
     reset_core();
 
     _dut._reg_file._regs[1] = '0;
     _dut._reg_file._regs[2] = '0;
-
-    fetch_instr(32'h0000_0000, ADDI_X1_X0_7, "older addi");
-    fetch_instr(32'h0000_0004, ILLEGAL, "illegal instruction");
-    offer_squashed_instr(32'h0000_0008, ADDI_X2_X0_9, "younger addi");
 
     drain_until_trap_entry();
 

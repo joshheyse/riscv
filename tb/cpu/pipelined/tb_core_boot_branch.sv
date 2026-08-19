@@ -10,7 +10,7 @@ module tb_core_boot_branch
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 80;
+  localparam int unsigned TimeoutCycles = 400;
   localparam string ProgramFile =
       "/home/josh/code/riscv-soc/tb/cpu/pipelined/tb_core_boot_branch.mem";
 
@@ -19,8 +19,7 @@ module tb_core_boot_branch
   logic _halted;
   pc_t  _pc;
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
@@ -36,6 +35,11 @@ module tb_core_boot_branch
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic              _mmio_write;
+  mem_addr_t         _mmio_write_addr;
+  mem_data_t         _mmio_write_data;
+  /* verilator lint_on UNUSEDSIGNAL */
   logic              _wrong_path_store;
   word_t             _wrong_path_addr;
   word_t             _wrong_path_data;
@@ -48,23 +52,27 @@ module tb_core_boot_branch
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
+    .mem(_mem),
     .irq(_irq)
   );
 
-  imem #(
-    .DepthWords(16),
+  tb_core_bus #(
+    .Words(64),
     .InitFile(ProgramFile)
-  ) _imem (
+  ) _bus (
     .clk(_clk),
     .rst(_rst),
-    .ibus(_ibus)
+    .mem(_mem),
+    .mmio_wait(0),
+    .mmio_read_data('0),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
   );
 
-  assign _dbus.rsp.ready     = _dbus.req.valid;
-  assign _dbus.rsp.read_data = '0;
-  assign _write_mask         = _dbus.req.write_mask;
+  // Stores are observed at the LSU's own port, before the L1 data cache, which
+  // is where the old split `dbus` used to sit.
+  assign _write_mask = _dut._data_lsu_cache.req.write_mask;
 
   initial begin
     _clk = 1'b0;
@@ -92,10 +100,10 @@ module tb_core_boot_branch
       _wrong_path_store <= 1'b0;
       _wrong_path_addr  <= '0;
       _wrong_path_data  <= '0;
-    end else if (_dbus.req.valid && _dbus.req.write_en) begin
+    end else if (_dut._data_lsu_cache.req.valid && _dut._data_lsu_cache.req.write_en) begin
       _wrong_path_store <= 1'b1;
-      _wrong_path_addr  <= _dbus.req.addr;
-      _wrong_path_data  <= _dbus.req.write_data;
+      _wrong_path_addr  <= _dut._data_lsu_cache.req.addr;
+      _wrong_path_data  <= _dut._data_lsu_cache.req.write_data;
     end
   end
 
@@ -114,7 +122,7 @@ module tb_core_boot_branch
     @(negedge _clk);
     _rst = 1'b0;
 
-    repeat (30) @(posedge _clk);
+    repeat (200) @(posedge _clk);
     #1;
 
     expect_bit(_halted, 1'b0, "legal boot branch program does not halt");

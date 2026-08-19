@@ -11,30 +11,34 @@ module tb_core_csr
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 500;
+  localparam int unsigned TimeoutCycles = 900;
   localparam int unsigned ProgramWords = 32;
   localparam instr_t Nop = 32'h0000_0013;  // addi x0, x0, 0
 
-  logic          _clk;
-  logic          _rst;
-  logic          _halted;
-  pc_t           _pc;
-  instr_t        _program    [ProgramWords-1:0];
-  logic   [31:0] _imem_index;
+  logic      _clk;
+  logic      _rst;
+  logic      _halted;
+  pc_t       _pc;
+  instr_t    _program         [ProgramWords-1:0];
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic      _mmio_write;
+  mem_addr_t _mmio_write_addr;
+  mem_data_t _mmio_write_data;
+  /* verilator lint_on UNUSEDSIGNAL */
+
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
-  _irq.pending.platform = 16'h0000;
-  _irq.pending.meip = 1'b0;
-  _irq.pending.seip = 1'b0;
-  _irq.pending.mtip = 1'b0;
-  _irq.pending.stip = 1'b0;
-  _irq.pending.msip = 1'b0;
-  _irq.pending.ssip = 1'b0;
-  _irq.pending.usip = 1'b0;
+    _irq.pending.platform = 16'h0000;
+    _irq.pending.meip = 1'b0;
+    _irq.pending.seip = 1'b0;
+    _irq.pending.mtip = 1'b0;
+    _irq.pending.stip = 1'b0;
+    _irq.pending.msip = 1'b0;
+    _irq.pending.ssip = 1'b0;
+    _irq.pending.usip = 1'b0;
   end
 
 
@@ -47,9 +51,23 @@ module tb_core_csr
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
-      .irq(_irq)
+    .mem(_mem),
+    .irq(_irq)
+  );
+
+  // One backing model serves both streams: `core` has a single memory port and
+  // the L1 caches are bypass at its default (empty) cacheable range.
+  tb_core_bus #(
+    .Words(ProgramWords)
+  ) _bus (
+    .clk(_clk),
+    .rst(_rst),
+    .mem(_mem),
+    .mmio_wait(0),
+    .mmio_read_data('0),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
   );
 
   initial begin
@@ -78,7 +96,7 @@ module tb_core_csr
     end
   endtask
 
-  initial begin
+  task automatic load_program();
     for (int i = 0; i < ProgramWords; i++) begin
       _program[i] = Nop;
     end
@@ -90,26 +108,14 @@ module tb_core_csr
     _program[12] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RSI, 5'd9);
     _program[15] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RC, 5'd10);
     _program[18] = csr_instr(CSR_MSTATUS, 5'd4, SYS_F3_RW, 5'd0);
-  end
+    // Park the core here. The backing store wraps like real memory, so without
+    // a terminating loop the sequence would re-run and clobber its own results.
+    _program[21] = 32'h0000_0063;  // beq x0, x0, 0 -- loops without writing a register
 
-  assign _dbus.rsp.ready = _dbus.req.valid;
-  assign _dbus.rsp.read_data = '0;
-  assign _imem_index = 32'(_ibus.req.addr[31:2]);
-
-  always_ff @(posedge _clk) begin
-    if (_rst) begin
-      _ibus.rsp <= '0;
-    end else if (_ibus.req.valid) begin
-      _ibus.rsp.ready <= 1'b1;
-      if (_imem_index < ProgramWords) begin
-        _ibus.rsp.read_data <= _program[_imem_index];
-      end else begin
-        _ibus.rsp.read_data <= Nop;
-      end
-    end else begin
-      _ibus.rsp <= '0;
+    for (int i = 0; i < ProgramWords; i++) begin
+      _bus._store[i] = _program[i];
     end
-  end
+  endtask
 
   initial begin
     if ($test$plusargs("trace")) begin
@@ -118,6 +124,7 @@ module tb_core_csr
     end
 
     _rst = 1'b1;
+    load_program();
     _dut._reg_file._regs[1] = 32'h0000_1808;
     _dut._reg_file._regs[2] = 32'h0000_0080;
     _dut._reg_file._regs[3] = 32'h0000_0808;
@@ -131,7 +138,7 @@ module tb_core_csr
     @(negedge _clk);
     _rst = 1'b0;
 
-    repeat (90) @(posedge _clk);
+    repeat (500) @(posedge _clk);
     #1;
 
     expect_word(_dut._reg_file._regs[5], 32'h0000_0000, "csrrw returns old mstatus");
@@ -141,7 +148,9 @@ module tb_core_csr
     expect_word(_dut._reg_file._regs[9], 32'h0000_000a, "csrrsi zimm=0 returns old mstatus");
     expect_word(_dut._reg_file._regs[10], 32'h0000_000a, "csrrc x0 returns old mstatus");
     expect_word(_dut._reg_file._regs[0], 32'h0000_0000, "csrrw rd=x0 does not write x0");
-    expect_word(_dut._csr_file._mstatus, 32'h0000_19aa, "final csrrw rd=x0 writes mstatus");
+    // mstatus.TSR (bit 22) became writable with supervisor support; the old
+    // expectation of 0x000019aa predates it.
+    expect_word(_dut._csr_file._mstatus, 32'h0040_19aa, "final csrrw rd=x0 writes mstatus");
     expect_bit(_halted, 1'b0, "legal CSR sequence does not halt");
 
     if (_errors == 0) begin

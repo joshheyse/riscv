@@ -32,6 +32,7 @@ RTL_PERIPH_DIR := rtl/periph
 CPU_LIB_DIR    := rtl/cpu/lib
 CPU_DESIGN_DIR := rtl/cpu/$(DESIGN)
 TB_DIR         := tb/cpu/$(DESIGN)
+TB_COMMON_DIR  := tb/cpu/$(DESIGN)/common
 CPU_LIB_TB_DIR := tb/cpu/lib
 RTL_LIB_TB_DIR := tb/lib
 PERIPH_TB_DIR  := tb/periph
@@ -54,7 +55,9 @@ TB_SRC   := $(firstword $(wildcard $(TB_DIR)/$(TB_TOP).sv \
                             $(CPU_LIB_TB_DIR)/$(TB_TOP).sv \
                             $(RTL_LIB_TB_DIR)/$(TB_TOP).sv \
                             $(PERIPH_TB_DIR)/$(TB_TOP).sv))
-SRCS     := $(RTL_SRCS) $(PERIPH_SRCS) $(TB_SRC)
+# Shared testbench helpers, compiled into every simulation of this design.
+TB_COMMON_SRCS := $(sort $(wildcard $(TB_COMMON_DIR)/*.sv))
+SRCS     := $(RTL_SRCS) $(PERIPH_SRCS) $(TB_COMMON_SRCS) $(TB_SRC)
 
 BOARD_DIR       := boards/$(BOARD)
 BOARD_RTL_DIR   := $(BOARD_DIR)/rtl
@@ -158,6 +161,7 @@ ECP5_FREQ    ?= 12
 # compiles just the one selected by TB, so sibling top-level modules don't
 # collide.
 ALL_TB_SRCS := $(sort $(wildcard $(TB_DIR)/*.sv) $(wildcard $(TB_DIR)/*.v) \
+                       $(wildcard $(TB_COMMON_DIR)/*.sv) \
                        $(wildcard $(CPU_LIB_TB_DIR)/*.sv) $(wildcard $(CPU_LIB_TB_DIR)/*.v) \
                        $(wildcard $(RTL_LIB_TB_DIR)/*.sv) $(wildcard $(RTL_LIB_TB_DIR)/*.v) \
                        $(wildcard $(PERIPH_TB_DIR)/*.sv) $(wildcard $(PERIPH_TB_DIR)/*.v))

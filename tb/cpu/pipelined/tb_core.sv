@@ -1,11 +1,16 @@
-// tb_core.sv - handshaked smoke test for the pipelined core.
+// tb_core.sv - smoke test for the pipelined core over the unified memory port.
 //
 //   make sim DESIGN=pipelined TB=core
 //   make wave DESIGN=pipelined TB=core
 //
-// The pipelined IFU issues one-cycle request pulses and accepts responses on a
-// later clock. This testbench drives that contract directly instead of assuming
-// an instruction can be supplied every cycle.
+// `core` presents one memory port: `mem_arbiter` interleaves instruction
+// fetches and data accesses behind it, and both L1 caches are pure bypass at
+// the core's default (empty) cacheable range. The two streams therefore share a
+// single slave, and an unanswered fetch holds the arbiter -- so this testbench
+// serves the bus from a backing model rather than hand-feeding one stream.
+//
+// The streams are still observed separately, at the IFU and LSU ports where the
+// old split `ibus`/`dbus` used to sit.
 
 `timescale 1ns / 1ps
 
@@ -15,29 +20,35 @@ module tb_core
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 300;
+  localparam int unsigned TimeoutCycles = 600;
+  localparam mem_addr_t LoadAddr = 32'h1000_0000;
 
-  logic _clk;
-  logic _rst;
-  logic _halted;
-  pc_t  _pc;
+  logic        _clk;
+  logic        _rst;
+  logic        _halted;
+  pc_t         _pc;
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  int unsigned _mmio_wait;
+  mem_data_t   _mmio_read_data;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic        _mmio_write;
+  mem_addr_t   _mmio_write_addr;
+  mem_data_t   _mmio_write_data;
+  /* verilator lint_on UNUSEDSIGNAL */
+
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
-  _irq.pending.platform = 16'h0000;
-  _irq.pending.meip = 1'b0;
-  _irq.pending.seip = 1'b0;
-  _irq.pending.mtip = 1'b0;
-  _irq.pending.stip = 1'b0;
-  _irq.pending.msip = 1'b0;
-  _irq.pending.ssip = 1'b0;
-  _irq.pending.usip = 1'b0;
+    _irq.pending.platform = 16'h0000;
+    _irq.pending.meip = 1'b0;
+    _irq.pending.seip = 1'b0;
+    _irq.pending.mtip = 1'b0;
+    _irq.pending.stip = 1'b0;
+    _irq.pending.msip = 1'b0;
+    _irq.pending.ssip = 1'b0;
+    _irq.pending.usip = 1'b0;
   end
-
-
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -47,9 +58,21 @@ module tb_core
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
-      .irq(_irq)
+    .mem(_mem),
+    .irq(_irq)
+  );
+
+  tb_core_bus #(
+    .Words(64)
+  ) _bus (
+    .clk(_clk),
+    .rst(_rst),
+    .mem(_mem),
+    .mmio_wait(_mmio_wait),
+    .mmio_read_data(_mmio_read_data),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
   );
 
   initial begin
@@ -73,23 +96,17 @@ module tb_core
     end
   endtask
 
-  task automatic expect_regaddr(input regaddr_t got, input regaddr_t exp, input string what);
-    _checks++;
-    if (got !== exp) begin
-      _errors++;
-      $display("  FAIL [%0t] %s: got x%0d, expected x%0d", $time, what, got, exp);
+  // Fill the whole program window with a chosen filler so the core keeps
+  // fetching legal instructions past the end of the sequence under test.
+  task automatic load_program(input instr_t filler);
+    for (int unsigned word_idx = 0; word_idx < 64; word_idx++) begin
+      _bus._store[word_idx] = filler;
     end
-  endtask
-
-  task automatic drive_idle();
-    _ibus.rsp = '0;
-    _dbus.rsp = '0;
   endtask
 
   task automatic reset_core(input string what);
     @(negedge _clk);
     _rst = 1'b1;
-    drive_idle();
     repeat (2) @(posedge _clk);
     #1;
     expect_bit(_halted, 1'b0, {what, " reset does not halt"});
@@ -100,47 +117,25 @@ module tb_core
     #1;
   endtask
 
-  task automatic wait_fetch_req(input pc_t exp_addr, input string what);
-    int unsigned waits;
-    waits = 0;
-
-    #1;
-    while (!_ibus.req.valid && waits < 20) begin
-      waits++;
-      @(negedge _clk);
-      #1;
-    end
-
-    expect_bit(_ibus.req.valid, 1'b1, {what, " request valid"});
-    expect_word(_ibus.req.addr, exp_addr, {what, " request addr"});
-  endtask
-
-  task automatic fetch_instr(input pc_t exp_addr, input instr_t instr, input string what);
-    wait_fetch_req(exp_addr, what);
-
-    @(posedge _clk);
-    #1;
-    expect_word(_pc, exp_addr + pc_t'(4), {what, " request advances pc"});
-
-    @(negedge _clk);
-    _ibus.rsp.ready = 1'b1;
-    _ibus.rsp.read_data = instr;
-
-    @(posedge _clk);
-    #1;
-    expect_bit(_dut._fetched.valid, 1'b1, {what, " response captured"});
-    expect_word(_dut._fetched.slot.pc, exp_addr, {what, " response pc"});
-    expect_word(_dut._fetched.slot.instr.raw, instr, {what, " response instr"});
-
-    @(negedge _clk);
-    _ibus.rsp = '0;
-  endtask
-
   task automatic drain(input int unsigned cycles);
     repeat (cycles) begin
       @(posedge _clk);
       #1;
     end
+  endtask
+
+  // Advance until the LSU asserts a request, so the load checks below do not
+  // depend on the exact bypass latency of the L1 data cache.
+  task automatic wait_lsu_req(input string what);
+    int unsigned waits;
+    waits = 0;
+    #1;
+    while (!_dut._data_lsu_cache.req.valid && waits < 60) begin
+      waits++;
+      @(posedge _clk);
+      #1;
+    end
+    expect_bit(_dut._data_lsu_cache.req.valid, 1'b1, {what, " reaches the LSU port"});
   endtask
 
   initial begin
@@ -150,46 +145,49 @@ module tb_core
     end
 
     _rst = 1'b1;
-    drive_idle();
-    reset_core("alu");
+    _mmio_wait = 0;
+    _mmio_read_data = '0;
 
-    _dbus.rsp.ready = 1'b1;
+    // ---- ALU sequence -------------------------------------------------
+    load_program(32'h0000_0013);  // nop
+    _bus._store[0] = 32'h0050_0093;  // addi x1,x0,5
+    _bus._store[1] = 32'h0031_8233;  // add  x4,x3,x3
+
+    reset_core("alu");
     _dut._reg_file._regs[2] = 32'h1111_2222;
     _dut._reg_file._regs[3] = 32'h3333_4444;
 
-    fetch_instr(32'h0000_0000, 32'h0050_0093, "addi x1,x0,5");
-    fetch_instr(32'h0000_0004, 32'h0031_8233, "add x4,x3,x3");
-
-    drain(6);
+    drain(40);
     expect_word(_dut._reg_file._regs[1], 32'h0000_0005, "WB writes addi result");
     expect_word(_dut._reg_file._regs[4], 32'h6666_8888, "WB writes add result");
     expect_bit(_halted, 1'b0, "legal ALU sequence does not halt");
 
+    // ---- Load with a stalled data response ----------------------------
+    // Only MMIO is stalled. Fetches must keep completing, because an
+    // unanswered fetch would hold the arbiter and starve the load entirely.
+    load_program(32'h0000_0013);  // nop
+    _bus._store[0] = 32'h0001_2303;  // lw x6,0(x2)
+
     reset_core("load");
+    _dut._reg_file._regs[2] = LoadAddr;
+    _dut._reg_file._regs[6] = 32'h0000_0000;
+    _mmio_wait = 40;
+    _mmio_read_data = 32'ha5a5_5a5a;
 
-    _dut._reg_file._regs[2] = 32'h1000_0000;
-    _dbus.rsp.ready = 1'b0;
-    _dbus.rsp.read_data = 32'h0000_0000;
-
-    fetch_instr(32'h0000_0000, 32'h0001_2303, "lw x6,0(x2)");
-    drain(3);
-
-    expect_bit(_dbus.req.valid, 1'b1, "load requests data bus");
-    expect_bit(_dbus.req.write_en, 1'b0, "load request is read");
-    expect_word(_dbus.req.addr, 32'h1000_0000, "load request address");
+    wait_lsu_req("load");
+    expect_bit(_dut._data_lsu_cache.req.write_en, 1'b0, "load request is read");
+    expect_word(_dut._data_lsu_cache.req.addr, LoadAddr, "load request address");
     expect_bit(_dut._pipe_ctrl.fetch == STAGE_HOLD, 1'b1, "load holds fetch while dbus not ready");
-    expect_bit(_ibus.req.valid, 1'b0, "load wait suppresses fetch");
 
     @(posedge _clk);
     #1;
-    expect_bit(_dbus.req.valid, 1'b1, "load keeps request valid while stalled");
-    expect_word(_dbus.req.addr, 32'h1000_0000, "load keeps address stable while stalled");
+    expect_bit(_dut._data_lsu_cache.req.valid, 1'b1, "load keeps request valid while stalled");
+    expect_word(_dut._data_lsu_cache.req.addr, LoadAddr, "load keeps address stable while stalled");
 
     @(negedge _clk);
-    _dbus.rsp.ready = 1'b1;
-    _dbus.rsp.read_data = 32'ha5a5_5a5a;
+    _mmio_wait = 0;
 
-    drain(3);
+    drain(20);
     expect_word(_dut._reg_file._regs[6], 32'ha5a5_5a5a, "WB writes load result");
     expect_bit(_halted, 1'b0, "legal load sequence does not halt");
 

@@ -10,7 +10,7 @@ module tb_core_mmio_halt_store
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 200;
+  localparam int unsigned TimeoutCycles = 600;
   localparam string       ProgramFile   =
       "/home/josh/code/riscv-soc/tb/cpu/pipelined/tb_core_mmio_halt_store.mem";
 
@@ -19,25 +19,27 @@ module tb_core_mmio_halt_store
   logic _halted;
   pc_t  _pc;
 
-  mem_if _ibus ();
-  mem_if _dbus ();
+  mem_if _mem ();
   irq_if _irq ();
 
   always_comb begin
-  _irq.pending.platform = 16'h0000;
-  _irq.pending.meip = 1'b0;
-  _irq.pending.seip = 1'b0;
-  _irq.pending.mtip = 1'b0;
-  _irq.pending.stip = 1'b0;
-  _irq.pending.msip = 1'b0;
-  _irq.pending.ssip = 1'b0;
-  _irq.pending.usip = 1'b0;
+    _irq.pending.platform = 16'h0000;
+    _irq.pending.meip = 1'b0;
+    _irq.pending.seip = 1'b0;
+    _irq.pending.mtip = 1'b0;
+    _irq.pending.stip = 1'b0;
+    _irq.pending.msip = 1'b0;
+    _irq.pending.ssip = 1'b0;
+    _irq.pending.usip = 1'b0;
   end
 
 
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
+  logic              _mmio_write;
+  mem_addr_t         _mmio_write_addr;
+  mem_data_t         _mmio_write_data;
   int unsigned       _stores_seen;
   word_t             _store_addr      [2];
   word_t             _store_data      [2];
@@ -52,24 +54,26 @@ module tb_core_mmio_halt_store
     .rst(_rst),
     .halted(_halted),
     .pc(_pc),
-    .ibus(_ibus),
-    .dbus(_dbus),
-      .irq(_irq)
+    .mem(_mem),
+    .irq(_irq)
   );
 
-  imem #(
-    .DepthWords(16),
+  tb_core_bus #(
+    .Words(64),
     .InitFile(ProgramFile)
-  ) _imem (
+  ) _bus (
     .clk(_clk),
     .rst(_rst),
-    .ibus(_ibus)
+    .mem(_mem),
+    .mmio_wait(0),
+    .mmio_read_data('0),
+    .mmio_write(_mmio_write),
+    .mmio_write_addr(_mmio_write_addr),
+    .mmio_write_data(_mmio_write_data)
   );
 
-  assign _dbus.rsp.ready     = _dbus.req.valid;
-  assign _dbus.rsp.read_data = '0;
-  assign _observed_halted    = _halted;
-  assign _write_mask         = _dbus.req.write_mask;
+  assign _observed_halted = _halted;
+  assign _write_mask      = _dut._data_lsu_cache.req.write_mask;
 
   initial begin
     _clk = 1'b0;
@@ -92,15 +96,15 @@ module tb_core_mmio_halt_store
       _store_data[0] <= '0;
       _store_data[1] <= '0;
       _extra_store   <= 1'b0;
-    end else if (_dbus.req.valid && _dbus.req.write_en) begin
+    end else if (_mmio_write) begin
       _stores_seen <= _stores_seen + 1;
 
       if (_stores_seen == 0) begin
-        _store_addr[0] <= _dbus.req.addr;
-        _store_data[0] <= _dbus.req.write_data;
+        _store_addr[0] <= _mmio_write_addr;
+        _store_data[0] <= _mmio_write_data;
       end else if (_stores_seen == 1) begin
-        _store_addr[1] <= _dbus.req.addr;
-        _store_data[1] <= _dbus.req.write_data;
+        _store_addr[1] <= _mmio_write_addr;
+        _store_data[1] <= _mmio_write_data;
       end else begin
         _extra_store <= 1'b1;
       end
