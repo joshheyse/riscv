@@ -26,7 +26,7 @@ module soc
 
   core #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _core (
     .clk(clk),
     .rst(rst),
@@ -38,7 +38,7 @@ module soc
 
   memory #(
     .DepthWords(MemDepthWords),
-    .InitFile  (MemInitFile)
+    .InitFile(MemInitFile)
   ) _mem_storage (
     .clk(clk),
     .rst(rst),

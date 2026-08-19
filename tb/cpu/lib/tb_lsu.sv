@@ -18,30 +18,30 @@ module tb_lsu
   localparam int unsigned DepthWords = 8;
   localparam string InitFile = "/home/josh/code/riscv-soc/tb/cpu/lib/tb_lsu_init.mem";
 
-  logic              _clk;
-  logic              _rst;
-  mem_if             _mem ();
-  logic              _mem_valid;
-  logic              _mem_write_en;
-  word_t             _addr;
-  word_t             _write_data;
-  word_t             _read_data;
-  mem_size_t         _mem_size;
-  logic              _mem_unsigned;
-  logic        [3:0] _write_mask;
+  logic _clk;
+  logic _rst;
+  mem_if _mem ();
+  logic            _mem_valid;
+  logic            _mem_write_en;
+  word_t           _addr;
+  word_t           _write_data;
+  word_t           _read_data;
+  mem_size_t       _mem_size;
+  logic            _mem_unsigned;
+  logic      [3:0] _write_mask;
 
-  mem_data_t         _mem_read_data;
-  mem_data_t         _mem_write_data;
+  mem_data_t       _mem_read_data;
+  mem_data_t       _mem_write_data;
 
-  assign _mem.req.valid      = _mem_valid;
-  assign _mem.req.write_en   = _mem_write_en;
-  assign _mem.req.addr       = _addr;
-  logic               _mem_ready;
+  assign _mem.req.valid    = _mem_valid;
+  assign _mem.req.write_en = _mem_write_en;
+  assign _mem.req.addr     = _addr;
+  logic _mem_ready;
   assign _mem_ready     = _mem.rsp.ready;
   assign _mem_read_data = _mem.rsp.read_data;
 
-  int unsigned       errors = 0;
-  int unsigned       checks = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
 
   lsu _dut (
     .addr(_addr),

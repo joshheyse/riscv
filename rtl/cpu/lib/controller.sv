@@ -53,12 +53,12 @@ module controller
         SYSTEM_OP_ECALL: begin
           ctrl.trap.valid = 1'b1;
           ctrl.trap.src   = TRAP_SRC_ECALL;
-          ctrl.trap.tval = '0;
+          ctrl.trap.tval  = '0;
         end
         SYSTEM_OP_EBREAK: begin
           ctrl.trap.valid = 1'b1;
           ctrl.trap.src   = TRAP_SRC_EBREAK;
-          ctrl.trap.tval = '0;
+          ctrl.trap.tval  = '0;
         end
         default: begin
         end

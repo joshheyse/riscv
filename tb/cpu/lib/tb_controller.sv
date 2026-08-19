@@ -348,7 +348,7 @@ module tb_controller
     end else if (system_op == SYSTEM_OP_EBREAK) begin
       trap.src = TRAP_SRC_EBREAK;
     end else if (trap.valid) begin
-      trap.src   = TRAP_SRC_ILLEGAL_INSTR;
+      trap.src  = TRAP_SRC_ILLEGAL_INSTR;
       trap.tval = instr;
     end else begin
       trap.src = TRAP_SRC_NONE;

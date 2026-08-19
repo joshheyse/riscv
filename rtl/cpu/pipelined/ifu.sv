@@ -42,9 +42,9 @@ module ifu
   // Never issue a new request on the same cycle as a redirected or stale
   // response is being drained.
   assign _request_issued = !rst && fetch_en && !redirect.valid && !_request_valid && !_drop_response;
-  assign ibus.req.valid      = _request_valid;
-  assign ibus.req.write_en   = 1'b0;
-  assign ibus.req.addr       = _request_pc;
+  assign ibus.req.valid = _request_valid;
+  assign ibus.req.write_en = 1'b0;
+  assign ibus.req.addr = _request_pc;
   assign ibus.req.write_data = '0;
   assign ibus.req.write_mask = '0;
 

@@ -166,7 +166,7 @@ module tb_dip_switch_mmio
     read_mmio(IrqPendingAddr, 32'h0000_0004, "new event wins over simultaneous clear");
 
     @(negedge _clk);
-    _mem_addr = 32'h2000_0000;
+    _mem_addr  = 32'h2000_0000;
     _mem_valid = 1'b1;
     #1;
     expect_bit(_selected, 1'b0, "unmapped address not selected");

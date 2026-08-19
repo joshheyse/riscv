@@ -1,17 +1,17 @@
 `timescale 1ns / 1ps
 
 module mem_arbiter (
-  input logic clk,
-  input logic rst,
-  mem_if.slave ifetch,
-  mem_if.slave data,
-  mem_if.master mem
+  input logic         clk,
+  input logic         rst,
+        mem_if.slave  ifetch,
+        mem_if.slave  data,
+        mem_if.master mem
 );
 
   typedef enum logic [1:0] {
-    IDLE     = 2'b00,
-    BUSY     = 2'b01,
-    DRAIN    = 2'b10
+    IDLE  = 2'b00,
+    BUSY  = 2'b01,
+    DRAIN = 2'b10
   } state_t;
 
   typedef enum logic [1:0] {
@@ -58,7 +58,7 @@ module mem_arbiter (
 
   always_comb begin
     ifetch.rsp = '0;
-    data.rsp = '0;
+    data.rsp   = '0;
 
     if (_state == IDLE && data.req.valid) begin
       mem.req.addr = data.req.addr;

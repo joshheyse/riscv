@@ -36,18 +36,18 @@ module direct_mapped_cache
     RESPOND
   } state_t;
 
-  cache_line_t _cache_data[128];
-  state_t _state;
-  mem_req_t _request;
-  logic [2:0] _beat_idx;
+  cache_line_t               _cache_data    [128];
+  state_t                    _state;
+  mem_req_t                  _request;
+  logic                [2:0] _beat_idx;
 
-  cache_line_address_t _upstream_addr;
-  cache_line_t _upstream_line;
-  logic _upstream_hit;
+  cache_line_address_t       _upstream_addr;
+  cache_line_t               _upstream_line;
+  logic                      _upstream_hit;
 
 
-  cache_line_address_t _request_addr;
-  cache_line_t _request_line;
+  cache_line_address_t       _request_addr;
+  cache_line_t               _request_line;
 
   assign _upstream_addr = cache_line_address_t'(upstream.req.addr);
   assign _upstream_line = _cache_data[_upstream_addr.set];

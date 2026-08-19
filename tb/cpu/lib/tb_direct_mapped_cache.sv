@@ -6,8 +6,8 @@ module tb_direct_mapped_cache;
   localparam time ClkPeriod = 10ns;
   localparam int unsigned BackingWords = 4096;
 
-  logic  clk;
-  logic  rst;
+  logic  _clk;
+  logic  _rst;
   int    _errors;
   int    _checks;
   int    _downstream_reads;
@@ -40,8 +40,8 @@ module tb_direct_mapped_cache;
 
   assign _downstream_grant = _downstream.req.valid && (_refuse_left == 0);
 
-  always_ff @(posedge clk) begin
-    if (rst) begin
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
       _refuse_left <= 0;
     end else if (_downstream_grant) begin
       _refuse_left <= _grant_gap;
@@ -51,19 +51,19 @@ module tb_direct_mapped_cache;
   end
 
   direct_mapped_cache _dut (
-    .clk(clk),
-    .rst(rst),
+    .clk(_clk),
+    .rst(_rst),
     .upstream(_upstream),
     .downstream(_downstream)
   );
 
-  always #(ClkPeriod / 2) clk = ~clk;
+  always #(ClkPeriod / 2) _clk = ~_clk;
 
   // Registered-response backing memory behind that grant gate. The beat counts
   // asserted below are exact, so a master that re-issues an already-granted
   // request is caught as surplus downstream traffic.
-  always_ff @(posedge clk) begin
-    if (rst) begin
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
       _downstream.rsp <= '0;
       _downstream_reads <= 0;
       _downstream_writes <= 0;
@@ -111,17 +111,17 @@ module tb_direct_mapped_cache;
   endtask
 
   task automatic cache_read(input word_t addr, output word_t data);
-    @(negedge clk);
+    @(negedge _clk);
     _upstream.req = '{valid: 1'b1, write_en: 1'b0, addr: addr, default: '0};
-    while (!_upstream.rsp.ready) @(negedge clk);
+    while (!_upstream.rsp.ready) @(negedge _clk);
     data = _upstream.rsp.read_data;
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     _upstream.req = '0;
   endtask
 
   task automatic cache_write(input word_t addr, input word_t data, input mem_write_mask_t mask);
-    @(negedge clk);
+    @(negedge _clk);
     _upstream.req = '{
         valid: 1'b1,
         write_en: 1'b1,
@@ -129,8 +129,8 @@ module tb_direct_mapped_cache;
         write_data: data,
         write_mask: mask
     };
-    while (!_upstream.rsp.ready) @(negedge clk);
-    @(posedge clk);
+    while (!_upstream.rsp.ready) @(negedge _clk);
+    @(posedge _clk);
     #1;
     _upstream.req = '0;
   endtask
@@ -153,10 +153,10 @@ module tb_direct_mapped_cache;
     seed_line(LineB, 32'h2000_0000);
     seed_line(LineC, 32'h3000_0000);
 
-    rst = 1'b1;
-    repeat (2) @(posedge clk);
+    _rst = 1'b1;
+    repeat (2) @(posedge _clk);
     #1;
-    rst = 1'b0;
+    _rst = 1'b0;
 
     cache_read(LineA + 32'd12, read_data);
     expect_word(read_data, 32'h1000_0003, "read miss returns requested refill word");
@@ -204,10 +204,10 @@ module tb_direct_mapped_cache;
     expect_word(_backing[(LineC+32'd8)>>2], 32'hdead_beef,
                 "store-miss data reaches backing memory on eviction");
 
-    rst = 1'b1;
-    @(posedge clk);
+    _rst = 1'b1;
+    @(posedge _clk);
     #1;
-    rst = 1'b0;
+    _rst = 1'b0;
     cache_read(LineB, read_data);
     expect_word(read_data, 32'h2000_0000, "read after reset refills correct data");
     expect_int(_downstream_reads, 8, "reset invalidates previously cached lines");
@@ -215,8 +215,8 @@ module tb_direct_mapped_cache;
   endtask
 
   initial begin
-    clk = 1'b0;
-    rst = 1'b1;
+    _clk = 1'b0;
+    _rst = 1'b1;
     _errors = 0;
     _checks = 0;
     _grant_gap = 2;

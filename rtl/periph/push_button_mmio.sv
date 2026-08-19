@@ -86,8 +86,8 @@ module push_button_mmio
       _irq_en <= '0;
       _pending <= '0;
     end else begin
-      _sync_0 <= push_button;
-      _sync_1 <= _sync_0;
+      _sync_0   <= push_button;
+      _sync_1   <= _sync_0;
       _previous <= _debounced_button;
 
       if (_sync_1 == _debounced_button) begin

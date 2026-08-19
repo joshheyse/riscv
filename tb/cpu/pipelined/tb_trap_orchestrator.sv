@@ -65,13 +65,8 @@ module tb_trap_orchestrator
     end
   endtask
 
-  task automatic set_trap(
-    output trap_stage_t trap,
-    input logic        valid,
-    input pc_t          pc,
-    input pc_t          vec_pc,
-    input instr_t       raw
-  );
+  task automatic set_trap(output trap_stage_t trap, input logic valid, input pc_t pc,
+                          input pc_t vec_pc, input instr_t raw);
     trap = '{
         valid: valid,
         payload: '{
@@ -129,8 +124,7 @@ module tb_trap_orchestrator
 
     tick_and_capture(1);
     _clear_trap = 1'b0;
-    expect_word(_trap.payload.epc, 32'h0000_0028,
-                "next oldest trap selected after clear");
+    expect_word(_trap.payload.epc, 32'h0000_0028, "next oldest trap selected after clear");
     expect_bit(_trap_in_flight, 1'b1, "trap still in flight from next candidate");
 
     @(negedge _clk);
@@ -146,8 +140,7 @@ module tb_trap_orchestrator
     expect_bit(_trap == '0, 1'b1, "trap bus clears with no candidate");
 
     if (_errors != 0) begin
-      $display("tb_trap_orchestrator: FAIL (%0d failures out of %0d checks)",
-               _errors, _checks);
+      $display("tb_trap_orchestrator: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
 

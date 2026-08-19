@@ -11,11 +11,11 @@ module tb_csr_access_control
 
   localparam int unsigned TimeoutSteps = 100;
 
-  logic       _csr_en;
-  logic       _csr_write_en;
-  csr_addr_t  _csr_addr;
-  priv_mode_t _priv_mode;
-  logic       _illegal_csr_access;
+  logic        _csr_en;
+  logic        _csr_write_en;
+  csr_addr_t   _csr_addr;
+  priv_mode_t  _priv_mode;
+  logic        _illegal_csr_access;
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -38,10 +38,10 @@ module tb_csr_access_control
 
   task automatic check(input logic csr_en, input logic csr_write_en, input csr_addr_raw_t csr_addr,
                        input priv_mode_t priv_mode, input logic exp_illegal, input string what);
-    _csr_en        = csr_en;
-    _csr_write_en  = csr_write_en;
-    _csr_addr.raw  = csr_addr;
-    _priv_mode     = priv_mode;
+    _csr_en       = csr_en;
+    _csr_write_en = csr_write_en;
+    _csr_addr.raw = csr_addr;
+    _priv_mode    = priv_mode;
     #1;
     expect_bit(_illegal_csr_access, exp_illegal, what);
   endtask

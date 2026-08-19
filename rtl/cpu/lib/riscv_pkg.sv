@@ -476,7 +476,7 @@ package riscv_pkg;
 
   typedef struct packed {
     logic [29:0] base;  // [31:2] trap-vector base address
-    tvec_mode_t mode;  // [1:0] trap-vector mode
+    tvec_mode_t  mode;  // [1:0] trap-vector mode
   } tvec_t;
 
   typedef pc_t epc_t;
@@ -496,7 +496,7 @@ package riscv_pkg;
   } cause_code_t;
 
   typedef struct packed {
-    logic            is_interrupt;  // [31] 1 = interrupt, 0 = exception
+    logic        is_interrupt;  // [31] 1 = interrupt, 0 = exception
     cause_code_t code;          // [30:0] exception/interrupt cause code
   } cause_t;
 

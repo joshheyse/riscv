@@ -16,8 +16,8 @@ module dip_switch_mmio
   parameter mem_addr_t   IrqPendingAddr = 32'h10003008,
   parameter int unsigned NumDipSwitches = 1
 ) (
-  input logic clk,
-  input logic rst,
+  input logic                      clk,
+  input logic                      rst,
   input logic [NumDipSwitches-1:0] dip_switch,
 
   output logic selected,
@@ -37,7 +37,7 @@ module dip_switch_mmio
   logic [NumDipSwitches-1:0] _irq_en;
   logic [NumDipSwitches-1:0] _pending;
   logic [NumDipSwitches-1:0] _sync_meta;  // metastability-catching stage
-  logic [NumDipSwitches-1:0] _sync;       // CPU-clock-domain switch state
+  logic [NumDipSwitches-1:0] _sync;  // CPU-clock-domain switch state
   logic [NumDipSwitches-1:0] _previous;
   logic [NumDipSwitches-1:0] _changed;
   logic [NumDipSwitches-1:0] _pending_clear;

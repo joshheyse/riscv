@@ -125,8 +125,7 @@ module tb_riscv_pkg
     _csr_addr.raw = CSR_SATP;
     expect_bits(32'(_csr_addr.named), 32'(CSR_SATP), "CSR_SATP named view");
     expect_bits(32'(_csr_addr.fields.rw), 32'h0000_0000, "CSR_SATP rw field");
-    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_SUPERVISOR),
-                "CSR_SATP min privilege");
+    expect_bits(32'(_csr_addr.fields.min_priv), 32'(PRIV_SUPERVISOR), "CSR_SATP min privilege");
     expect_bits(32'(_csr_addr.fields.index), 32'h0000_0080, "CSR_SATP index field");
 
     _csr_addr.raw = CSR_MHARTID;

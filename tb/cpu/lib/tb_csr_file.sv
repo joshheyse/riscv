@@ -152,16 +152,10 @@ module tb_csr_file
   task automatic take_target_trap(input epc_t epc, input cause_t cause, input tval_t tval,
                                   input priv_mode_t target_priv);
     @(negedge _clk);
-    _trap_valid  = 1'b1;
-    _trap = '{
-        epc: epc,
-        cause: cause,
-        tval: tval,
-        handler_pc: '0,
-        target_priv: target_priv
-    };
+    _trap_valid = 1'b1;
+    _trap = '{epc: epc, cause: cause, tval: tval, handler_pc: '0, target_priv: target_priv};
     @(negedge _clk);
-    _trap_valid  = 1'b0;
+    _trap_valid = 1'b0;
     _trap = '0;
   endtask
 
@@ -348,8 +342,7 @@ module tb_csr_file
     expect_bits(32'(_status.priv_mode), 32'(PRIV_USER), "mret enters user before delegated trap");
     take_target_trap(32'h0000_0200, '{is_interrupt: 1'b0, code: CAUSE_ILLEGAL_INSTR},
                      32'hdead_beef, PRIV_SUPERVISOR);
-    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
-                "user trap enters supervisor mode");
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR), "user trap enters supervisor mode");
     read_csr(CSR_SEPC, 32'h0000_0200, "user trap writes sepc");
     read_csr(CSR_SCAUSE, 32'h0000_0002, "user trap writes scause");
     read_csr(CSR_STVAL, 32'hdead_beef, "user trap writes stval");
@@ -369,8 +362,8 @@ module tb_csr_file
     retire_mret();
     expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
                 "mret enters supervisor before delegated trap");
-    take_target_trap(32'h0000_0240, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT},
-                     32'h0000_0240, PRIV_SUPERVISOR);
+    take_target_trap(32'h0000_0240, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT}, 32'h0000_0240,
+                     PRIV_SUPERVISOR);
     expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
                 "supervisor trap remains in supervisor mode");
     read_csr(CSR_SEPC, 32'h0000_0240, "supervisor trap writes sepc");
@@ -379,8 +372,8 @@ module tb_csr_file
     read_csr(CSR_SSTATUS, 32'h0000_0100, "supervisor trap clears spie and sets spp");
 
     // Unsupported target encodings defensively take the machine trap path.
-    take_target_trap(32'h0000_0280, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT},
-                     32'h0000_00cc, priv_mode_t'(2'b10));
+    take_target_trap(32'h0000_0280, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT}, 32'h0000_00cc,
+                     priv_mode_t'(2'b10));
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE),
                 "reserved trap target falls back to machine mode");
     read_csr(CSR_MEPC, 32'h0000_0280, "fallback trap writes mepc");

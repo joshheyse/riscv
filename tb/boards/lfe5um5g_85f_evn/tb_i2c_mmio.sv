@@ -26,12 +26,12 @@ module tb_i2c_mmio
   logic            _selected;
   logic            _mem_ready;
   word_t           _read_data;
-  i2c_if           _i2c ();
+  i2c_if _i2c ();
 
-  int unsigned     errors = 0;
-  int unsigned     checks = 0;
+  int unsigned errors = 0;
+  int unsigned checks = 0;
   /* verilator lint_off UNUSEDSIGNAL */
-  logic            _mem_ready_observed;
+  logic        _mem_ready_observed;
   /* verilator lint_on UNUSEDSIGNAL */
   assign _mem_ready_observed = _mem_ready;
   mem_if _mem ();

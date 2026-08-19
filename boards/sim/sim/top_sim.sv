@@ -3,15 +3,15 @@
 module top_sim
   import riscv_pkg::*;
 #(
-  parameter string       MemInitFile    = "",
-  parameter int unsigned MemDepthWords  = 1024,
-  parameter int unsigned ClockHz        = board_constants_pkg::ClockHz,
-  parameter int unsigned UartBaud       = board_constants_pkg::UartBaud,
-  parameter int unsigned ClocksPerBit   = ClockHz / UartBaud,
-  parameter mem_addr_t   SimHaltAddr    = board_constants_pkg::SimHaltAddr,
-  parameter mem_addr_t   CacheableBase  = board_constants_pkg::MemBase,
-  parameter mem_addr_t   CacheableEnd   = board_constants_pkg::MemBase + board_constants_pkg::MemSize,
-  parameter int unsigned TimeoutCycles  = 1_000_000
+  parameter string MemInitFile = "",
+  parameter int unsigned MemDepthWords = 1024,
+  parameter int unsigned ClockHz = board_constants_pkg::ClockHz,
+  parameter int unsigned UartBaud = board_constants_pkg::UartBaud,
+  parameter int unsigned ClocksPerBit = ClockHz / UartBaud,
+  parameter mem_addr_t SimHaltAddr = board_constants_pkg::SimHaltAddr,
+  parameter mem_addr_t CacheableBase = board_constants_pkg::MemBase,
+  parameter mem_addr_t CacheableEnd = board_constants_pkg::MemBase + board_constants_pkg::MemSize,
+  parameter int unsigned TimeoutCycles = 1_000_000
 );
   localparam realtime ClkPeriod = 10ns;
 
@@ -117,7 +117,7 @@ module top_sim
 
   core #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _core (
     .clk(_clk),
     .rst(_rst),
@@ -274,8 +274,8 @@ module top_sim
     repeat (TimeoutCycles) @(posedge _clk);
     $display(
         "top_sim: watchdog state cycle=%0d _pc=0x%08h halted=%b mem_valid=%b mem_write_en=%b mem_addr=0x%08h mem_write_data=0x%08h mem_ready=%b",
-        _cycle, _pc, _halted, _core_mem.req.valid, _core_mem.req.write_en,
-        _core_mem.req.addr, _core_mem.req.write_data, _core_mem.rsp.ready);
+        _cycle, _pc, _halted, _core_mem.req.valid, _core_mem.req.write_en, _core_mem.req.addr,
+        _core_mem.req.write_data, _core_mem.rsp.ready);
     $display(
         "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
         _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,

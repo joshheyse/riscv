@@ -43,19 +43,19 @@ module plic
   logic [NumSources:1] _enable;
 
   typedef logic [PriorityBits-1:0] priority_t;
-  priority_t _priority[NumSources:1];
-  priority_t _threshold;
-  logic _priority_selected;
+  priority_t  _priority          [NumSources:1];
+  priority_t  _threshold;
+  logic       _priority_selected;
 
   source_id_t _source_id;
 
   source_id_t _claim_id;
-  priority_t _claim_priority;
-  logic _claim_valid;
-  logic _winner_valid;
+  priority_t  _claim_priority;
+  logic       _claim_valid;
+  logic       _winner_valid;
 
   source_id_t _complete_id;
-  logic _complete_valid;
+  logic       _complete_valid;
 
   assign _source_id = source_id_t'((mem.req.addr - PlicPriorityBaseAddr) >> 2);
 

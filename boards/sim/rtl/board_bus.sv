@@ -10,14 +10,14 @@ module board_bus
 #(
   parameter int unsigned MemDepthWords = 1024,
   parameter              MemInitFile   = "",
-  parameter int unsigned NumLeds        = board_constants_pkg::NumLeds
+  parameter int unsigned NumLeds       = board_constants_pkg::NumLeds
 ) (
   input  logic                        clk,
   input  logic                        rst,
   output logic          [NumLeds-1:0] led,
          uart_if.source               uart,
 
-  mem_if.slave mem,
+  mem_if.slave  mem,
   irq_if.source irq
 );
 

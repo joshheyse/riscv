@@ -352,7 +352,7 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _l1i_cache (
     .clk(clk),
     .rst(rst),
@@ -493,7 +493,7 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _l1d_cache (
     .clk(clk),
     .rst(rst),
@@ -511,10 +511,10 @@ module core
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id (_if_id),
-    .id_ex (_id_ex),
+    .if_id(_if_id),
+    .id_ex(_id_ex),
     .ex_mem(_ex_mem),
-    .stall (_data_stall)
+    .stall(_data_stall)
   );
 
   forwarding_unit _forwarding_unit (

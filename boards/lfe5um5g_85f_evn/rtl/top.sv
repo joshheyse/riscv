@@ -7,12 +7,12 @@
 module top
   import riscv_pkg::*;
 #(
-  parameter int unsigned MemDepthWords      = 1024,
-  parameter              MemInitFile        = "",
+  parameter int unsigned MemDepthWords = 1024,
+  parameter MemInitFile = "",
   parameter int unsigned PowerOnResetCycles = 16,
-  parameter int unsigned NumGpio            = board_constants_pkg::NumGpio,
-  parameter mem_addr_t   CacheableBase       = board_constants_pkg::MemBase,
-  parameter mem_addr_t   CacheableEnd        = board_constants_pkg::MemBase + board_constants_pkg::MemSize
+  parameter int unsigned NumGpio = board_constants_pkg::NumGpio,
+  parameter mem_addr_t CacheableBase = board_constants_pkg::MemBase,
+  parameter mem_addr_t CacheableEnd = board_constants_pkg::MemBase + board_constants_pkg::MemSize
 ) (
   input  logic               clk_12mhz,
   input  logic               rst_n,
@@ -55,8 +55,8 @@ module top
   logic [NumGpio-1:0] _gpio_out;
   logic [NumGpio-1:0] _gpio_oe;
   uart_if _uart ();
-  spi_if  _spi ();
-  i2c_if  _i2c ();
+  spi_if _spi ();
+  i2c_if _i2c ();
 
   initial begin
     assert (PowerOnResetCycles > 0);
@@ -119,7 +119,7 @@ module top
 
   core #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _core (
     .clk(clk_12mhz),
     .rst(_rst),

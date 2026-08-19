@@ -5,8 +5,8 @@ module tb_mem_arbiter;
 
   localparam time ClkPeriod = 10ns;
 
-  logic clk;
-  logic rst;
+  logic _clk;
+  logic _rst;
   int   _errors;
   int   _checks;
 
@@ -15,14 +15,14 @@ module tb_mem_arbiter;
   mem_if _mem ();
 
   mem_arbiter _dut (
-    .clk(clk),
-    .rst(rst),
+    .clk(_clk),
+    .rst(_rst),
     .ifetch(_ifetch),
     .data(_data),
     .mem(_mem)
   );
 
-  always #(ClkPeriod / 2) clk = ~clk;
+  always #(ClkPeriod / 2) _clk = ~_clk;
 
   task automatic expect_bit(input logic actual, input logic expected, input string what);
     _checks++;
@@ -42,7 +42,7 @@ module tb_mem_arbiter;
 
   task automatic clear_requests;
     _ifetch.req = '0;
-    _data.req = '0;
+    _data.req   = '0;
   endtask
 
   task automatic clear_memory_response;
@@ -53,14 +53,14 @@ module tb_mem_arbiter;
     _mem.rsp.ready = 1'b1;
     _mem.rsp.read_data = read_data;
     #1;
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_memory_response();
   endtask
 
   initial begin
-    clk = 1'b0;
-    rst = 1'b1;
+    _clk = 1'b0;
+    _rst = 1'b1;
     _errors = 0;
     _checks = 0;
     clear_requests();
@@ -71,20 +71,20 @@ module tb_mem_arbiter;
       $dumpvars(0, tb_mem_arbiter);
     end
 
-    repeat (2) @(posedge clk);
-    rst = 1'b0;
+    repeat (2) @(posedge _clk);
+    _rst = 1'b0;
     #1;
 
     // Combinational slaves may complete in the request cycle without putting
     // the arbiter into its delayed-response state.
     _data.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h1000_0000, default: '0};
-    _mem.rsp = '{ready: 1'b1, read_data: 32'hcafe_babe};
+    _mem.rsp  = '{ready: 1'b1, read_data: 32'hcafe_babe};
     #1;
     expect_bit(_mem.req.valid, 1'b1, "same-cycle data request forwarded");
     expect_bit(_data.rsp.ready, 1'b1, "same-cycle data response routed");
     expect_word(_data.rsp.read_data, 32'hcafe_babe, "same-cycle data response payload");
     expect_bit(_ifetch.rsp.ready, 1'b0, "same-cycle data response excludes fetch");
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
     clear_memory_response();
@@ -105,7 +105,7 @@ module tb_mem_arbiter;
     expect_word(_mem.req.write_data, '0, "fetch write data cleared");
     expect_bit(|_mem.req.write_mask, 1'b0, "fetch write mask cleared");
 
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
     expect_bit(_mem.req.valid, 1'b0, "no repeated fetch request while busy");
@@ -117,10 +117,10 @@ module tb_mem_arbiter;
     expect_bit(_ifetch.rsp.ready, 1'b1, "fetch response routed");
     expect_word(_ifetch.rsp.read_data, 32'h0050_0093, "fetch response data");
     expect_bit(_data.rsp.ready, 1'b0, "fetch response excluded from data");
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_memory_response();
-    @(posedge clk);  // drain a delayed slave's retired response
+    @(posedge _clk);  // drain a delayed slave's retired response
     #1;
 
     // Data stores forward every request field unchanged.
@@ -138,7 +138,7 @@ module tb_mem_arbiter;
     expect_word(_mem.req.write_data, 32'haabb_ccdd, "data store payload");
     expect_bit(_mem.req.write_mask == 4'b1100, 1'b1, "data store mask");
 
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
     expect_bit(_mem.req.valid, 1'b0, "no repeated data store while busy");
@@ -146,18 +146,18 @@ module tb_mem_arbiter;
     #1;
     expect_bit(_data.rsp.ready, 1'b1, "data completion routed");
     expect_bit(_ifetch.rsp.ready, 1'b0, "data completion excluded from fetch");
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_memory_response();
-    @(posedge clk);  // drain a delayed slave's retired response
+    @(posedge _clk);  // drain a delayed slave's retired response
     #1;
 
     // Simultaneous requests select data and remember that same owner.
     _ifetch.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0300, default: '0};
-    _data.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0400, default: '0};
+    _data.req   = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0400, default: '0};
     #1;
     expect_word(_mem.req.addr, 32'h0000_0400, "simultaneous requests give data priority");
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
 
@@ -171,21 +171,21 @@ module tb_mem_arbiter;
     expect_bit(_data.rsp.ready, 1'b1, "simultaneous winner owns response");
     expect_word(_data.rsp.read_data, 32'h1234_5678, "data read response");
     expect_bit(_ifetch.rsp.ready, 1'b0, "busy fetch cannot steal response");
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
     clear_memory_response();
-    @(posedge clk);  // drain a delayed slave's retired response
+    @(posedge _clk);  // drain a delayed slave's retired response
     #1;
 
     // Reset cancels an outstanding transaction and removes its response owner.
     _data.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0600, default: '0};
     #1;
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     clear_requests();
-    rst = 1'b1;
-    @(posedge clk);
+    _rst = 1'b1;
+    @(posedge _clk);
     #1;
     _mem.rsp.ready = 1'b1;
     _mem.rsp.read_data = 32'hffff_ffff;
@@ -193,7 +193,7 @@ module tb_mem_arbiter;
     expect_bit(_ifetch.rsp.ready, 1'b0, "reset clears fetch owner");
     expect_bit(_data.rsp.ready, 1'b0, "reset clears data owner");
     expect_bit(_mem.req.valid, 1'b0, "reset leaves no request active");
-    rst = 1'b0;
+    _rst = 1'b0;
     clear_memory_response();
 
     if (_errors == 0) begin

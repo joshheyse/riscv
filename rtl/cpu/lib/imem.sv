@@ -25,8 +25,8 @@ module imem
   parameter int unsigned DepthWords = 512,
   parameter              InitFile   = ""
 ) (
-  input logic         clk,
-  input logic         rst,
+  input logic        clk,
+  input logic        rst,
   /* verilator lint_off UNUSEDSIGNAL */
         mem_if.slave ibus
   /* verilator lint_on UNUSEDSIGNAL */

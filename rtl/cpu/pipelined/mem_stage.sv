@@ -5,7 +5,7 @@ module mem_stage
   import pipelined_pkg::*;
 (
   /* verilator lint_off UNUSEDSIGNAL */
-  input ex_mem_t    ex_mem,
+  input ex_mem_t     ex_mem,
   /* verilator lint_on UNUSEDSIGNAL */
   input csr_status_t csr_status,
 

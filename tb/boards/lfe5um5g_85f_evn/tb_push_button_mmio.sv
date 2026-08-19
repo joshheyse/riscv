@@ -12,15 +12,15 @@ module tb_push_button_mmio
   localparam word_t IrqEnableAddr = 32'h1000_3014;
   localparam word_t IrqPendingAddr = 32'h1000_3018;
 
-  logic                                  _clk;
-  logic                                  _rst;
-  logic                                  _mem_valid;
-  logic                                  _mem_write_en;
-  word_t                                 _mem_addr;
-  word_t                                 _mem_write_data;
-  mem_write_mask_t                       _mem_write_mask;
-  logic                                  _selected;
-  logic             [NumPushButtons-1:0] _push_button;
+  logic                                 _clk;
+  logic                                 _rst;
+  logic                                 _mem_valid;
+  logic                                 _mem_write_en;
+  word_t                                _mem_addr;
+  word_t                                _mem_write_data;
+  mem_write_mask_t                      _mem_write_mask;
+  logic                                 _selected;
+  logic            [NumPushButtons-1:0] _push_button;
   mem_if _mem ();
   irq_if _irq ();
 
@@ -168,7 +168,7 @@ module tb_push_button_mmio
     expect_bit(_irq.pending.meip, 1'b0, "selective clear removes third-button interrupt");
 
     @(negedge _clk);
-    _mem_addr = 32'h2000_0000;
+    _mem_addr  = 32'h2000_0000;
     _mem_valid = 1'b1;
     #1;
     expect_bit(_selected, 1'b0, "unmapped address not selected");

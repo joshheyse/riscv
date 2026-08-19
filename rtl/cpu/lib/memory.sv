@@ -6,9 +6,9 @@ module memory
   parameter int unsigned DepthWords = 512,
   parameter              InitFile   = ""
 ) (
-  input  logic     clk,
-  input  logic     rst,
-  mem_if.slave mem
+  input logic        clk,
+  input logic        rst,
+        mem_if.slave mem
 );
 
   localparam int unsigned IndexBits = $clog2(DepthWords);

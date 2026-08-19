@@ -44,8 +44,8 @@ module tb_trap_control
 
   task automatic drive(input logic trap_valid, input trap_src_t trap_src, input tval_t tval,
                        input pc_t pc, input tvec_t tvec, input priv_mode_t priv_mode);
-    _trap_req  = '{valid: trap_valid, src: trap_src, tval: tval};
-    _pc        = pc;
+    _trap_req             = '{valid: trap_valid, src: trap_src, tval: tval};
+    _pc                   = pc;
     _csr_status           = '0;
     _csr_status.mtvec     = tvec;
     _csr_status.priv_mode = priv_mode;
@@ -184,8 +184,8 @@ module tb_trap_control
     expect_trap(32'h8000_0009, 32'h0000_0000, 32'h0000_0314, 32'h0000_0224,
                 "supervisor external interrupt cause");
 
-    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0400, PRIV_USER,
-                    32'h0000_0004, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0400, PRIV_USER, 32'h0000_0004,
+                    '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
                     '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
     expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0400, 32'h0000_0200,
                           PRIV_SUPERVISOR, "delegated illegal instruction from user mode");
@@ -199,17 +199,17 @@ module tb_trap_control
     drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_0408, PRIV_MACHINE,
                     32'h0000_0004, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
                     '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
-    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0408, 32'h0000_0100,
-                          PRIV_MACHINE, "machine-mode exception ignores delegation");
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_0408, 32'h0000_0100, PRIV_MACHINE,
+                          "machine-mode exception ignores delegation");
 
-    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_040c, PRIV_USER,
-                    32'h0000_0000, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+    drive_delegated(TRAP_SRC_ILLEGAL_INSTR, 32'hffff_ffff, 32'h0000_040c, PRIV_USER, 32'h0000_0000,
+                    '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
                     '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT});
-    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_040c, 32'h0000_0100,
-                          PRIV_MACHINE, "clear delegation bit targets machine mode");
+    expect_delegated_trap(32'h0000_0002, 32'hffff_ffff, 32'h0000_040c, 32'h0000_0100, PRIV_MACHINE,
+                          "clear delegation bit targets machine mode");
 
-    drive_delegated(TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0410, PRIV_USER,
-                    32'h0000_0100, '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
+    drive_delegated(TRAP_SRC_ECALL, 32'h0000_0000, 32'h0000_0410, PRIV_USER, 32'h0000_0100,
+                    '{base: 30'h0000_0040, mode: TVEC_MODE_DIRECT},
                     '{base: 30'h0000_00c0, mode: TVEC_MODE_DIRECT});
     expect_delegated_trap(32'h0000_0008, 32'h0000_0000, 32'h0000_0410, 32'h0000_0300,
                           PRIV_SUPERVISOR, "ecall delegation uses computed cause bit");

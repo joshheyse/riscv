@@ -11,8 +11,8 @@ module tb_l1_cache;
   localparam mem_addr_t LineA = 32'h0000_0020;
   localparam mem_addr_t LineB = 32'h0000_1020;
 
-  logic  clk;
-  logic  rst;
+  logic  _clk;
+  logic  _rst;
   logic  _immediate_response;
   int    _errors;
   int    _checks;
@@ -45,8 +45,8 @@ module tb_l1_cache;
 
   assign _downstream_grant = _downstream.req.valid && (_refuse_left == 0);
 
-  always_ff @(posedge clk) begin
-    if (rst) begin
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
       _refuse_left <= 0;
     end else if (_downstream_grant) begin
       _refuse_left <= _grant_gap;
@@ -65,18 +65,18 @@ module tb_l1_cache;
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _dut (
-    .clk(clk),
-    .rst(rst),
+    .clk(_clk),
+    .rst(_rst),
     .upstream(_upstream),
     .downstream(_downstream)
   );
 
-  always #(ClkPeriod / 2) clk = ~clk;
+  always #(ClkPeriod / 2) _clk = ~_clk;
 
-  always_ff @(posedge clk) begin
-    if (rst) begin
+  always_ff @(posedge _clk) begin
+    if (_rst) begin
       _registered_rsp <= '0;
       _downstream_reads <= 0;
       _downstream_writes <= 0;
@@ -134,17 +134,17 @@ module tb_l1_cache;
   endtask
 
   task automatic cache_read(input word_t addr, output word_t data);
-    @(negedge clk);
+    @(negedge _clk);
     _upstream.req = '{valid: 1'b1, write_en: 1'b0, addr: addr, default: '0};
-    while (!_upstream.rsp.ready) @(negedge clk);
+    while (!_upstream.rsp.ready) @(negedge _clk);
     data = _upstream.rsp.read_data;
-    @(posedge clk);
+    @(posedge _clk);
     #1;
     _upstream.req = '0;
   endtask
 
   task automatic cache_write(input word_t addr, input word_t data, input mem_write_mask_t mask);
-    @(negedge clk);
+    @(negedge _clk);
     _upstream.req = '{
         valid: 1'b1,
         write_en: 1'b1,
@@ -152,8 +152,8 @@ module tb_l1_cache;
         write_data: data,
         write_mask: mask
     };
-    while (!_upstream.rsp.ready) @(negedge clk);
-    @(posedge clk);
+    while (!_upstream.rsp.ready) @(negedge _clk);
+    @(posedge _clk);
     #1;
     _upstream.req = '0;
   endtask
@@ -174,10 +174,10 @@ module tb_l1_cache;
     seed_line(LineA, 32'h1000_0000);
     seed_line(LineB, 32'h2000_0000);
 
-    rst = 1'b1;
-    repeat (2) @(posedge clk);
+    _rst = 1'b1;
+    repeat (2) @(posedge _clk);
     #1;
-    rst = 1'b0;
+    _rst = 1'b0;
 
     cache_read(LineA + 32'd4, read_data);
     expect_word(read_data, 32'h1000_0001, "cacheable miss routes through cache");
@@ -222,8 +222,8 @@ module tb_l1_cache;
   endtask
 
   initial begin
-    clk = 1'b0;
-    rst = 1'b1;
+    _clk = 1'b0;
+    _rst = 1'b1;
     _errors = 0;
     _checks = 0;
     _grant_gap = 2;

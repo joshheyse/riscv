@@ -10,14 +10,8 @@ interface uart_if
   logic tx;  // UART transmit output
   logic rx;  // UART receive input
 
-  modport source(
-    output tx,
-    input  rx
-  );
+  modport source(output tx, input rx);
 
-  modport sink(
-    input  tx,
-    output rx
-  );
+  modport sink(input tx, output rx);
 
 endinterface

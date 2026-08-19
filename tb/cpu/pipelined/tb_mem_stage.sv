@@ -10,10 +10,10 @@ module tb_mem_stage
   import pipelined_pkg::*;
 ();
 
-  ex_mem_t    _ex_mem;
+  ex_mem_t     _ex_mem;
   csr_status_t _csr_status;
-  logic       _mem_wait;
-  mem_wb_t    _mem_wb_payload;
+  logic        _mem_wait;
+  mem_wb_t     _mem_wb_payload;
 
   mem_if _dbus ();
 

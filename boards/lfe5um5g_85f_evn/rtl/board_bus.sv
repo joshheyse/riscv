@@ -4,8 +4,8 @@
 module board_bus
   import riscv_pkg::*;
 #(
-  parameter int unsigned MemDepthWords = 1024,
-  parameter              MemInitFile   = "",
+  parameter int unsigned MemDepthWords  = 1024,
+  parameter              MemInitFile    = "",
   parameter int unsigned NumLeds        = board_constants_pkg::NumLeds,
   parameter int unsigned NumDipSwitches = board_constants_pkg::NumDipSwitches,
   parameter int unsigned NumPushButtons = board_constants_pkg::NumPushButtons,
@@ -24,7 +24,7 @@ module board_bus
   output logic [NumGpio-1:0] gpio_out,
   output logic [NumGpio-1:0] gpio_oe,
 
-  mem_if.slave mem,
+  mem_if.slave  mem,
   irq_if.source irq
 );
   mem_if _dbus_mem ();
