@@ -10,17 +10,31 @@ module tb_mem_stage
   import pipelined_pkg::*;
 ();
 
+  localparam realtime ClkPeriod = 10ns;
+
+  logic        _clk;
+  logic        _rst;
   ex_mem_t     _ex_mem;
   csr_status_t _csr_status;
   logic        _mem_wait;
   mem_wb_t     _mem_wb_payload;
 
-  mem_if _dbus ();
+  mem_if _dbus (
+    _clk,
+    _rst
+  );
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
 
+  initial begin
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
+  end
+
   mem_stage _dut (
+    .clk(_clk),
+    .rst(_rst),
     .ex_mem(_ex_mem),
     .csr_status(_csr_status),
     .mem_wait(_mem_wait),
@@ -50,7 +64,10 @@ module tb_mem_stage
     _csr_status.mtvec = '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT};
     _csr_status.priv_mode = PRIV_MACHINE;
     _dbus.rsp = '0;
-    _dbus.rsp.ready = 1'b1;
+    _dbus.rsp.valid = 1'b1;
+    // The combinational checks below run against a bus that never accepts, so
+    // the stage stays in its request-presented state throughout.
+    _dbus.req_ready = 1'b0;
   endtask
 
   initial begin
@@ -58,6 +75,12 @@ module tb_mem_stage
       $dumpfile("dump.vcd");
       $dumpvars(0, tb_mem_stage);
     end
+
+    _rst = 1'b1;
+    clear_inputs();
+    @(posedge _clk);
+    #1;
+    _rst = 1'b0;
 
     clear_inputs();
     #1;
@@ -98,7 +121,7 @@ module tb_mem_stage
     _ex_mem.ctrl.writeback_result = WB_RESULT_MEM;
     _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
     _ex_mem.alu_result = 32'h1000_00c0;
-    _dbus.rsp.ready = 1'b0;
+    _dbus.rsp.valid = 1'b0;
     #1;
     expect_bit(_dbus.req.valid, 1'b0, "trapped load does not request dbus");
     expect_bit(_dbus.req.write_en, 1'b0, "trapped load does not assert write");
@@ -133,6 +156,37 @@ module tb_mem_stage
     expect_word(_mem_wb_payload.trap.payload.epc, 32'h0000_0044, "misaligned store epc");
     expect_word(_mem_wb_payload.trap.payload.cause, 32'h0000_0006, "misaligned store cause");
     expect_word(_mem_wb_payload.trap.payload.tval, 32'h1000_0001, "misaligned store tval");
+
+    // A load is presented until the bus accepts it, then held off the bus
+    // until the response arrives -- leaving it asserted would re-offer a
+    // transaction the slave has already taken.
+    clear_inputs();
+    _ex_mem.valid = 1'b1;
+    _ex_mem.ctrl.writeback_result = WB_RESULT_MEM;
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h1000_0100;
+    _dbus.rsp.valid = 1'b0;
+    #1;
+    expect_bit(_dbus.req.valid, 1'b1, "load is presented");
+    expect_bit(_mem_wait, 1'b1, "load waits while unaccepted");
+
+    _dbus.req_ready = 1'b1;
+    #1;
+    expect_bit(_mem_wait, 1'b1, "acceptance alone does not end the wait");
+    @(posedge _clk);
+    #1;
+    _dbus.req_ready = 1'b0;
+    #1;
+    expect_bit(_dbus.req.valid, 1'b0, "accepted load leaves the bus");
+    expect_bit(_mem_wait, 1'b1, "load still waits for its response");
+
+    _dbus.rsp.valid = 1'b1;
+    _dbus.rsp.read_data = 32'h1234_5678;
+    #1;
+    expect_bit(_mem_wait, 1'b0, "response ends the wait");
+    expect_word(_mem_wb_payload.result, 32'h1234_5678, "load result reaches writeback");
+    @(posedge _clk);
+    #1;
 
     if (_errors == 0) begin
       $display("tb_mem_stage: PASS (%0d checks)", _checks);

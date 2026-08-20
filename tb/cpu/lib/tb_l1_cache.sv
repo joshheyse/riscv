@@ -20,8 +20,18 @@ module tb_l1_cache;
   int    _downstream_writes;
   string _phase;
 
-  mem_if _upstream ();
-  mem_if _downstream ();
+  mem_if _upstream (
+    _clk,
+    _rst
+  );
+  mem_if _downstream (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign _upstream.rsp_ready = 1'b1;
+
 
   word_t                               _backing            [0:BackingWords-1];
   word_t                               _mmio_value;
@@ -33,17 +43,15 @@ module tb_l1_cache;
   assign _selected_read_data =
       _downstream.req.addr == MmioAddr ? _mmio_value : _backing[_backing_index];
 
-  // Downstream grant gating, mirroring `mem_arbiter`. The arbiter forwards a
-  // request only while it is IDLE; after a grant it spends at least a BUSY and
-  // a DRAIN cycle ignoring `req.valid` and returning no `rsp.ready`. Both the
-  // cached and the uncached path must therefore hold `req.valid` until
-  // `rsp.ready`, the way `ifu` does -- a one-cycle pulse that lands in a
-  // refusal window is lost outright.
+  // Downstream refusal, mirroring `mem_arbiter`: after each accepted request
+  // the model withholds `req_ready` for `_grant_gap` cycles. Both the cached
+  // and the uncached path must keep the request presented until it is taken.
   int unsigned _grant_gap;
   int unsigned _refuse_left;
   logic        _downstream_grant;
 
-  assign _downstream_grant = _downstream.req.valid && (_refuse_left == 0);
+  assign _downstream.req_ready = (_refuse_left == 0);
+  assign _downstream_grant = _downstream.req.valid && _downstream.req_ready;
 
   always_ff @(posedge _clk) begin
     if (_rst) begin
@@ -57,7 +65,7 @@ module tb_l1_cache;
 
   always_comb begin
     if (_immediate_response && _downstream_grant) begin
-      _downstream.rsp = '{ready: 1'b1, read_data: _selected_read_data};
+      _downstream.rsp = '{valid: 1'b1, read_data: _selected_read_data};
     end else begin
       _downstream.rsp = _registered_rsp;
     end
@@ -81,7 +89,7 @@ module tb_l1_cache;
       _downstream_reads <= 0;
       _downstream_writes <= 0;
     end else begin
-      _registered_rsp.ready <= !_immediate_response && _downstream_grant;
+      _registered_rsp.valid <= !_immediate_response && _downstream_grant;
       if (_downstream_grant) begin
         _registered_rsp.read_data <= _selected_read_data;
         if (_downstream.req.write_en) begin
@@ -133,29 +141,46 @@ module tb_l1_cache;
     end
   endtask
 
-  task automatic cache_read(input word_t addr, output word_t data);
-    @(negedge _clk);
-    _upstream.req = '{valid: 1'b1, write_en: 1'b0, addr: addr, default: '0};
-    while (!_upstream.rsp.ready) @(negedge _clk);
-    data = _upstream.rsp.read_data;
-    @(posedge _clk);
-    #1;
-    _upstream.req = '0;
-  endtask
+  // Hold the request until the cache accepts it, then take it off the bus and
+  // wait for the response. A hit accepts and answers in the same cycle.
+  task automatic cache_access(input word_t addr, input logic write_en, input word_t data_in,
+                              input mem_write_mask_t mask, output word_t data_out);
+    logic answered_on_accept;
 
-  task automatic cache_write(input word_t addr, input word_t data, input mem_write_mask_t mask);
     @(negedge _clk);
     _upstream.req = '{
         valid: 1'b1,
-        write_en: 1'b1,
+        write_en: write_en,
         addr: addr,
-        write_data: data,
+        write_data: data_in,
         write_mask: mask
     };
-    while (!_upstream.rsp.ready) @(negedge _clk);
+    #1;
+    while (!_upstream.req_ready) @(negedge _clk);
+    answered_on_accept = _upstream.rsp.valid;
+    data_out = _upstream.rsp.read_data;
+
     @(posedge _clk);
     #1;
     _upstream.req = '0;
+
+    if (!answered_on_accept) begin
+      while (!_upstream.rsp.valid) @(negedge _clk);
+      data_out = _upstream.rsp.read_data;
+      @(posedge _clk);
+      #1;
+    end
+  endtask
+
+  task automatic cache_read(input word_t addr, output word_t data);
+    cache_access(addr, 1'b0, '0, '0, data);
+  endtask
+
+  task automatic cache_write(input word_t addr, input word_t data, input mem_write_mask_t mask);
+    /* verilator lint_off UNUSEDSIGNAL */
+    word_t discarded;
+    /* verilator lint_on UNUSEDSIGNAL */
+    cache_access(addr, 1'b1, data, mask, discarded);
   endtask
 
   // The full directed sequence, run against a minimally spaced bus and a slower

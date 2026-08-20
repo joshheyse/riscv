@@ -10,6 +10,7 @@ module tb_mmio_router
 ();
 
   localparam realtime Timeout = 200ns;
+  localparam realtime ClkPeriod = 10ns;
   localparam int unsigned NumSources = 3;
   localparam int unsigned MemIdx = 0;
   localparam logic [NumSources-1:0] SourceMemIdx = 3'b001;
@@ -22,8 +23,17 @@ module tb_mmio_router
       '{start_addr: 32'h0000_0010, end_addr: 32'h0000_0020, writeable: 1'b1}
   };
 
-  mem_if _dbus_mem ();
-  mem_if _mmio_mem[NumSources] ();
+  logic _clk;
+  logic _rst;
+
+  mem_if _dbus_mem (
+    _clk,
+    _rst
+  );
+  mem_if _mmio_mem[NumSources] (
+    _clk,
+    _rst
+  );
 
   logic            [NumSources-1:0] _source_selected;
   logic            [NumSources-1:0] _source_ready;
@@ -42,6 +52,8 @@ module tb_mmio_router
     .MemHasPrio(1'b1),
     .SourceMap(_source_map)
   ) _dut (
+    .clk(_clk),
+    .rst(_rst),
     .dbus(_dbus_mem),
     .selected(_source_selected),
     .mem(_mmio_mem)
@@ -50,7 +62,8 @@ module tb_mmio_router
   genvar _gi;
   generate
     for (_gi = 0; _gi < NumSources; _gi++) begin : GEN_IFACE_CAPTURE
-      assign _mmio_mem[_gi].rsp.ready     = _source_ready[_gi];
+      assign _mmio_mem[_gi].rsp.valid     = _source_ready[_gi];
+      assign _mmio_mem[_gi].req_ready     = 1'b1;
       assign _mmio_mem[_gi].rsp.read_data = 32'h1000_0000 + _gi;
 
       assign _source_req_valid[_gi]       = _mmio_mem[_gi].req.valid;
@@ -105,7 +118,7 @@ module tb_mmio_router
     #1;
 
     expect_vector(_source_selected, exp_selected, {what, ".selected"});
-    expect_bit(_dbus_mem.rsp.ready, exp_ready, {what, ".rsp.ready"});
+    expect_bit(_dbus_mem.rsp.valid, exp_ready, {what, ".rsp.valid"});
     expect_word(_dbus_mem.rsp.read_data, exp_read_data, {what, ".rsp.read_data"});
 
     for (int unsigned _i = 0; _i < NumSources; _i++) begin
@@ -130,13 +143,24 @@ module tb_mmio_router
   endtask
 
   initial begin
+    _clk = 1'b0;
+    forever #(ClkPeriod / 2) _clk = ~_clk;
+  end
+
+  initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
       $dumpvars(0, tb_mmio_router);
     end
 
+    // Every source answers in the cycle it is accepted, so the router never
+    // has an outstanding transaction and behaves combinationally here.
     _source_ready = '1;
     clear_dbus_request();
+    _rst = 1'b1;
+    @(posedge _clk);
+    #1;
+    _rst = 1'b0;
 
     // default memory overlaps MMIO ranges; MMIO has priority and must win.
     apply_and_check(1'b1, 1'b0, 32'h0000_0008, 32'h0000_0000, 4'b0000, SourceRoIdx, 1'b1,
@@ -179,7 +203,7 @@ module tb_mmio_router
     expect_bit(_source_req_valid[1], 1'b0, "no_request.source1.req.valid");
     expect_bit(_source_req_valid[2], 1'b0, "no_request.source2.req.valid");
     expect_vector(_source_selected, SourceRoIdx, "no_request.selected");
-    expect_bit(_dbus_mem.rsp.ready, 1'b1, "no_request.rsp.ready");
+    expect_bit(_dbus_mem.rsp.valid, 1'b1, "no_request.rsp.valid");
 
     if (_errors == 0) begin
       $display("tb_mmio_router: PASS (%0d checks)", _checks);

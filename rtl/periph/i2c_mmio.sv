@@ -36,6 +36,11 @@ module i2c_mmio
   mem_if.slave  mem
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   i2c_state_t       _state;
   i2c_phase_t       _phase;
   i2c_byte_t        _byte_type;
@@ -66,7 +71,7 @@ module i2c_mmio
   assign _status_selected = mem.req.addr == StatusAddr;
   assign _address_selected = mem.req.addr == AddressAddr;
   assign selected = _data_selected | _control_selected | _status_selected | _address_selected;
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
 
   logic _stg_en;
   logic _stg_clear;

@@ -138,7 +138,6 @@ module tb_trap_orchestrator
     expect_bit(_trap_in_flight, 1'b0, "trap_in_flight clears when last trap cleared");
     expect_bit(_trap_held, 1'b0, "trap_held clears when no candidate");
     expect_bit(_trap == '0, 1'b1, "trap bus clears with no candidate");
-
     if (_errors != 0) begin
       $display("tb_trap_orchestrator: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);

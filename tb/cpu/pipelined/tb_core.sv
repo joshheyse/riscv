@@ -36,7 +36,10 @@ module tb_core
   mem_data_t   _mmio_write_data;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
 
   always_comb begin
@@ -181,8 +184,10 @@ module tb_core
 
     @(posedge _clk);
     #1;
-    expect_bit(_dut._data_lsu_cache.req.valid, 1'b1, "load keeps request valid while stalled");
-    expect_word(_dut._data_lsu_cache.req.addr, LoadAddr, "load keeps address stable while stalled");
+    // The bus accepts the load straight away; the stall is the outstanding
+    // response, not a request left sitting on the bus.
+    expect_bit(_dut._data_lsu_cache.req.valid, 1'b0, "accepted load leaves the LSU port");
+    expect_bit(_dut._dbus_wait, 1'b1, "load still waits for its response");
 
     @(negedge _clk);
     _mmio_wait = 0;

@@ -22,6 +22,11 @@ module gpio_mmio
   mem_if.slave mem
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   localparam int unsigned WordBits = $bits(mem_addr_t);
   initial begin
     assert (NumGpio < WordBits);
@@ -59,7 +64,7 @@ module gpio_mmio
     endcase
   end
 
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
 
   always_ff @(posedge clk) begin
     if (rst) begin

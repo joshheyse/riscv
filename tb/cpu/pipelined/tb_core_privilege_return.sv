@@ -41,7 +41,10 @@ module tb_core_privilege_return
   mem_data_t _mmio_write_data;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
 
   always_comb begin

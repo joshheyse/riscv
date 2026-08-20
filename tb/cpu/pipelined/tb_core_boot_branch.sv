@@ -19,7 +19,10 @@ module tb_core_boot_branch
   logic _halted;
   pc_t  _pc;
 
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
 
   always_comb begin
@@ -33,8 +36,8 @@ module tb_core_boot_branch
     _irq.pending.usip = 1'b0;
   end
 
-  int unsigned       errors = 0;
-  int unsigned       checks = 0;
+  int unsigned       _errors = 0;
+  int unsigned       _checks = 0;
   /* verilator lint_off UNUSEDSIGNAL */
   logic              _mmio_write;
   mem_addr_t         _mmio_write_addr;
@@ -80,17 +83,17 @@ module tb_core_boot_branch
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
@@ -135,8 +138,8 @@ module tb_core_boot_branch
     expect_word(_dut._reg_file._regs[5], 32'h0000_0000, "first branch operand is zero");
     expect_word(_dut._reg_file._regs[6], 32'h0000_0000, "second branch operand is zero");
 
-    if (errors == 0) begin
-      $display("tb_core_boot_branch: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_core_boot_branch: PASS (%0d checks)", _checks);
       $finish;
     end else begin
       $display(
@@ -144,7 +147,7 @@ module tb_core_boot_branch
           _pc, _dut._if_id.valid, _dut._if_id.slot.pc, _dut._if_id.slot.instr.raw,
           _dut._id_ex.valid, _dut._id_ex.slot.pc, _dut._id_ex.slot.instr.raw, _dut._ex_mem.valid,
           _dut._mem_wb.valid, _dut._data_stall, _dut._redirect.valid, _dut._redirect.pc);
-      $display("tb_core_boot_branch: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_core_boot_branch: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

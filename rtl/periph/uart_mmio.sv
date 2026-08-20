@@ -26,6 +26,11 @@ module uart_mmio
   irq_if.source  irq
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   byte_t       _tx_data;
   logic  [3:0] _tx_bit_idx;
   logic        _tx_busy;
@@ -61,7 +66,7 @@ module uart_mmio
 
   assign selected = (mem.req.addr == TxDataAddr || mem.req.addr == RxDataAddr ||
                      mem.req.addr == IrqEnableAddr || mem.req.addr == StatusAddr);
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
 
   assign _tx_ready = !_tx_busy;
   always_comb begin

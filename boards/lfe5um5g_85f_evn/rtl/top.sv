@@ -44,7 +44,10 @@ module top
   pc_t                         _pc;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  mem_if _mem ();
+  mem_if _mem (
+    clk_12mhz,
+    _rst
+  );
   irq_if _irq ();
 
   logic [        7:0] _led;

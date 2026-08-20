@@ -25,6 +25,11 @@ module dip_switch_mmio
   mem_if.slave  mem,
   irq_if.source irq
 );
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   localparam int unsigned WordBits = $bits(mem_addr_t);
   initial begin
     assert (NumDipSwitches > 0);
@@ -43,7 +48,7 @@ module dip_switch_mmio
   logic [NumDipSwitches-1:0] _pending_clear;
 
   assign selected = (mem.req.addr == DipSwitchAddr || mem.req.addr == IrqEnableAddr || mem.req.addr == IrqPendingAddr);
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
   assign _changed = _sync ^ _previous;
 
   always_comb begin

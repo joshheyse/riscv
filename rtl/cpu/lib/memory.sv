@@ -11,6 +11,11 @@ module memory
         mem_if.slave mem
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   localparam int unsigned IndexBits = $clog2(DepthWords);
 
   mem_data_t _memory[0:DepthWords-1];
@@ -27,7 +32,7 @@ module memory
     if (rst) begin
       mem.rsp <= '0;
     end else begin
-      mem.rsp.ready <= mem.req.valid;
+      mem.rsp.valid <= mem.req.valid;
       if (mem.req.valid) begin
         mem.rsp.read_data <= _memory[_word_index];
       end

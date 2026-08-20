@@ -26,9 +26,7 @@
 // KNOWN FAILURE: in that configuration the core wedges. Once the interrupt is
 // taken, `_trap_in_flight` stays high, `_pipe_ctrl.fetch` holds fetch, the IFU
 // has no outstanding request, and `mcause` is never written -- so the trap
-// never retires and nothing progresses. The same stimulus with fetch bypassed
-// retires the trap normally, so this is specific to taking an interrupt while
-// the instruction cache is in use. The test is left asserting the correct
+// never retires and nothing progresses. The test is left asserting the correct
 // behaviour rather than the observed one.
 `timescale 1ns / 1ps
 
@@ -68,7 +66,10 @@ module tb_core_interrupt
   mem_data_t   _mmio_write_data;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
 
   always_comb begin
@@ -94,7 +95,7 @@ module tb_core_interrupt
   // load on the shared bus, so the front end drains before the overlap forms.
   core #(
     .CacheableBase(32'h0000_0000),
-    .CacheableEnd (32'h0000_0080)
+    .CacheableEnd(32'h0000_0080)
   ) _dut (
     .clk(_clk),
     .rst(_rst),
@@ -317,15 +318,15 @@ module tb_core_interrupt
     _dut._csr_file._mip.ssip = 1'b1;
 
     begin
-      int unsigned waits;
-      waits = 0;
+      int unsigned _waits;
+      _waits = 0;
       while (((_dut._csr_file._scause != 32'h8000_0001) ||
-              (_dut._csr_file._priv_mode != PRIV_SUPERVISOR)) && (waits < 120)) begin
-        waits++;
+              (_dut._csr_file._priv_mode != PRIV_SUPERVISOR)) && (_waits < 120)) begin
+        _waits++;
         @(posedge _clk);
         #1;
       end
-      expect_bit(waits < 120, 1'b1, "delegated supervisor interrupt retires");
+      expect_bit(_waits < 120, 1'b1, "delegated supervisor interrupt retires");
     end
 
     expect_word(_dut._csr_file._sepc, 32'h0000_0000, "supervisor interrupt sepc");
@@ -338,16 +339,16 @@ module tb_core_interrupt
     _dut._csr_file._mip.ssip = 1'b0;
 
     begin
-      int unsigned waits;
-      waits = 0;
+      int unsigned _waits;
+      _waits = 0;
       while (((_dut._csr_file._priv_mode != PRIV_SUPERVISOR) ||
               !(_dut._ifetch_ifu_cache.req.valid
-                && (_dut._ifetch_ifu_cache.req.addr == 32'h0000_0000))) && (waits < 300)) begin
-        waits++;
+                && (_dut._ifetch_ifu_cache.req.addr == 32'h0000_0000))) && (_waits < 300)) begin
+        _waits++;
         @(posedge _clk);
         #1;
       end
-      expect_bit(waits < 300, 1'b1, "sret resumes interrupted supervisor instruction");
+      expect_bit(_waits < 300, 1'b1, "sret resumes interrupted supervisor instruction");
       expect_bit(_dut._csr_file._priv_mode == PRIV_SUPERVISOR, 1'b1,
                  "interrupt sret restores supervisor mode");
       expect_word(_dut._ifetch_ifu_cache.req.addr, 32'h0000_0000, "interrupt sret resumes at sepc");

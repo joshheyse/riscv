@@ -33,8 +33,14 @@ module top_sim
   logic              _plic_complete_seen;
   logic              _plic_mret_seen;
   logic              _plic_uart_tx_seen;
-  mem_if _core_mem ();
-  mem_if _board_mem ();
+  mem_if _core_mem (
+    _clk,
+    _rst
+  );
+  mem_if _board_mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
   uart_if _uart ();
 
@@ -45,7 +51,11 @@ module top_sim
   assign _retire = _core._ex_mem.valid && !_core._dbus_wait;
 
   assign _core_mem.rsp.read_data = _sim_halt_selected ? '0 : _board_mem.rsp.read_data;
-  assign _core_mem.rsp.ready = _sim_halt_selected ? _core_mem.req.valid : _board_mem.rsp.ready;
+  assign _core_mem.rsp.valid = _sim_halt_selected ? _core_mem.req.valid : _board_mem.rsp.valid;
+  // The halt address is answered here rather than on the board bus, so this
+  // shim accepts for it and otherwise passes the board's acceptance through.
+  assign _core_mem.req_ready = _sim_halt_selected ? 1'b1 : _board_mem.req_ready;
+  assign _board_mem.rsp_ready = _core_mem.rsp_ready;
   assign _board_mem.req.valid = _core_mem.req.valid & !_sim_halt_selected;
   assign _board_mem.req.write_en = _core_mem.req.write_en & !_sim_halt_selected;
   assign _board_mem.req.addr = _core_mem.req.addr;
@@ -91,17 +101,17 @@ module top_sim
       end
 
       if ($test$plusargs("plic-checkpoints")) begin
-        if (_core_mem.req.valid && _core_mem.rsp.ready && !_core_mem.req.write_en &&
+        if (_core_mem.req.valid && _core_mem.rsp.valid && !_core_mem.req.write_en &&
             (_core_mem.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
           _plic_claim_seen <= 1'b1;
           $display("top_sim: checkpoint plic claim id=0x%08h", _core_mem.rsp.read_data);
         end
-        if (_core_mem.req.valid && _core_mem.rsp.ready && _core_mem.req.write_en &&
+        if (_core_mem.req.valid && _core_mem.rsp.valid && _core_mem.req.write_en &&
             (_core_mem.req.addr == board_constants_pkg::PlicMClaimCompleteAddr)) begin
           _plic_complete_seen <= 1'b1;
           $display("top_sim: checkpoint plic complete id=0x%08h", _core_mem.req.write_data);
         end
-        if (_core_mem.req.valid && _core_mem.rsp.ready && _core_mem.req.write_en &&
+        if (_core_mem.req.valid && _core_mem.rsp.valid && _core_mem.req.write_en &&
             (_core_mem.req.addr == board_constants_pkg::UartTxAddr)) begin
           _plic_uart_tx_seen <= 1'b1;
           $display("top_sim: checkpoint uart tx accepted byte=0x%02h",
@@ -275,7 +285,7 @@ module top_sim
     $display(
         "top_sim: watchdog state cycle=%0d _pc=0x%08h halted=%b mem_valid=%b mem_write_en=%b mem_addr=0x%08h mem_write_data=0x%08h mem_ready=%b",
         _cycle, _pc, _halted, _core_mem.req.valid, _core_mem.req.write_en, _core_mem.req.addr,
-        _core_mem.req.write_data, _core_mem.rsp.ready);
+        _core_mem.req.write_data, _core_mem.rsp.valid);
     $display(
         "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
         _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,

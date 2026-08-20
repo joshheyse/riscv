@@ -27,7 +27,11 @@ module board_bus
   mem_if.slave  mem,
   irq_if.source irq
 );
-  mem_if _dbus_mem ();
+
+  mem_if _dbus_mem (
+    clk,
+    rst
+  );
 
   irq_if _clint_irq ();
   irq_if _uart_irq ();
@@ -125,7 +129,10 @@ module board_bus
       }
   };
 
-  mem_if _mmio_mem[NumSources] ();
+  mem_if _mmio_mem[NumSources] (
+    clk,
+    rst
+  );
 
   mmio_router #(
     .NumSources(NumSources),
@@ -133,13 +140,19 @@ module board_bus
     .MemHasPrio(1'b1),
     .SourceMap(_source_map)
   ) _mmio_router (
+    .clk(clk),
+    .rst(rst),
     .dbus(_dbus_mem),
     .selected(_source_selected),
     .mem(_mmio_mem)
   );
 
+  // Straight pass-through, acceptance included: the router decides when it
+  // can take a request, and the master upstream must see that answer.
   assign _dbus_mem.req = mem.req;
-  assign mem.rsp.ready = _dbus_mem.rsp.ready;
+  assign mem.req_ready = _dbus_mem.req_ready;
+  assign _dbus_mem.rsp_ready = mem.rsp_ready;
+  assign mem.rsp.valid = _dbus_mem.rsp.valid;
   assign mem.rsp.read_data = _dbus_mem.rsp.read_data;
 
   always_comb begin

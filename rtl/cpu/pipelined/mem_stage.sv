@@ -4,6 +4,9 @@ module mem_stage
   import riscv_pkg::*;
   import pipelined_pkg::*;
 (
+  input logic clk,
+  input logic rst,
+
   /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t     ex_mem,
   /* verilator lint_on UNUSEDSIGNAL */
@@ -15,6 +18,11 @@ module mem_stage
   mem_if.master dbus
 );
 
+
+  // This master has somewhere to put every response it asked for, so it takes
+  // them unconditionally. Drive it for real if that ever stops being true.
+  assign dbus.rsp_ready = 1'b1;
+
   mem_data_t   _mem_read_data;
   reg_data_t   _mem_result_data;
   logic        _mem_instr;
@@ -23,10 +31,29 @@ module mem_stage
   trap_stage_t _mem_trap;
   trap_stage_t _trap;
 
+  // The access is presented until the bus accepts it, then held off the bus
+  // while its response is outstanding. `ex_mem` is stable across both, because
+  // `mem_wait` stalls the pipeline for the whole transaction.
+  logic        _accepted;
+  logic        _accept;
+  logic        _response_here;
+
   assign _mem_instr = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
   assign _mem_access = _mem_instr && !_mem_trap_req.valid;
-  assign mem_wait = _mem_access && !dbus.rsp.ready;
-  assign dbus.req.valid = _mem_access;
+  assign _accept = dbus.req.valid && dbus.req_ready;
+  assign _response_here = dbus.rsp.valid && (_accepted || _accept);
+  assign mem_wait = _mem_access && !_response_here;
+  assign dbus.req.valid = _mem_access && !_accepted;
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      _accepted <= 1'b0;
+    end else if (_response_here) begin
+      _accepted <= 1'b0;
+    end else if (_accept) begin
+      _accepted <= 1'b1;
+    end
+  end
   assign dbus.req.write_en = _mem_access && ex_mem.ctrl.mem_write_en;
   assign dbus.req.addr = ex_mem.alu_result;
   assign _trap = ex_mem.trap.valid ? ex_mem.trap : _mem_trap;

@@ -24,6 +24,11 @@ module plic
   mem_if.slave mem
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   localparam int unsigned WordBits = $bits(mem_data_t);
   localparam mem_addr_t PlicEndAddr = PlicMClaimCompleteAddr + mem_addr_t'(4);
   localparam mem_addr_t PriorityEndAddr = PlicPriorityBaseAddr + mem_addr_t'(4 * (NumSources + 1));
@@ -97,7 +102,7 @@ module plic
     irq.pending.meip = _winner_valid;
 
     mem.rsp.read_data = '0;
-    mem.rsp.ready = selected;
+    mem.rsp.valid = selected;
     if (mem.req.valid) begin
       if (_priority_selected && (_source_id != '0)) begin
         mem.rsp.read_data = {{(WordBits - PriorityBits) {1'b0}}, _priority[_source_id]};

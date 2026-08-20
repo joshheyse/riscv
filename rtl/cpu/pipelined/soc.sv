@@ -19,7 +19,10 @@ module soc
   output logic halted
 );
 
-  mem_if _mem ();
+  mem_if _mem (
+    clk,
+    rst
+  );
   irq_if _irq ();
 
   assign _irq.pending = '0;

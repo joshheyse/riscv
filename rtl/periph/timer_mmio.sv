@@ -14,13 +14,18 @@ module timer_mmio
   mem_if.slave mem
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   initial begin
     assert (TimerLoAddr != TimerHiAddr);
   end
 
   dword_t _counter;
   assign selected = (mem.req.addr == TimerLoAddr || mem.req.addr == TimerHiAddr);
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
 
   always_comb begin
     mem.rsp.read_data = '0;

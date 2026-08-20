@@ -20,11 +20,18 @@ module tb_dip_switch_mmio
   mem_write_mask_t                      _mem_write_mask;
   logic                                 _selected;
   logic            [NumDipSwitches-1:0] _dip_switch;
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign _mem.rsp_ready = 1'b1;
+
   irq_if _irq ();
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned _errors = 0;
+  int unsigned _checks = 0;
 
   assign _mem.req.valid = _mem_valid;
   assign _mem.req.write_en = _mem_write_en;
@@ -52,17 +59,17 @@ module tb_dip_switch_mmio
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
@@ -74,7 +81,7 @@ module tb_dip_switch_mmio
     _mem_addr = addr;
     #1;
     expect_bit(_selected, 1'b1, {what, " selected"});
-    expect_bit(_mem.rsp.ready, 1'b1, {what, " ready"});
+    expect_bit(_mem.rsp.valid, 1'b1, {what, " ready"});
     expect_word(_mem.rsp.read_data, expected, what);
     @(negedge _clk);
     _mem_valid = 1'b0;
@@ -170,14 +177,14 @@ module tb_dip_switch_mmio
     _mem_valid = 1'b1;
     #1;
     expect_bit(_selected, 1'b0, "unmapped address not selected");
-    expect_bit(_mem.rsp.ready, 1'b0, "unmapped request not acknowledged by peripheral");
+    expect_bit(_mem.rsp.valid, 1'b0, "unmapped request not acknowledged by peripheral");
     expect_word(_mem.rsp.read_data, '0, "unmapped read data is zero");
 
-    if (errors == 0) begin
-      $display("tb_dip_switch_mmio: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_dip_switch_mmio: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_dip_switch_mmio: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_dip_switch_mmio: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

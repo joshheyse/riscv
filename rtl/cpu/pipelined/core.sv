@@ -100,10 +100,22 @@ module core
   logic           _ex_sret_valid;
 
 
-  mem_if _data_cache_arb ();
-  mem_if _data_lsu_cache ();
-  mem_if _ifetch_cache_arb ();
-  mem_if _ifetch_ifu_cache ();
+  mem_if _data_cache_arb (
+    clk,
+    rst
+  );
+  mem_if _data_lsu_cache (
+    clk,
+    rst
+  );
+  mem_if _ifetch_cache_arb (
+    clk,
+    rst
+  );
+  mem_if _ifetch_ifu_cache (
+    clk,
+    rst
+  );
 
   assign _id_branch_flags = '0;
 
@@ -502,6 +514,8 @@ module core
   );
 
   mem_stage _mem_stage (
+    .clk(clk),
+    .rst(rst),
     .ex_mem(_ex_mem),
     .csr_status(_csr_status),
     .mem_wait(_dbus_wait),

@@ -12,9 +12,9 @@
 //   0x0000_0000 + 4*N          ibus.req.addr[IndexBits+1:2] = N
 //
 // Reads are synchronous. A valid request is accepted on one rising edge, then
-// `ibus.rsp.ready` and `ibus.rsp.read_data` are updated on that edge for the
+// `ibus.rsp.valid` and `ibus.rsp.read_data` are updated on that edge for the
 // core to observe in the following cycle. `ibus.rsp.read_data` is meaningful
-// only when `ibus.rsp.ready` is high.
+// only when `ibus.rsp.valid` is high.
 //
 // `InitFile`, when non-empty, is a `$readmemh` file with one 32-bit instruction
 // word per line.
@@ -32,6 +32,11 @@ module imem
   /* verilator lint_on UNUSEDSIGNAL */
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign ibus.req_ready = 1'b1;
+
   localparam int unsigned IndexBits = $clog2(DepthWords);
   instr_u _rom[DepthWords-1:0];
 
@@ -47,9 +52,9 @@ module imem
     end else begin
       if (ibus.req.valid) begin
         ibus.rsp.read_data <= _rom[ibus.req.addr[IndexBits+1:2]];
-        ibus.rsp.ready <= 1'b1;
+        ibus.rsp.valid <= 1'b1;
       end else begin
-        ibus.rsp.ready <= 1'b0;
+        ibus.rsp.valid <= 1'b0;
       end
     end
   end

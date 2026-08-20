@@ -32,14 +32,21 @@ module tb_spi_mmio
   logic        _mem_ready_observed;
   /* verilator lint_on UNUSEDSIGNAL */
   assign _mem_ready_observed = _mem_ready;
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign _mem.rsp_ready = 1'b1;
+
 
   assign _mem.req.valid = _mem_valid;
   assign _mem.req.write_en = _mem_write_en;
   assign _mem.req.addr = _mem_addr;
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _mem_write_mask;
-  assign _mem_ready = _mem.rsp.ready;
+  assign _mem_ready = _mem.rsp.valid;
   assign _read_data = _mem.rsp.read_data;
 
   spi_mmio #(

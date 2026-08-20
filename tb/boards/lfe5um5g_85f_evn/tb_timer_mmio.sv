@@ -19,10 +19,17 @@ module tb_timer_mmio
   logic            _selected;
   logic            _mem_ready;
   word_t           _read_data;
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  // This testbench drives the master side and can always take a response.
+  assign _mem.rsp_ready = 1'b1;
+
+
+  int unsigned _errors = 0;
+  int unsigned _checks = 0;
   /* verilator lint_off UNUSEDSIGNAL */
   logic        _mem_ready_observed;
   /* verilator lint_on UNUSEDSIGNAL */
@@ -33,7 +40,7 @@ module tb_timer_mmio
   assign _mem.req.addr = _mem_addr;
   assign _mem.req.write_data = _mem_write_data;
   assign _mem.req.write_mask = _mem_write_mask;
-  assign _mem_ready = _mem.rsp.ready;
+  assign _mem_ready = _mem.rsp.valid;
   assign _read_data = _mem.rsp.read_data;
 
   timer_mmio #(
@@ -52,17 +59,17 @@ module tb_timer_mmio
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
@@ -118,11 +125,11 @@ module tb_timer_mmio
     expect_bit(_selected, 1'b0, "unmapped address not selected");
     expect_word(_read_data, '0, "unmapped address reads zero");
 
-    if (errors == 0) begin
-      $display("tb_timer_mmio: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_timer_mmio: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_timer_mmio: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_timer_mmio: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

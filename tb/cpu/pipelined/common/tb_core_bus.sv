@@ -9,11 +9,9 @@
 // `MmioBase` is MMIO, everything below it is backing store.
 //
 // Slow responses are modelled with `mmio_wait`, which adds response latency to
-// MMIO accesses. Note what this model deliberately cannot do: refuse a request.
-// `mem_arbiter` presents `req.valid` for a single cycle and then stops driving
-// it, with no way for a slave to say "not now" -- so a slave that withheld
-// acceptance would lose the request outright and wedge the bus. Acceptance is
-// therefore unconditional and only the response is delayed.
+// MMIO accesses. The model refuses new requests on `req_ready` while a delayed
+// response is still owed, and holds an answered response until the master takes
+// it on `rsp_ready` -- the single-outstanding rule, on both channels.
 //
 // Response timing at `mmio_wait = 0` matches `rtl/cpu/lib/memory.sv`:
 // registered, one cycle after the request.
@@ -56,6 +54,8 @@ module tb_core_bus
 
   int unsigned                 _wait_count;
   mem_data_t                   _pending_data;
+  logic                        _accept;
+  logic                        _holding;
 
   initial begin
     if (InitFile != "") begin
@@ -67,6 +67,13 @@ module tb_core_bus
   assign _index = mem.req.addr[IndexBits+1:2];
   assign _selected_data = _is_mmio ? mmio_read_data : _store[_index];
 
+  // Accept a request whenever nothing is owed. Refusing costs nothing now: the
+  // master simply keeps the request presented until it is taken.
+  // Nothing is owed, and no answered response is still waiting to be taken.
+  assign _holding = mem.rsp.valid && !mem.rsp_ready;
+  assign mem.req_ready = (_wait_count == 0) && !_holding;
+  assign _accept = mem.req.valid && mem.req_ready;
+
   always_ff @(posedge clk) begin
     if (rst) begin
       mem.rsp         <= '0;
@@ -75,24 +82,26 @@ module tb_core_bus
       mmio_write_data <= '0;
       _wait_count     <= 0;
       _pending_data   <= '0;
+    end else if (_holding) begin
+      // A response the master has not taken yet must stay exactly as it is.
+      mmio_write <= 1'b0;
     end else begin
-      mem.rsp.ready <= 1'b0;
+      mem.rsp.valid <= 1'b0;
       mmio_write    <= 1'b0;
 
       if (_wait_count != 0) begin
         // A delayed response is already owed; count it down and deliver.
         _wait_count <= _wait_count - 1;
         if (_wait_count == 1) begin
-          mem.rsp.ready     <= 1'b1;
+          mem.rsp.valid     <= 1'b1;
           mem.rsp.read_data <= _pending_data;
         end
-      end else if (mem.req.valid) begin
-        // Accept unconditionally -- see the note above.
+      end else if (_accept) begin
         if (_is_mmio && mmio_wait != 0) begin
           _wait_count   <= mmio_wait;
           _pending_data <= _selected_data;
         end else begin
-          mem.rsp.ready     <= 1'b1;
+          mem.rsp.valid     <= 1'b1;
           mem.rsp.read_data <= _selected_data;
         end
 

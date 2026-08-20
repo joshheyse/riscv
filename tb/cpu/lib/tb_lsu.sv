@@ -20,7 +20,14 @@ module tb_lsu
 
   logic _clk;
   logic _rst;
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign _mem.rsp_ready = 1'b1;
+
   logic            _mem_valid;
   logic            _mem_write_en;
   word_t           _addr;
@@ -37,11 +44,11 @@ module tb_lsu
   assign _mem.req.write_en = _mem_write_en;
   assign _mem.req.addr     = _addr;
   logic _mem_ready;
-  assign _mem_ready     = _mem.rsp.ready;
+  assign _mem_ready     = _mem.rsp.valid;
   assign _mem_read_data = _mem.rsp.read_data;
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned _errors = 0;
+  int unsigned _checks = 0;
 
   lsu _dut (
     .addr(_addr),
@@ -74,9 +81,9 @@ module tb_lsu
   // ------------------------------------------------------------- helpers --
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
@@ -161,11 +168,11 @@ module tb_lsu
     read_addr(32'h0000_0000, MEM_SIZE_WORD, 1'b0, 32'hcafe_babe,
               "high address bits alias same word");
 
-    if (errors == 0) begin
-      $display("tb_lsu: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_lsu: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_lsu: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_lsu: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

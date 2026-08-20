@@ -17,7 +17,14 @@ module tb_plic
   logic                _rst;
   logic                _selected;
   logic [NumSources:1] _source_request;
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign _mem.rsp_ready = 1'b1;
+
   irq_if _sources[NumSources:1] ();
   irq_if _irq ();
 
@@ -98,7 +105,7 @@ module tb_plic
     _mem.req.write_mask = '1;
     #1;
     expect_bit(_selected, 1'b1, {what, " selected"});
-    expect_bit(_mem.rsp.ready, 1'b1, {what, " ready"});
+    expect_bit(_mem.rsp.valid, 1'b1, {what, " ready"});
     @(posedge _clk);
     #1;
     drive_idle();
@@ -114,7 +121,7 @@ module tb_plic
     _mem.req.write_mask = '1;
     #1;
     expect_bit(_selected, exp_selected, {what, " selected"});
-    expect_bit(_mem.rsp.ready, exp_selected, {what, " ready"});
+    expect_bit(_mem.rsp.valid, exp_selected, {what, " ready"});
     expect_word(_mem.rsp.read_data, exp, what);
     @(posedge _clk);
     #1;
@@ -132,7 +139,7 @@ module tb_plic
     _mem.req.write_mask = '1;
     #1;
     expect_bit(_selected, 1'b1, {what, " selected"});
-    expect_bit(_mem.rsp.ready, 1'b1, {what, " ready"});
+    expect_bit(_mem.rsp.valid, 1'b1, {what, " ready"});
     expect_word(_mem.rsp.read_data, exp_id, what);
     @(posedge _clk);
     #1;

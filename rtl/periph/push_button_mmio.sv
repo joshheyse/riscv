@@ -27,6 +27,11 @@ module push_button_mmio
   irq_if.source irq
 );
 
+
+  // This slave can always take a request on the cycle it is presented, so
+  // acceptance is unconditional. Drive it for real only if that changes.
+  assign mem.req_ready = 1'b1;
+
   localparam int unsigned WordBits = $bits(mem_addr_t);
   localparam int unsigned DebounceCounterBits = $clog2(DebounceCycles + 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterMax = DebounceCounterBits'(DebounceCycles - 1);
@@ -52,7 +57,7 @@ module push_button_mmio
   logic [DebounceCounterBits-1:0] _counter;
 
   assign selected = (mem.req.addr == PushButtonAddr || mem.req.addr == IrqEnableAddr || mem.req.addr == IrqPendingAddr);
-  assign mem.rsp.ready = mem.req.valid && selected;
+  assign mem.rsp.valid = mem.req.valid && selected;
   assign _pressed = _debounced_button & ~_previous;
 
   always_comb begin

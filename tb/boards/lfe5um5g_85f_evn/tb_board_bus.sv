@@ -8,22 +8,30 @@ module tb_board_bus
   localparam int unsigned PushButtonDebounceCycles = 120_000;
   localparam int unsigned TimeoutCycles = PushButtonDebounceCycles + 1_000;
 
-  logic                                    _clk;
-  logic                                    _rst;
-  logic [                             7:0] _led;
-  logic [                             7:0] _dip_switch;
-  logic                                    _push_button;
-  logic [board_constants_pkg::NumGpio-1:0] _gpio_in;
-  logic [board_constants_pkg::NumGpio-1:0] _gpio_out;
-  logic [board_constants_pkg::NumGpio-1:0] _gpio_oe;
-  mem_if dbus ();
+  logic                                     _clk;
+  logic                                     _rst;
+  word_t                                    _read_data;
+  logic  [                             7:0] _led;
+  logic  [                             7:0] _dip_switch;
+  logic                                     _push_button;
+  logic  [board_constants_pkg::NumGpio-1:0] _gpio_in;
+  logic  [board_constants_pkg::NumGpio-1:0] _gpio_out;
+  logic  [board_constants_pkg::NumGpio-1:0] _gpio_oe;
+  mem_if dbus (
+    _clk,
+    _rst
+  );
+
+  // This testbench drives the master side and can always take a response.
+  assign dbus.rsp_ready = 1'b1;
+
   irq_if _irq ();
   uart_if _uart ();
   spi_if _spi ();
   i2c_if _i2c ();
 
-  int unsigned errors = 0;
-  int unsigned checks = 0;
+  int unsigned _errors = 0;
+  int unsigned _checks = 0;
 
   board_bus #(
     .MemDepthWords(16)
@@ -49,67 +57,73 @@ module tb_board_bus
   end
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got %b, expected %b", $time, what, got, exp);
     end
   endtask
 
   task automatic expect_byte(input logic [7:0] got, input logic [7:0] exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%02h, expected 0x%02h", $time, what, got, exp);
     end
   endtask
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
 
-  task automatic set_read_addr(input word_t addr);
+  // A conforming master: hold the request until the bus accepts it, then take
+  // it off and wait for the response. The result lands in `_read_data`, since
+  // `rsp.read_data` is only meaningful in the cycle `rsp.valid` is asserted.
+  task automatic bus_access(input word_t addr, input logic write_en, input word_t data,
+                            input string what);
+    logic answered_on_accept;
+
     @(negedge _clk);
     dbus.req.valid = 1'b1;
-    dbus.req.write_en = 1'b0;
+    dbus.req.write_en = write_en;
     dbus.req.addr = addr;
+    dbus.req.write_data = data;
+    dbus.req.write_mask = write_en ? 4'b1111 : 4'b0000;
+    #1;
+
+    while (!dbus.req_ready) @(negedge _clk);
+    answered_on_accept = dbus.rsp.valid;
+    _read_data = dbus.rsp.read_data;
+
     @(posedge _clk);
     #1;
-    expect_bit(dbus.rsp.ready, 1'b1, "read ready");
     dbus.req.valid = 1'b0;
+    dbus.req.write_en = 1'b0;
+
+    if (!answered_on_accept) begin
+      while (!dbus.rsp.valid) @(negedge _clk);
+      _read_data = dbus.rsp.read_data;
+      @(posedge _clk);
+      #1;
+    end
+    expect_bit(1'b1, 1'b1, {what, " completes"});
+  endtask
+
+  task automatic set_read_addr(input word_t addr);
+    bus_access(addr, 1'b0, '0, "read");
   endtask
 
   task automatic write_bus(input word_t addr, input word_t data);
-    @(negedge _clk);
-    dbus.req.valid      = 1'b1;
-    dbus.req.addr       = addr;
-    dbus.req.write_data = data;
-    dbus.req.write_mask = 4'b1111;
-    dbus.req.write_en   = 1'b1;
-    @(posedge _clk);
-    #1;
-    expect_bit(dbus.rsp.ready, 1'b1, "write ready");
-    dbus.req.valid = 1'b0;
-    dbus.req.write_en = 1'b0;
+    bus_access(addr, 1'b1, data, "write");
   endtask
 
   task automatic claim_irq(input word_t exp_id, input string what);
-    @(negedge _clk);
-    dbus.req.valid      = 1'b1;
-    dbus.req.write_en   = 1'b0;
-    dbus.req.addr       = board_constants_pkg::PlicMClaimCompleteAddr;
-    dbus.req.write_data = '0;
-    dbus.req.write_mask = 4'b1111;
-    #1;
-    expect_bit(dbus.rsp.ready, 1'b1, {what, " ready"});
-    expect_word(dbus.rsp.read_data, exp_id, what);
-    @(posedge _clk);
-    #1;
-    dbus.req.valid = 1'b0;
+    bus_access(board_constants_pkg::PlicMClaimCompleteAddr, 1'b0, '0, what);
+    expect_word(_read_data, exp_id, what);
   endtask
 
   initial begin
@@ -148,25 +162,25 @@ module tb_board_bus
     _rst = 1'b0;
 
     set_read_addr(32'h2000_0000);
-    expect_word(dbus.rsp.read_data, '0, "unmapped read returns zero");
+    expect_word(_read_data, '0, "unmapped read returns zero");
 
     write_bus(board_constants_pkg::LedAddr, 32'h0000_00a5);
     expect_byte(_led, 8'ha5, "LED write reaches LED MMIO");
     set_read_addr(board_constants_pkg::LedAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_00a5, "LED read routes through board bus");
+    expect_word(_read_data, 32'h0000_00a5, "LED read routes through board bus");
 
     write_bus(32'h2000_0000, 32'h0000_005a);
     expect_byte(_led, 8'ha5, "unmapped write does not change LED MMIO");
     set_read_addr(32'h2000_0000);
-    expect_word(dbus.rsp.read_data, '0, "unmapped read still returns zero after write");
+    expect_word(_read_data, '0, "unmapped read still returns zero after write");
 
     write_bus(board_constants_pkg::MemBase + 32'h0000_0004, 32'hdead_beef);
     set_read_addr(board_constants_pkg::MemBase + 32'h0000_0004);
-    expect_word(dbus.rsp.read_data, 32'hdead_beef, "memory write/read routes to LSU");
+    expect_word(_read_data, 32'hdead_beef, "memory write/read routes to LSU");
 
     write_bus(board_constants_pkg::LedAddr, 32'h0000_0011);
     set_read_addr(board_constants_pkg::MemBase + 32'h0000_0004);
-    expect_word(dbus.rsp.read_data, 32'hdead_beef, "LED write does not change memory");
+    expect_word(_read_data, 32'hdead_beef, "LED write does not change memory");
 
     write_bus(board_constants_pkg::PlicPriorityBaseAddr + (4 * board_constants_pkg::PlicIrqUart),
               32'd1);
@@ -179,16 +193,16 @@ module tb_board_bus
     write_bus(board_constants_pkg::PlicMEnableAddr, 32'h0000_000e);
     write_bus(board_constants_pkg::PlicMThresholdAddr, 32'd0);
     set_read_addr(board_constants_pkg::PlicMEnableAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_000e, "PLIC enable routes through board bus");
+    expect_word(_read_data, 32'h0000_000e, "PLIC enable routes through board bus");
 
     _dip_switch = 8'hc3;
     repeat (3) @(posedge _clk);
     #1;
     set_read_addr(board_constants_pkg::DipSwitchAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_00c3, "DIP switch read routes through board bus");
+    expect_word(_read_data, 32'h0000_00c3, "DIP switch read routes through board bus");
     expect_bit(_irq.pending.meip, 1'b0, "disabled DIP switch event does not raise meip");
     set_read_addr(board_constants_pkg::DipSwitchIrqPendingAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_00c3, "DIP switch pending routes through board bus");
+    expect_word(_read_data, 32'h0000_00c3, "DIP switch pending routes through board bus");
     write_bus(board_constants_pkg::DipSwitchIrqEnableAddr, 32'h0000_00ff);
     @(posedge _clk);
     #1;
@@ -203,10 +217,10 @@ module tb_board_bus
     repeat (PushButtonDebounceCycles + 3) @(posedge _clk);
     #1;
     set_read_addr(board_constants_pkg::PushButtonAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_0001, "push button read routes through board bus");
+    expect_word(_read_data, 32'h0000_0001, "push button read routes through board bus");
     expect_bit(_irq.pending.meip, 1'b0, "disabled push-button event does not raise meip");
     set_read_addr(board_constants_pkg::PushButtonIrqPendingAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_0001, "push-button pending routes through board bus");
+    expect_word(_read_data, 32'h0000_0001, "push-button pending routes through board bus");
     write_bus(board_constants_pkg::PushButtonIrqEnableAddr, 32'h0000_0001);
     @(posedge _clk);
     #1;
@@ -219,17 +233,17 @@ module tb_board_bus
 
     _gpio_in = 8'h3c;
     set_read_addr(board_constants_pkg::GpioDataInAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_003c, "GPIO input read routes through board bus");
+    expect_word(_read_data, 32'h0000_003c, "GPIO input read routes through board bus");
 
     write_bus(board_constants_pkg::GpioDataOutAddr, 32'h0000_0055);
     expect_byte(_gpio_out, 8'h55, "GPIO output write reaches GPIO MMIO");
     set_read_addr(board_constants_pkg::GpioDataOutAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_0055, "GPIO output read routes through board bus");
+    expect_word(_read_data, 32'h0000_0055, "GPIO output read routes through board bus");
 
     write_bus(board_constants_pkg::GpioDirAddr, 32'h0000_00f0);
     expect_byte(_gpio_oe, 8'hf0, "GPIO direction write reaches GPIO MMIO");
     set_read_addr(board_constants_pkg::GpioDirAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_00f0, "GPIO direction read routes through board bus");
+    expect_word(_read_data, 32'h0000_00f0, "GPIO direction read routes through board bus");
 
     write_bus(board_constants_pkg::GpioSetAddr, 32'h0000_000a);
     expect_byte(_gpio_out, 8'h5f, "GPIO set write routes through board bus");
@@ -239,49 +253,49 @@ module tb_board_bus
     expect_byte(_gpio_out, 8'hb5, "GPIO toggle write routes through board bus");
 
     set_read_addr(board_constants_pkg::UartStatusAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_0001, "UART status read routes ready bit");
+    expect_word(_read_data, 32'h0000_0001, "UART status read routes ready bit");
     write_bus(board_constants_pkg::UartTxAddr, 32'h0000_0055);
     set_read_addr(board_constants_pkg::UartStatusAddr);
-    expect_word(dbus.rsp.read_data, 32'h0000_0000, "UART TX write makes UART busy");
+    expect_word(_read_data, 32'h0000_0000, "UART TX write makes UART busy");
     expect_byte(_led, 8'h11, "UART write does not change LED MMIO");
 
     repeat (2) @(posedge _clk);
     set_read_addr(board_constants_pkg::TimerLoAddr);
     if (dbus.rsp.read_data == '0) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] timer low read: got zero after reset release", $time);
     end
-    checks++;
+    _checks++;
 
     set_read_addr(board_constants_pkg::TimerHiAddr);
-    expect_word(dbus.rsp.read_data, '0, "timer high read routes through board bus");
+    expect_word(_read_data, '0, "timer high read routes through board bus");
 
     set_read_addr(board_constants_pkg::SpiDataAddr);
-    expect_word(dbus.rsp.read_data, '0, "SPI data read routes through board bus");
+    expect_word(_read_data, '0, "SPI data read routes through board bus");
 
     set_read_addr(board_constants_pkg::SpiControlAddr);
-    expect_word(dbus.rsp.read_data, '0, "SPI control read routes through board bus");
+    expect_word(_read_data, '0, "SPI control read routes through board bus");
 
     set_read_addr(board_constants_pkg::SpiStatusAddr);
-    expect_word(dbus.rsp.read_data, '0, "SPI status read routes through board bus");
+    expect_word(_read_data, '0, "SPI status read routes through board bus");
 
     set_read_addr(board_constants_pkg::I2cDataAddr);
-    expect_word(dbus.rsp.read_data, '0, "I2C data read routes through board bus");
+    expect_word(_read_data, '0, "I2C data read routes through board bus");
 
     set_read_addr(board_constants_pkg::I2cAddressAddr);
-    expect_word(dbus.rsp.read_data, '0, "I2C address read routes through board bus");
+    expect_word(_read_data, '0, "I2C address read routes through board bus");
 
     set_read_addr(board_constants_pkg::I2cControlAddr);
-    expect_word(dbus.rsp.read_data, '0, "I2C control read routes through board bus");
+    expect_word(_read_data, '0, "I2C control read routes through board bus");
 
     set_read_addr(board_constants_pkg::I2cStatusAddr);
-    expect_word(dbus.rsp.read_data, '0, "I2C status read routes through board bus");
+    expect_word(_read_data, '0, "I2C status read routes through board bus");
 
-    if (errors == 0) begin
-      $display("tb_board_bus: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_board_bus: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_board_bus: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_board_bus: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

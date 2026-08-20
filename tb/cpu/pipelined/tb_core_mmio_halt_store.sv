@@ -19,7 +19,10 @@ module tb_core_mmio_halt_store
   logic _halted;
   pc_t  _pc;
 
-  mem_if _mem ();
+  mem_if _mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
 
   always_comb begin
@@ -35,8 +38,8 @@ module tb_core_mmio_halt_store
 
 
 
-  int unsigned       errors = 0;
-  int unsigned       checks = 0;
+  int unsigned       _errors = 0;
+  int unsigned       _checks = 0;
   logic              _mmio_write;
   mem_addr_t         _mmio_write_addr;
   mem_data_t         _mmio_write_data;
@@ -81,9 +84,9 @@ module tb_core_mmio_halt_store
   end
 
   task automatic expect_word(input word_t got, input word_t exp, input string what);
-    checks++;
+    _checks++;
     if (got !== exp) begin
-      errors++;
+      _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
   endtask
@@ -133,11 +136,11 @@ module tb_core_mmio_halt_store
     expect_word(_stores_seen, 2, "program performs exactly two stores before loop");
     expect_word(word_t'(_extra_store), '0, "program does not perform extra stores");
 
-    if (errors == 0) begin
-      $display("tb_core_mmio_halt_store: PASS (%0d checks)", checks);
+    if (_errors == 0) begin
+      $display("tb_core_mmio_halt_store: PASS (%0d checks)", _checks);
       $finish;
     end else begin
-      $display("tb_core_mmio_halt_store: FAIL (%0d failures out of %0d checks)", errors, checks);
+      $display("tb_core_mmio_halt_store: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
   end

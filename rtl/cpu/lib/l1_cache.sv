@@ -13,10 +13,11 @@ module l1_cache
   mem_if.master downstream
 );
 
+
   typedef enum logic [1:0] {
     IDLE,
-    UNCACHED_REQUEST,
-    UNCACHED_RESPONSE
+    UNCACHED_REQUEST,  // latched, presented downstream, not yet accepted
+    UNCACHED_WAIT      // accepted downstream, response outstanding
   } state_t;
 
   initial begin
@@ -25,8 +26,14 @@ module l1_cache
 
   logic   _cacheable;
   state_t _state;
-  mem_if _to_cache ();
-  mem_if _from_cache ();
+  mem_if _to_cache (
+    clk,
+    rst
+  );
+  mem_if _from_cache (
+    clk,
+    rst
+  );
   mem_req_t _request;
 
   generate
@@ -46,25 +53,38 @@ module l1_cache
 
   always_comb begin
     upstream.rsp = '0;
+    upstream.req_ready = 1'b0;
     downstream.req = '0;
+    downstream.rsp_ready = 1'b0;
     _to_cache.req = '0;
+    _to_cache.rsp_ready = 1'b0;
+    _from_cache.req_ready = 1'b0;
     _from_cache.rsp = '0;
+
     if (_state == IDLE) begin
       if (_cacheable) begin
+        // Straight through: the cache decides when it can take the request,
+        // and its own refill traffic is what reaches the bus.
         _to_cache.req = upstream.req;
+        upstream.req_ready = _to_cache.req_ready;
         upstream.rsp = _to_cache.rsp;
+        _to_cache.rsp_ready = upstream.rsp_ready;
         downstream.req = _from_cache.req;
+        _from_cache.req_ready = downstream.req_ready;
         _from_cache.rsp = downstream.rsp;
+        downstream.rsp_ready = _from_cache.rsp_ready;
+      end else begin
+        // Uncached: take the request here and replay it downstream, so the
+        // upstream master is released immediately.
+        upstream.req_ready = 1'b1;
       end
     end else if (_state == UNCACHED_REQUEST) begin
       downstream.req = _request;
-      upstream.rsp   = downstream.rsp;
-    end else if (_state == UNCACHED_RESPONSE) begin
-      // Keep driving the request. `mem_arbiter` ignores `req.valid` on cycles
-      // it is not IDLE and gives no backpressure, so a request presented for a
-      // single cycle is silently lost. Hold it until `rsp.ready`.
-      upstream.rsp   = downstream.rsp;
-      downstream.req = _request;
+      upstream.rsp = downstream.rsp;
+      downstream.rsp_ready = upstream.rsp_ready;
+    end else if (_state == UNCACHED_WAIT) begin
+      upstream.rsp = downstream.rsp;
+      downstream.rsp_ready = upstream.rsp_ready;
     end
   end
 
@@ -85,15 +105,17 @@ module l1_cache
           end
         end
         UNCACHED_REQUEST: begin
-          if (downstream.rsp.ready) begin
-            _state   <= IDLE;
-            _request <= '0;
-          end else begin
-            _state <= UNCACHED_RESPONSE;
+          if (downstream.req.valid && downstream.req_ready) begin
+            if (downstream.rsp.valid && downstream.rsp_ready) begin
+              _state   <= IDLE;
+              _request <= '0;
+            end else begin
+              _state <= UNCACHED_WAIT;
+            end
           end
         end
-        UNCACHED_RESPONSE: begin
-          if (downstream.rsp.ready) begin
+        UNCACHED_WAIT: begin
+          if (downstream.rsp.valid && downstream.rsp_ready) begin
             _state   <= IDLE;
             _request <= '0;
           end

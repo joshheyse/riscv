@@ -93,8 +93,8 @@ package riscv_pkg;
   } mem_req_t;
 
   typedef struct packed {
-    logic      ready;      // response is complete for this cycle
-    mem_data_t read_data;  // read payload when ready=1 and write_en=0
+    logic      valid;      // response data is on the bus this cycle
+    mem_data_t read_data;  // read payload when valid=1 and write_en=0
   } mem_rsp_t;
 
   typedef word_t tval_t;
