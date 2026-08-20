@@ -145,8 +145,8 @@ module core
   logic _mie_pending_seip;
   logic _mie_pending_stip;
   logic _mie_pending_ssip;
-  logic _machine_interrupts_enabled;
-  logic _supervisor_interrupts_enabled;
+  logic _machine_interrupts_en;
+  logic _supervisor_interrupts_en;
 
   always_comb begin
     _ex_trap = '0;
@@ -176,32 +176,31 @@ module core
     _mie_pending_seip = _csr_status.mip.seip | irq.pending.seip;
     _mie_pending_stip = _csr_status.mip.stip | irq.pending.stip;
     _mie_pending_ssip = _csr_status.mip.ssip | irq.pending.ssip;
-    _machine_interrupts_enabled = (_csr_status.priv_mode != PRIV_MACHINE) ||
-        _csr_status.mstatus.mie;
-    _supervisor_interrupts_enabled = (_csr_status.priv_mode == PRIV_USER) ||
+    _machine_interrupts_en = (_csr_status.priv_mode != PRIV_MACHINE) || _csr_status.mstatus.mie;
+    _supervisor_interrupts_en = (_csr_status.priv_mode == PRIV_USER) ||
         ((_csr_status.priv_mode == PRIV_SUPERVISOR) && _csr_status.mstatus.sie);
 
-    if (_csr_status.mie.meip && _mie_pending_meip && _machine_interrupts_enabled) begin
+    if (_csr_status.mie.meip && _mie_pending_meip && _machine_interrupts_en) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, tval: '0};
-    end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_enabled) begin
+    end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_en) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, tval: '0};
-    end else if (_csr_status.mie.msip && _mie_pending_msip && _machine_interrupts_enabled) begin
+    end else if (_csr_status.mie.msip && _mie_pending_msip && _machine_interrupts_en) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.seip && _mie_pending_seip &&
-                 (_csr_status.mideleg[9] ? _supervisor_interrupts_enabled :
-                                          _machine_interrupts_enabled)) begin
+                 (_csr_status.mideleg[9] ? _supervisor_interrupts_en :
+                                          _machine_interrupts_en)) begin
       _interrupt_trap_req = '{
           valid: 1'b1,
           src: TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
           tval: '0
       };
     end else if (_csr_status.mie.stip && _mie_pending_stip &&
-                 (_csr_status.mideleg[5] ? _supervisor_interrupts_enabled :
-                                          _machine_interrupts_enabled)) begin
+                 (_csr_status.mideleg[5] ? _supervisor_interrupts_en :
+                                          _machine_interrupts_en)) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.ssip && _mie_pending_ssip &&
-                 (_csr_status.mideleg[1] ? _supervisor_interrupts_enabled :
-                                          _machine_interrupts_enabled)) begin
+                 (_csr_status.mideleg[1] ? _supervisor_interrupts_en :
+                                          _machine_interrupts_en)) begin
       _interrupt_trap_req = '{
           valid: 1'b1,
           src: TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,

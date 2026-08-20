@@ -45,7 +45,7 @@ module plic
 
   logic [NumSources:1] _source_pending;
   logic [NumSources:1] _pending;
-  logic [NumSources:1] _enable;
+  logic [NumSources:1] _source_en;
 
   typedef logic [PriorityBits-1:0] priority_t;
   priority_t  _priority          [NumSources:1];
@@ -90,7 +90,7 @@ module plic
     _complete_valid = 1'b0;
 
     for (int unsigned id = 1; id <= NumSources; id++) begin : gen_claim
-      if (_pending[id] && _enable[id] && (_priority[id] > _threshold)) begin
+      if (_pending[id] && _source_en[id] && (_priority[id] > _threshold)) begin
         if (_claim_priority < _priority[id]) begin
           _claim_id = source_id_t'(id);
           _claim_priority = _priority[id];
@@ -109,7 +109,7 @@ module plic
       end else if (mem.req.addr == PlicPendingAddr) begin
         mem.rsp.read_data = {{(WordBits - NumSources - 1) {1'b0}}, _pending, 1'b0};
       end else if (mem.req.addr == PlicMEnableAddr) begin
-        mem.rsp.read_data = {{(WordBits - NumSources - 1) {1'b0}}, _enable, 1'b0};
+        mem.rsp.read_data = {{(WordBits - NumSources - 1) {1'b0}}, _source_en, 1'b0};
       end else if (mem.req.addr == PlicMThresholdAddr) begin
         mem.rsp.read_data = {{(WordBits - PriorityBits) {1'b0}}, _threshold};
       end else if (mem.req.addr == PlicMClaimCompleteAddr && !mem.req.write_en) begin
@@ -126,7 +126,7 @@ module plic
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      _enable <= '0;
+      _source_en <= '0;
       _threshold <= '0;
       for (int unsigned id = 1; id <= NumSources; id++) begin
         _priority[id] <= '0;
@@ -136,7 +136,7 @@ module plic
         if (_priority_selected && (_source_id != '0)) begin
           _priority[_source_id] <= priority_t'(mem.req.write_data);
         end else if (mem.req.addr == PlicMEnableAddr) begin
-          _enable <= mem.req.write_data[NumSources:1];
+          _source_en <= mem.req.write_data[NumSources:1];
         end else if (mem.req.addr == PlicMThresholdAddr) begin
           _threshold <= priority_t'(mem.req.write_data);
         end
