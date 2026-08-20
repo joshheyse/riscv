@@ -93,7 +93,12 @@ module core
 
   pipeline_ctrl_t _pipe_ctrl;
   logic           _trap_in_flight;
+  logic           _trap_from_id;
+  // Retained as an observable for the trap_orchestrator testbench; the
+  // pipeline decision now uses `_trap_from_id` instead.
+  /* verilator lint_off UNUSEDSIGNAL */
   logic           _trap_held;
+  /* verilator lint_on UNUSEDSIGNAL */
   retire_ctrl_t   _retire;
   logic           _trap_from_if_id;
   logic           _ex_mret_valid;
@@ -157,7 +162,11 @@ module core
     end
   end
 
-  assign _trap_from_if_id = _if_id.valid && _id_trap.valid && !_trap_held;
+  // The trapping instruction must reach ID/EX to retire its trap. Asking
+  // whether the trap is *unheld* is wrong: a trap raised during a memory wait
+  // is latched cycles before the pipeline may move, and would then be flushed
+  // and lost. Ask instead whether the in-flight trap is the one in decode.
+  assign _trap_from_if_id = _if_id.valid && _trap_from_id;
 
   always_comb begin
     _interrupt_trap_req = '0;
@@ -310,7 +319,8 @@ module core
     .clear_trap(_retire.trap),
     .trap_held(_trap_held),
     .trap(_trap),
-    .trap_in_flight(_trap_in_flight)
+    .trap_in_flight(_trap_in_flight),
+    .trap_from_id(_trap_from_id)
   );
 
   flow_control _flow_control (

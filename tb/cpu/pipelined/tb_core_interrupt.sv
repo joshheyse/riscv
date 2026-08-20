@@ -23,11 +23,13 @@
 // interlock can engage -- the overlap simply cannot be reached. Caching fetch
 // keeps the pipeline full enough to reproduce it.
 //
-// KNOWN FAILURE: in that configuration the core wedges. Once the interrupt is
-// taken, `_trap_in_flight` stays high, `_pipe_ctrl.fetch` holds fetch, the IFU
-// has no outstanding request, and `mcause` is never written -- so the trap
-// never retires and nothing progresses. The test is left asserting the correct
-// behaviour rather than the observed one.
+// This configuration used to wedge, which is why it is worth keeping: an
+// interrupt raised on an instruction sitting in decode during a memory wait was
+// latched into the trap orchestrator before the pipeline was allowed to move,
+// and the trapping instruction was then flushed instead of advancing -- so the
+// trap never retired and `_trap_in_flight` stuck high forever. The pipeline now
+// asks whether the in-flight trap belongs to the instruction in decode rather
+// than whether the trap is as-yet unheld.
 `timescale 1ns / 1ps
 
 module tb_core_interrupt

@@ -20,36 +20,50 @@ module trap_orchestrator
 
   output trap_stage_t trap,
   output logic        trap_held,
-  output logic        trap_in_flight
+  output logic        trap_in_flight,
+  // Whether the in-flight trap belongs to the instruction still sitting in
+  // decode. The pipeline needs this to know that instruction must advance
+  // rather than be flushed, and it has to stay true for as long as the trap is
+  // held: a trap can be latched during a memory wait, cycles before the
+  // pipeline is allowed to move it.
+  output logic        trap_from_id
 );
 
   logic        _trap_held;
   trap_stage_t _candidate;
   trap_stage_t _held_trap;
+  logic        _candidate_from_id;
+  logic        _held_from_id;
 
   always_comb begin
+    _candidate_from_id = 1'b0;
     if (mem_trap.valid) begin
       _candidate = mem_trap;
     end else if (ex_trap.valid) begin
       _candidate = ex_trap;
     end else begin
       _candidate = id_trap;
+      _candidate_from_id = id_trap.valid;
     end
   end
 
   always_ff @(posedge clk) begin
     if (rst) begin
       _held_trap <= '0;
+      _held_from_id <= 1'b0;
     end else if (clear_trap) begin
       _held_trap <= '0;
+      _held_from_id <= 1'b0;
     end else if (!_trap_held && _candidate.valid) begin
       _held_trap <= _candidate;
+      _held_from_id <= _candidate_from_id;
     end
   end
 
   always_comb begin
     trap = _trap_held ? _held_trap : _candidate;
     trap_in_flight = _candidate.valid || _trap_held;
+    trap_from_id = _trap_held ? _held_from_id : _candidate_from_id;
   end
 
   assign trap_held  = _held_trap.valid;

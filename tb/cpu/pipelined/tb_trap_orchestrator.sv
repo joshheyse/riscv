@@ -21,6 +21,7 @@ module tb_trap_orchestrator
   trap_stage_t _trap;
   logic        _trap_held;
   logic        _trap_in_flight;
+  logic        _trap_from_id;
 
   int unsigned _errors = 0;
   int unsigned _checks = 0;
@@ -34,7 +35,8 @@ module tb_trap_orchestrator
     .clear_trap(_clear_trap),
     .trap_held(_trap_held),
     .trap(_trap),
-    .trap_in_flight(_trap_in_flight)
+    .trap_in_flight(_trap_in_flight),
+    .trap_from_id(_trap_from_id)
   );
 
   task automatic expect_bit(input logic got, input logic exp, input string what);
@@ -107,6 +109,7 @@ module tb_trap_orchestrator
     expect_bit(_trap_held, 1'b1, "trap is held while in-flight");
     expect_word(_trap.payload.epc, 32'h0000_0018, "oldest trap has MEM/WB priority");
     expect_word(_trap.payload.tval, 32'h3333_3333, "oldest trap payload selected");
+    expect_bit(_trap_from_id, 1'b0, "an older trap is not attributed to decode");
 
     @(negedge _clk);
     set_trap(_mem_trap, 1'b0, 32'h0000_0020, 32'h0000_000c, 32'h4444_4444);
@@ -138,6 +141,36 @@ module tb_trap_orchestrator
     expect_bit(_trap_in_flight, 1'b0, "trap_in_flight clears when last trap cleared");
     expect_bit(_trap_held, 1'b0, "trap_held clears when no candidate");
     expect_bit(_trap == '0, 1'b1, "trap bus clears with no candidate");
+    expect_bit(_trap_from_id, 1'b0, "decode attribution clears with the trap");
+
+    // A trap sourced from decode must stay attributed to decode for as long as
+    // it is held. The pipeline uses this to let the trapping instruction
+    // advance; if it lapsed once the trap was latched, that instruction would
+    // be flushed instead and the trap would never retire.
+    @(negedge _clk);
+    set_trap(_id_trap, 1'b1, 32'h0000_0040, 32'h0000_0018, 32'h5555_5555);
+
+    tick_and_capture(1);
+    expect_bit(_trap_in_flight, 1'b1, "decode trap goes in flight");
+    expect_bit(_trap_from_id, 1'b1, "decode trap is attributed to decode");
+    expect_word(_trap.payload.epc, 32'h0000_0040, "decode trap selected");
+
+    @(negedge _clk);
+    set_trap(_id_trap, 1'b0, 32'h0000_0000, 32'h0000_0000, 32'h0000_0000);
+
+    repeat (3) begin
+      tick_and_capture(1);
+      expect_bit(_trap_held, 1'b1, "decode trap stays held while the pipe cannot move");
+      expect_bit(_trap_from_id, 1'b1, "decode attribution survives being held");
+    end
+
+    @(negedge _clk);
+    _clear_trap = 1'b1;
+    tick_and_capture(1);
+    _clear_trap = 1'b0;
+    expect_bit(_trap_in_flight, 1'b0, "decode trap retires");
+    expect_bit(_trap_from_id, 1'b0, "attribution clears on retirement");
+
     if (_errors != 0) begin
       $display("tb_trap_orchestrator: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
