@@ -4,12 +4,12 @@ module tb_l1_cache;
   import riscv_pkg::*;
 
   localparam time ClkPeriod = 10ns;
-  localparam int unsigned BackingWords = 2048;
-  localparam mem_addr_t CacheableBase = 32'h0000_0000;
-  localparam mem_addr_t CacheableEnd = 32'h0000_2000;
+  localparam int unsigned BackingWords = 4096;
+  localparam mem_addr_t CacheableBase = 32'h0000_2000;
+  localparam mem_addr_t CacheableEnd = 32'h0000_4000;
   localparam mem_addr_t MmioAddr = 32'h1000_0000;
-  localparam mem_addr_t LineA = 32'h0000_0020;
-  localparam mem_addr_t LineB = 32'h0000_1020;
+  localparam mem_addr_t LineA = 32'h0000_2020;
+  localparam mem_addr_t LineB = 32'h0000_3020;
 
   logic  _clk;
   logic  _rst;
@@ -142,7 +142,7 @@ module tb_l1_cache;
   endtask
 
   // Hold the request until the cache accepts it, then take it off the bus and
-  // wait for the response. A hit accepts and answers in the same cycle.
+  // wait for the response. The cache may answer during acceptance or later.
   task automatic cache_access(input word_t addr, input logic write_en, input word_t data_in,
                               input mem_write_mask_t mask, output word_t data_out);
     logic answered_on_accept;

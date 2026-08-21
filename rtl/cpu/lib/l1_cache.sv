@@ -16,6 +16,7 @@ module l1_cache
 
   typedef enum logic [1:0] {
     IDLE,
+    CACHED_ACTIVE,     // accepted by cache; response still outstanding
     UNCACHED_REQUEST,  // latched, presented downstream, not yet accepted
     UNCACHED_WAIT      // accepted downstream, response outstanding
   } state_t;
@@ -78,6 +79,15 @@ module l1_cache
         // upstream master is released immediately.
         upstream.req_ready = 1'b1;
       end
+    end else if (_state == CACHED_ACTIVE) begin
+      // Once a cached request transfers, its live upstream payload no longer
+      // owns routing. Keep the cache connected until its response transfers.
+      upstream.rsp = _to_cache.rsp;
+      _to_cache.rsp_ready = upstream.rsp_ready;
+      downstream.req = _from_cache.req;
+      _from_cache.req_ready = downstream.req_ready;
+      _from_cache.rsp = downstream.rsp;
+      downstream.rsp_ready = _from_cache.rsp_ready;
     end else if (_state == UNCACHED_REQUEST) begin
       downstream.req = _request;
       upstream.rsp = downstream.rsp;
@@ -97,11 +107,18 @@ module l1_cache
         IDLE: begin
           if (upstream.req.valid) begin
             if (_cacheable) begin
-              _state <= IDLE;
+              if (_to_cache.req_ready && !(_to_cache.rsp.valid && upstream.rsp_ready)) begin
+                _state <= CACHED_ACTIVE;
+              end
             end else begin
               _request <= upstream.req;
               _state   <= UNCACHED_REQUEST;
             end
+          end
+        end
+        CACHED_ACTIVE: begin
+          if (_to_cache.rsp.valid && upstream.rsp_ready) begin
+            _state <= IDLE;
           end
         end
         UNCACHED_REQUEST: begin

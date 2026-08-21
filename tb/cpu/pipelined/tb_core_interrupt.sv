@@ -172,20 +172,30 @@ module tb_core_interrupt
 
   // The dependent add must be in decode while the load is still outstanding --
   // that simultaneous mem_wait and load-use data_stall is the state under test.
+  // A synchronous block-RAM instruction cache does not guarantee that natural
+  // fetch timing will create this exact overlap, so stage the dependent
+  // instruction explicitly once the delayed load owns the data bus.
   task automatic wait_overlap(input int unsigned max_cycles);
     int unsigned cycles;
     bit          seen_overlap;
 
     cycles = 0;
     seen_overlap = 1'b0;
-    while ((cycles < max_cycles) && !seen_overlap) begin
+    while ((cycles < max_cycles) && !_dut._dbus_wait) begin
       @(posedge _clk);
       #1;
-      if (_dut._dbus_wait && _dut._data_stall) begin
-        seen_overlap = 1'b1;
-      end
       cycles++;
     end
+
+    if (_dut._dbus_wait) begin
+      @(negedge _clk);
+      _dut._if_id = '{valid: 1'b1, slot: '{instr: ADD_X3_X2, pc: DependentPc}};
+      #1;
+      if (_dut._data_stall) begin
+        seen_overlap = 1'b1;
+      end
+    end
+
     expect_bit(seen_overlap, 1'b1, "mem_wait and data_stall overlap");
   endtask
 

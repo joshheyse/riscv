@@ -156,6 +156,7 @@ ECP5_DEVICE  ?= --um5g-85k
 ECP5_PACKAGE ?= CABGA381
 ECP5_SPEED   ?= 8
 ECP5_FREQ    ?= 12
+MIN_DP16KD   ?= 8
 
 # Every testbench/simulator in the design — for formatting only. Simulation
 # compiles just the one selected by TB, so sibling top-level modules don't
@@ -354,6 +355,7 @@ $(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
 	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G MemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
+	tools/check_bram.py $@ --minimum $(MIN_DP16KD)
 
 $(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF)
 	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \
@@ -367,6 +369,7 @@ $(BOARD_BIT): $(BOARD_CONFIG)
 
 ## board-synth: synthesize the selected board top with Yosys
 board-synth: $(BOARD_JSON)
+	tools/check_bram.py $(BOARD_JSON) --minimum $(MIN_DP16KD)
 
 ## board-pnr: place and route the selected ECP5 board design
 board-pnr: $(BOARD_CONFIG)

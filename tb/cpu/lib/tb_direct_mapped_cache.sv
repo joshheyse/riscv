@@ -23,8 +23,8 @@ module tb_direct_mapped_cache;
     _rst
   );
 
-  // This testbench drives the master side and can always take a response.
-  assign _upstream.rsp_ready = 1'b1;
+  logic _upstream_rsp_ready;
+  assign _upstream.rsp_ready = _upstream_rsp_ready;
 
 
   word_t                            _backing       [0:BackingWords-1];
@@ -109,6 +109,14 @@ module tb_direct_mapped_cache;
     end
   endtask
 
+  task automatic expect_bit(input logic actual, input logic expected, input string what);
+    _checks++;
+    if (actual !== expected) begin
+      $error("[%s] %s: expected %0b, got %0b", _phase, what, expected, actual);
+      _errors++;
+    end
+  endtask
+
   task automatic seed_line(input word_t base_addr, input word_t seed);
     for (int unsigned beat = 0; beat < 8; beat++) begin
       _backing[(base_addr>>2)+beat] = seed + beat;
@@ -116,7 +124,7 @@ module tb_direct_mapped_cache;
   endtask
 
   // Hold the request until the cache accepts it, then take it off the bus and
-  // wait for the response. A hit accepts and answers in the same cycle.
+  // wait for the response. The cache may answer during acceptance or later.
   task automatic cache_access(input word_t addr, input logic write_en, input word_t data_in,
                               input mem_write_mask_t mask, output word_t data_out);
     logic answered_on_accept;
@@ -180,7 +188,32 @@ module tb_direct_mapped_cache;
     #1;
     _rst = 1'b0;
 
-    cache_read(LineA + 32'd12, read_data);
+    // A miss response must remain presented after the request payload has been
+    // released, even when the upstream master applies response back-pressure.
+    _upstream_rsp_ready = 1'b0;
+    @(negedge _clk);
+    _upstream.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: LineA + 32'd12,
+        write_data: '0,
+        write_mask: '0
+    };
+    while (!_upstream.req_ready) @(negedge _clk);
+    @(posedge _clk);
+    #1;
+    _upstream.req = '0;
+    while (!_upstream.rsp.valid) @(negedge _clk);
+    repeat (3) begin
+      expect_bit(_upstream.rsp.valid, 1'b1, "miss response remains valid under back-pressure");
+      expect_word(_upstream.rsp.read_data, 32'h1000_0003,
+                  "miss response data remains stable under back-pressure");
+      @(negedge _clk);
+    end
+    read_data = _upstream.rsp.read_data;
+    _upstream_rsp_ready = 1'b1;
+    @(posedge _clk);
+    #1;
     expect_word(read_data, 32'h1000_0003, "read miss returns requested refill word");
     expect_int(_downstream_reads, 8, "read miss issues eight refill beats");
     expect_int(_downstream_writes, 0, "clean miss has no write-back");
@@ -194,6 +227,31 @@ module tb_direct_mapped_cache;
     cache_read(LineA + 32'd12, read_data);
     expect_word(read_data, 32'h1000_0003, "read hit returns cached word");
     expect_int(_downstream_reads, 8, "read hit avoids downstream memory");
+
+    _upstream_rsp_ready = 1'b0;
+    @(negedge _clk);
+    _upstream.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: LineA + 32'd12,
+        write_data: '0,
+        write_mask: '0
+    };
+    #1;
+    expect_bit(_upstream.req_ready, 1'b1, "stalled hit request is accepted");
+    @(posedge _clk);
+    #1;
+    _upstream.req = '0;
+    while (!_upstream.rsp.valid) @(negedge _clk);
+    repeat (3) begin
+      expect_bit(_upstream.rsp.valid, 1'b1, "hit response remains valid under back-pressure");
+      expect_word(_upstream.rsp.read_data, 32'h1000_0003,
+                  "hit response data remains stable under back-pressure");
+      @(negedge _clk);
+    end
+    _upstream_rsp_ready = 1'b1;
+    @(posedge _clk);
+    #1;
 
     cache_write(LineA + 32'd12, 32'haaaa_bbbb, 4'b0011);
     cache_write(LineA + 32'd12, 32'hccdd_eeee, 4'b1100);
@@ -244,6 +302,7 @@ module tb_direct_mapped_cache;
     _grant_gap = 2;
     _phase = "init";
     _upstream.req = '0;
+    _upstream_rsp_ready = 1'b1;
 
     if ($test$plusargs("trace")) begin
       $dumpfile("tb_direct_mapped_cache.vcd");
