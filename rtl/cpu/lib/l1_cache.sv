@@ -9,8 +9,9 @@ module l1_cache
   input logic clk,
   input logic rst,
 
-  mem_if.slave  upstream,
-  mem_if.master downstream
+  mem_if.slave               upstream,
+  mem_if.master              downstream,
+  cache_command_if.responder cache_command
 );
 
 
@@ -49,7 +50,8 @@ module l1_cache
     .clk(clk),
     .rst(rst),
     .upstream(_to_cache),
-    .downstream(_from_cache)
+    .downstream(_from_cache),
+    .cache_command(cache_command)
   );
 
   always_comb begin

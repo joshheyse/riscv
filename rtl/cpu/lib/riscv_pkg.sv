@@ -537,4 +537,10 @@ package riscv_pkg;
     logic [21:0] ppn;
   } satp_t;
 
+  typedef struct packed {
+    logic clean;
+    logic invalidate;
+  } cache_command_op_t;
+
+
 endpackage

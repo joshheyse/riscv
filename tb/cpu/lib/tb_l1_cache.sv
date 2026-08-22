@@ -28,9 +28,16 @@ module tb_l1_cache;
     _clk,
     _rst
   );
+  cache_command_if _cache_command ();
+  logic _command_valid;
+  cache_command_op_t _command_op;
+  logic _command_done_ready;
 
   // This testbench drives the master side and can always take a response.
   assign _upstream.rsp_ready = 1'b1;
+  assign _cache_command.valid = _command_valid;
+  assign _cache_command.op = _command_op;
+  assign _cache_command.done_ready = _command_done_ready;
 
 
   word_t                               _backing            [0:BackingWords-1];
@@ -78,7 +85,8 @@ module tb_l1_cache;
     .clk(_clk),
     .rst(_rst),
     .upstream(_upstream),
-    .downstream(_downstream)
+    .downstream(_downstream),
+    .cache_command(_cache_command)
   );
 
   always #(ClkPeriod / 2) _clk = ~_clk;
@@ -183,6 +191,63 @@ module tb_l1_cache;
     cache_access(addr, 1'b1, data, mask, discarded);
   endtask
 
+  task automatic issue_command(input cache_command_op_t op);
+    int unsigned waits;
+
+    @(negedge _clk);
+    _command_valid = 1'b1;
+    _command_op = op;
+    while (!_cache_command.ready) begin
+      @(negedge _clk);
+    end
+    @(posedge _clk);
+    #1;
+    _command_valid = 1'b0;
+    _command_op = '0;
+    waits = 0;
+    while (!_cache_command.done_valid && waits < 1000) begin
+      @(negedge _clk);
+      waits++;
+    end
+    if (!_cache_command.done_valid) begin
+      $fatal(1, "L1 maintenance command did not complete");
+    end
+    @(posedge _clk);
+    #1;
+  endtask
+
+  task automatic run_command_sequence();
+    word_t read_data;
+
+    _phase = "L1 maintenance passthrough";
+    _grant_gap = 0;
+    _immediate_response = 1'b0;
+    _upstream.req = '0;
+    _backing = '{default: '0};
+    seed_line(LineA, 32'h1000_0000);
+
+    _rst = 1'b1;
+    repeat (2) begin
+      @(posedge _clk);
+    end
+    #1;
+    _rst = 1'b0;
+
+    cache_read(LineA + 32'd4, read_data);
+    cache_write(LineA + 32'd4, 32'hface_cafe, 4'b1111);
+    _immediate_response = 1'b1;
+    issue_command('{clean: 1'b1, invalidate: 1'b0});
+    expect_int(_downstream_writes, 8, "L1 forwards all same-cycle clean write-back beats");
+    expect_word(_backing[(LineA+32'd4)>>2], 32'hface_cafe,
+                "L1 clean updates backing memory");
+
+    issue_command('{clean: 1'b0, invalidate: 1'b1});
+    cache_read(LineA + 32'd4, read_data);
+    expect_word(read_data, 32'hface_cafe, "L1 invalidate forces refill of cleaned data");
+    expect_int(_downstream_reads, 16, "L1 forwards refill after invalidate");
+    _immediate_response = 1'b0;
+  endtask
+
   // The full directed sequence, run against a minimally spaced bus and a slower
   // one. Behaviour and downstream traffic counts must be identical under both:
   // bus back-pressure changes timing, never the traffic.
@@ -193,6 +258,9 @@ module tb_l1_cache;
     _grant_gap = grant_gap;
     _immediate_response = 1'b0;
     _upstream.req = '0;
+    _command_valid = 1'b0;
+    _command_op = '0;
+    _command_done_ready = 1'b1;
     _backing = '{default: '0};
     _mmio_value = 32'hfeed_face;
 
@@ -263,6 +331,7 @@ module tb_l1_cache;
 
     run_sequence("arbiter-paced bus", 2);
     run_sequence("slow bus", 5);
+    run_command_sequence();
 
     if (_errors == 0) begin
       $display("tb_l1_cache: PASS (%0d checks)", _checks);

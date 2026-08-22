@@ -22,9 +22,16 @@ module tb_direct_mapped_cache;
     _clk,
     _rst
   );
+  cache_command_if _cache_command ();
 
   logic _upstream_rsp_ready;
+  logic _command_valid;
+  cache_command_op_t _command_op;
+  logic _command_done_ready;
   assign _upstream.rsp_ready = _upstream_rsp_ready;
+  assign _cache_command.valid = _command_valid;
+  assign _cache_command.op = _command_op;
+  assign _cache_command.done_ready = _command_done_ready;
 
 
   word_t                            _backing       [0:BackingWords-1];
@@ -59,7 +66,8 @@ module tb_direct_mapped_cache;
     .clk(_clk),
     .rst(_rst),
     .upstream(_upstream),
-    .downstream(_downstream)
+    .downstream(_downstream),
+    .cache_command(_cache_command)
   );
 
   always #(ClkPeriod / 2) _clk = ~_clk;
@@ -163,6 +171,90 @@ module tb_direct_mapped_cache;
     word_t discarded;
     /* verilator lint_on UNUSEDSIGNAL */
     cache_access(addr, 1'b1, data, mask, discarded);
+  endtask
+
+  task automatic issue_command(input cache_command_op_t op,
+                               input int unsigned response_stall = 0);
+    @(negedge _clk);
+    _command_valid = 1'b1;
+    _command_op = op;
+    while (!_cache_command.ready) begin
+      @(negedge _clk);
+    end
+    @(posedge _clk);
+    #1;
+    _command_valid = 1'b0;
+    _command_op = '0;
+
+    while (!_cache_command.done_valid) begin
+      @(negedge _clk);
+    end
+    _command_done_ready = 1'b0;
+    repeat (response_stall) begin
+      expect_bit(_cache_command.done_valid, 1'b1,
+                 "maintenance completion remains valid under back-pressure");
+      @(negedge _clk);
+    end
+    _command_done_ready = 1'b1;
+    @(posedge _clk);
+    #1;
+    expect_bit(_cache_command.done_valid, 1'b0, "maintenance completion transfers once");
+  endtask
+
+  task automatic run_maintenance_sequence();
+    localparam word_t LineA = 32'h0000_0020;
+    localparam word_t LineB = 32'h0000_1020;
+    localparam word_t LineC = 32'h0000_0040;
+    word_t read_data;
+    int reads_before;
+    int writes_before;
+
+    _phase = "maintenance";
+    _grant_gap = 2;
+    _upstream.req = '0;
+    _backing = '{default: '0};
+    seed_line(LineA, 32'h1000_0000);
+    seed_line(LineB, 32'h2000_0000);
+    seed_line(LineC, 32'h3000_0000);
+
+    _rst = 1'b1;
+    repeat (2) begin
+      @(posedge _clk);
+    end
+    #1;
+    _rst = 1'b0;
+
+    cache_read(LineA, read_data);
+    reads_before = _downstream_reads;
+    issue_command('{clean: 1'b0, invalidate: 1'b1}, 3);
+    expect_int(_downstream_writes, 0, "invalidate does not write a clean line");
+    cache_read(LineA, read_data);
+    expect_int(_downstream_reads, reads_before + 8, "invalidate forces a refill");
+
+    cache_write(LineA + 32'd4, 32'hdead_beef, 4'b1111);
+    reads_before = _downstream_reads;
+    writes_before = _downstream_writes;
+    issue_command('{clean: 1'b1, invalidate: 1'b0});
+    expect_int(_downstream_writes, writes_before + 8, "clean writes one dirty line");
+    expect_word(_backing[(LineA+32'd4)>>2], 32'hdead_beef, "clean updates backing memory");
+    cache_read(LineA + 32'd4, read_data);
+    expect_word(read_data, 32'hdead_beef, "clean retains cached data");
+    expect_int(_downstream_reads, reads_before, "clean retains line validity");
+    cache_read(LineB, read_data);
+    expect_int(_downstream_writes, writes_before + 8, "cleaned line is not written back again");
+
+    cache_read(LineC + 32'd8, read_data);
+    cache_write(LineC + 32'd8, 32'hcafe_babe, 4'b1111);
+    reads_before = _downstream_reads;
+    writes_before = _downstream_writes;
+    issue_command('{clean: 1'b1, invalidate: 1'b1});
+    expect_int(_downstream_writes, writes_before + 8,
+               "clean+invalidate writes one dirty line");
+    expect_word(_backing[(LineC+32'd8)>>2], 32'hcafe_babe,
+                "clean+invalidate preserves dirty data");
+    cache_read(LineC + 32'd8, read_data);
+    expect_word(read_data, 32'hcafe_babe, "clean+invalidate refills preserved data");
+    expect_int(_downstream_reads, reads_before + 8, "clean+invalidate invalidates the line");
   endtask
 
   // The full directed sequence, run against a minimally spaced bus and a
@@ -303,6 +395,9 @@ module tb_direct_mapped_cache;
     _phase = "init";
     _upstream.req = '0;
     _upstream_rsp_ready = 1'b1;
+    _command_valid = 1'b0;
+    _command_op = '0;
+    _command_done_ready = 1'b1;
 
     if ($test$plusargs("trace")) begin
       $dumpfile("tb_direct_mapped_cache.vcd");
@@ -311,6 +406,7 @@ module tb_direct_mapped_cache;
 
     run_sequence("arbiter-paced bus", 2);
     run_sequence("slow bus", 5);
+    run_maintenance_sequence();
 
     if (_errors == 0) begin
       $display("tb_direct_mapped_cache: PASS (%0d checks)", _checks);

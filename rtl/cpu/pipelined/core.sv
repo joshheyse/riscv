@@ -122,6 +122,16 @@ module core
     rst
   );
 
+  cache_command_if _dcache_command ();
+  cache_command_if _icache_command ();
+
+  assign _dcache_command.valid = '0;
+  assign _dcache_command.op = '0;
+  assign _dcache_command.done_ready = 1'b1;
+  assign _icache_command.valid = '0;
+  assign _icache_command.op = '0;
+  assign _icache_command.done_ready = 1'b1;
+
   assign _id_branch_flags = '0;
 
   assign _csr.addr.raw = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
@@ -373,12 +383,13 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd(CacheableEnd)
+    .CacheableEnd (CacheableEnd)
   ) _l1i_cache (
     .clk(clk),
     .rst(rst),
     .upstream(_ifetch_ifu_cache.slave),
-    .downstream(_ifetch_cache_arb.master)
+    .downstream(_ifetch_cache_arb.master),
+    .cache_command(_icache_command)
   );
 
   ifu _ifu (
@@ -514,12 +525,13 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd(CacheableEnd)
+    .CacheableEnd (CacheableEnd)
   ) _l1d_cache (
     .clk(clk),
     .rst(rst),
     .upstream(_data_lsu_cache.slave),
-    .downstream(_data_cache_arb.master)
+    .downstream(_data_cache_arb.master),
+    .cache_command(_dcache_command)
   );
 
   mem_stage _mem_stage (
@@ -534,10 +546,10 @@ module core
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id(_if_id),
-    .id_ex(_id_ex),
+    .if_id (_if_id),
+    .id_ex (_id_ex),
     .ex_mem(_ex_mem),
-    .stall(_data_stall)
+    .stall (_data_stall)
   );
 
   forwarding_unit _forwarding_unit (

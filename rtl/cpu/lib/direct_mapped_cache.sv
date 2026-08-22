@@ -3,10 +3,12 @@
 module direct_mapped_cache
   import riscv_pkg::*;
 (
-  input logic         clk,
-  input logic         rst,
-        mem_if.slave  upstream,
-        mem_if.master downstream
+  input logic clk,
+  input logic rst,
+
+  mem_if.slave               upstream,
+  mem_if.master              downstream,
+  cache_command_if.responder cache_command
 );
   localparam int unsigned NumSets = 128;
   localparam int unsigned WordsPerLine = 8;
@@ -21,6 +23,9 @@ module direct_mapped_cache
   } cache_line_address_t;
   typedef enum logic [3:0] {
     IDLE,
+    MAINTENANCE,
+    MAINTENANCE_NEXT,
+    MAINTENANCE_RESPONSE,
     LOOKUP,
     WRITE_BACK_READ,
     WRITE_BACK_REQUEST,
@@ -31,9 +36,15 @@ module direct_mapped_cache
     RESPOND
   } state_t;
 
+  typedef enum logic {
+    WRITE_BACK_FOR_REFILL,
+    WRITE_BACK_FOR_MAINTENANCE
+  } write_back_reason_t;
+
   // Reset metadata only. The word array has the synchronous ports required for
   // ECP5 block RAM and deliberately has no reset assignment.
-  (* ram_style = "block" *)logic                [       31:0] _data              [NumSets*WordsPerLine];
+  (* ram_style = "block" *)
+  logic                [       31:0] _data              [NumSets*WordsPerLine];
   tag_t                              _tags              [             NumSets];
   logic                [NumSets-1:0] _valid;
   logic                [NumSets-1:0] _dirty;
@@ -52,6 +63,12 @@ module direct_mapped_cache
   logic                              _beat_accepted;
   logic                              _beat_done;
   logic                              _response_transfer;
+  cache_command_op_t                 _command_op;
+  write_back_reason_t                _write_back_reason;
+  set_index_t                        _write_back_set;
+  tag_t                              _write_back_tag;
+  set_index_t                        _maintenance_set;
+
 
   assign downstream.rsp_ready = 1'b1;
   assign _request_addr = cache_line_address_t'(_request.addr);
@@ -67,7 +84,7 @@ module direct_mapped_cache
       _data_read_addr = upstream.req.addr[11:2];
       _data_read_en   = upstream.req.valid;
     end else if (_state == WRITE_BACK_READ) begin
-      _data_read_addr = {_request_addr.set, _beat_idx};
+      _data_read_addr = {_write_back_set, _beat_idx};
       _data_read_en   = 1'b1;
     end
 
@@ -102,7 +119,9 @@ module direct_mapped_cache
   end
 
   always_comb begin
-    upstream.req_ready = (_state == IDLE);
+    cache_command.ready = (_state == IDLE);
+    cache_command.done_valid = (_state == MAINTENANCE_RESPONSE);
+    upstream.req_ready = (_state == IDLE && !cache_command.valid);
     upstream.rsp = '0;
     downstream.req = '0;
     case (_state)
@@ -110,7 +129,7 @@ module direct_mapped_cache
         downstream.req = '{
             valid: 1'b1,
             write_en: 1'b1,
-            addr: {_tags[_request_addr.set], _request_addr.set, _beat_idx, 2'b0},
+            addr: {_write_back_tag, _write_back_set, _beat_idx, 2'b0},
             write_data: _data_read,
             write_mask: 4'b1111
         };
@@ -142,12 +161,48 @@ module direct_mapped_cache
       _beat_idx <= '0;
       _valid <= '0;
       _dirty <= '0;
+      _command_op <= '0;
     end else begin
       case (_state)
         IDLE: begin
-          if (upstream.req.valid) begin
+          if (cache_command.valid) begin
+            _state <= MAINTENANCE;
+            _maintenance_set <= '0;
+            _command_op <= cache_command.op;
+          end else if (upstream.req.valid) begin
             _request <= upstream.req;
             _state   <= LOOKUP;
+          end
+        end
+        MAINTENANCE: begin
+          if (_command_op.clean && _valid[_maintenance_set] && _dirty[_maintenance_set]) begin
+            _state <= WRITE_BACK_READ;
+            _write_back_reason <= WRITE_BACK_FOR_MAINTENANCE;
+            _write_back_set <= _maintenance_set;
+            _write_back_tag <= _tags[_maintenance_set];
+            _beat_idx <= '0;
+          end else begin
+            _state <= MAINTENANCE_NEXT;
+          end
+        end
+        MAINTENANCE_NEXT: begin
+          if (_command_op.invalidate) begin
+            _valid[_maintenance_set] <= '0;
+          end
+          if (_command_op.clean || _command_op.invalidate) begin
+            _dirty[_maintenance_set] <= '0;
+          end
+          if (_maintenance_set == set_index_t'(NumSets - 1)) begin
+            _state <= MAINTENANCE_RESPONSE;
+          end else begin
+            _maintenance_set <= _maintenance_set + 1'b1;
+            _state <= MAINTENANCE;
+          end
+        end
+        MAINTENANCE_RESPONSE: begin
+          if (cache_command.done_valid && cache_command.done_ready) begin
+            _state <= IDLE;
+            _command_op <= '0;
           end
         end
         LOOKUP: begin
@@ -162,8 +217,14 @@ module direct_mapped_cache
             end
           end else begin
             _beat_idx <= '0;
-            _state <= (_valid[_request_addr.set] && _dirty[_request_addr.set]) ?
-                WRITE_BACK_READ : REFILL_REQUEST;
+            if (_valid[_request_addr.set] && _dirty[_request_addr.set]) begin
+              _state <= WRITE_BACK_READ;
+              _write_back_reason <= WRITE_BACK_FOR_REFILL;
+              _write_back_set <= _request_addr.set;
+              _write_back_tag <= _tags[_request_addr.set];
+            end else begin
+              _state <= REFILL_REQUEST;
+            end
           end
         end
         WRITE_BACK_READ: begin
@@ -174,7 +235,7 @@ module direct_mapped_cache
             if (_beat_done) begin
               if (_beat_idx == 3'd7) begin
                 _beat_idx <= '0;
-                _state <= REFILL_REQUEST;
+                _state <= _write_back_reason == WRITE_BACK_FOR_REFILL ? REFILL_REQUEST : MAINTENANCE_NEXT;
               end else begin
                 _beat_idx <= _beat_idx + 1'b1;
                 _state <= WRITE_BACK_READ;
@@ -188,7 +249,7 @@ module direct_mapped_cache
           if (_beat_done) begin
             if (_beat_idx == 3'd7) begin
               _beat_idx <= '0;
-              _state <= REFILL_REQUEST;
+              _state <= _write_back_reason == WRITE_BACK_FOR_REFILL ? REFILL_REQUEST : MAINTENANCE_NEXT;
             end else begin
               _beat_idx <= _beat_idx + 1'b1;
               _state <= WRITE_BACK_READ;
