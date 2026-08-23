@@ -319,6 +319,7 @@ $(BOARD_HARNESS_BIN): $(BOARD_SIM_HARNESS_SRCS) $(APP_MEM)
 	$(VERILATOR) --binary $(BOARD_SIM_VERILATOR_FLAGS) \
 		--top-module $(BOARD_SIM_TOP) \
 		-GMemInitFile=\"$(abspath $(APP_MEM))\" \
+		-GMemDepthWords=$(shell expr $(MEM_BYTES) / 4) \
 		--Mdir $(BOARD_SIM_BUILD_DIR) \
 		-o V$(BOARD_SIM_TOP) \
 		$(BOARD_SIM_HARNESS_SRCS)

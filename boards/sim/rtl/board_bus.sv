@@ -60,7 +60,7 @@ module board_bus
   localparam mmio_source_t _source_map[NumSources] = '{
       '{
           start_addr: board_constants_pkg::MemBase,
-          end_addr: board_constants_pkg::MemBase + board_constants_pkg::MemSize,
+          end_addr: board_constants_pkg::MemBase + mem_addr_t'(MemDepthWords * 4),
           writeable: 1'b1
       },
       '{
