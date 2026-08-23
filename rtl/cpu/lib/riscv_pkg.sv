@@ -124,7 +124,7 @@ package riscv_pkg;
     OP_LUI    = 7'b0110111,
     OP_AUIPC  = 7'b0010111,
     OP_SYSTEM = 7'b1110011,
-    OP_FENCE  = 7'b0001111
+    OP_MISC_MEM = 7'b0001111
   } opcode_t;
 
   // ------------------------------------------------------------- funct3 --
@@ -339,6 +339,12 @@ package riscv_pkg;
     tval_t     tval;   // trap-specific value
   } trap_req_t;
 
+  typedef enum logic [1:0] {
+    MEM_ORDER_NONE,
+    MEM_ORDER_FENCE,
+    MEM_ORDER_FENCE_I
+  } mem_order_op_t;
+
   typedef struct packed {
     logic              reg_write_en;      // commit a value to integer register rd
     logic              mem_write_en;      // issue a store on the data bus
@@ -357,6 +363,7 @@ package riscv_pkg;
     trap_req_t         trap;              // decoded synchronous trap request
     csr_ctrl_t         csr;               // CSR read/write/set/clear control
     system_ctrl_t      system;            // privileged SYSTEM instruction control
+    mem_order_op_t     mem_order;         // fence and related controls
   } control_t;
 
   typedef enum logic [1:0] {

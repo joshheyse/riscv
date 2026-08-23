@@ -23,17 +23,17 @@ module core
   import riscv_pkg::*;
   import pipelined_pkg::*;
 #(
-  parameter mem_addr_t CacheableBase = '0,
-  parameter mem_addr_t CacheableEnd  = '0
+    parameter mem_addr_t CacheableBase = '0,
+    parameter mem_addr_t CacheableEnd  = '0
 ) (
-  input clk,
-  input rst,
+    input clk,
+    input rst,
 
-  output logic halted,
-  output pc_t  pc,
+    output logic halted,
+    output pc_t  pc,
 
-  mem_if.master mem,
-  irq_if.sink   irq
+    mem_if.master mem,
+    irq_if.sink   irq
 );
 
 
@@ -68,7 +68,8 @@ module core
   logic           _dbus_wait;
   mem_wb_t        _mem_wb_payload;
 
-  redirect_t      _redirect;
+  redirect_t      _execute_redirect;
+  redirect_t      _mem_order_redirect;
   trap_stage_t    _id_trap;
   trap_stage_t    _csr_trap;
   trap_stage_t    _system_trap;
@@ -104,33 +105,29 @@ module core
   logic           _ex_mret_valid;
   logic           _ex_sret_valid;
 
+  logic           _mem_order_busy;
+  logic           _mem_order_start;
+
 
   mem_if _data_cache_arb (
-    clk,
-    rst
+      clk,
+      rst
   );
   mem_if _data_lsu_cache (
-    clk,
-    rst
+      clk,
+      rst
   );
   mem_if _ifetch_cache_arb (
-    clk,
-    rst
+      clk,
+      rst
   );
   mem_if _ifetch_ifu_cache (
-    clk,
-    rst
+      clk,
+      rst
   );
 
   cache_command_if _dcache_command ();
   cache_command_if _icache_command ();
-
-  assign _dcache_command.valid = '0;
-  assign _dcache_command.op = '0;
-  assign _dcache_command.done_ready = 1'b1;
-  assign _icache_command.valid = '0;
-  assign _icache_command.op = '0;
-  assign _icache_command.done_ready = 1'b1;
 
   assign _id_branch_flags = '0;
 
@@ -240,116 +237,119 @@ module core
 
   // Files
   reg_file _reg_file (
-    .clk(clk),
-    .rd_addr1(_if_id.slot.instr.r.rs1),
-    .rd_addr2(_if_id.slot.instr.r.rs2),
-    .wr_addr(_mem_wb.rd),
-    .wr_data(_mem_wb.result),
-    .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en && !_mem_wb.trap.valid),
-    .rd_data1(_rf_rs1_read),
-    .rd_data2(_rf_rs2_read)
+      .clk(clk),
+      .rd_addr1(_if_id.slot.instr.r.rs1),
+      .rd_addr2(_if_id.slot.instr.r.rs2),
+      .wr_addr(_mem_wb.rd),
+      .wr_data(_mem_wb.result),
+      .wr_en(_mem_wb.valid && _mem_wb.ctrl.reg_write_en && !_mem_wb.trap.valid),
+      .rd_data1(_rf_rs1_read),
+      .rd_data2(_rf_rs2_read)
   );
 
   csr_file _csr_file (
-    .clk(clk),
-    .rst(rst),
-    .csr_en(_csr.en),
-    .csr_write_en(_csr.write_en && !_csr_access_illegal),
-    .csr_addr(_csr.addr),
-    .csr_write_data(_csr.write_data),
-    .trap_valid(_retire.trap),
-    .trap(_mem_wb.trap.payload),
-    .mret_valid(_retire.mret),
-    .sret_valid(_retire.sret),
-    .csr_read_data(_csr.read_data),
-    .illegal_csr(_csr.illegal),
-    .status(_csr_status)
+      .clk(clk),
+      .rst(rst),
+      .csr_en(_csr.en),
+      .csr_write_en(_csr.write_en && !_csr_access_illegal),
+      .csr_addr(_csr.addr),
+      .csr_write_data(_csr.write_data),
+      .trap_valid(_retire.trap),
+      .trap(_mem_wb.trap.payload),
+      .mret_valid(_retire.mret),
+      .sret_valid(_retire.sret),
+      .csr_read_data(_csr.read_data),
+      .illegal_csr(_csr.illegal),
+      .status(_csr_status)
   );
 
   csr_access_control _csr_access_control (
-    .csr_en(_csr.en),
-    .csr_write_en(_csr.write_en),
-    .csr_addr(_csr.addr),
-    .priv_mode(_csr_status.priv_mode),
-    .illegal_csr_access(_csr_access_illegal)
+      .csr_en(_csr.en),
+      .csr_write_en(_csr.write_en),
+      .csr_addr(_csr.addr),
+      .priv_mode(_csr_status.priv_mode),
+      .illegal_csr_access(_csr_access_illegal)
   );
 
   system_access_control _system_access_control (
-    .system_ctrl(_id_ex.ctrl.system),
-    .priv_mode(_csr_status.priv_mode),
-    .tsr(_csr_status.mstatus.tsr),
-    .illegal_system_access(_system_access_illegal)
+      .system_ctrl(_id_ex.ctrl.system),
+      .priv_mode(_csr_status.priv_mode),
+      .tsr(_csr_status.mstatus.tsr),
+      .illegal_system_access(_system_access_illegal)
   );
 
   // Pipeline control
   redirect_control _redirect_control (
-    .id_ex_valid(_id_ex.valid),
-    .id_ex_pc_src(_ex_pc_src),
-    .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
-    .alu_result(_alu_result),
-    .redirect(_redirect),
-    .trap(_redirect_trap_req)
+      .id_ex_valid(_id_ex.valid),
+      .id_ex_pc_src(_ex_pc_src),
+      .id_ex_clear_pc_lsb(_id_ex.ctrl.clear_pc_lsb),
+      .alu_result(_alu_result),
+      .redirect(_execute_redirect),
+      .trap(_redirect_trap_req)
   );
 
   trap_control _id_trap_control (
-    .trap_req(_id_trap_req),
-    .pc(_if_id.slot.pc),
-    .csr_status(_csr_status),
-    .trap(_id_trap)
+      .trap_req(_id_trap_req),
+      .pc(_if_id.slot.pc),
+      .csr_status(_csr_status),
+      .trap(_id_trap)
   );
 
   trap_control _ex_trap_control (
-    .trap_req(_csr_illegal_trap_req),
-    .pc(_id_ex.slot.pc),
-    .csr_status(_csr_status),
-    .trap(_csr_trap)
+      .trap_req(_csr_illegal_trap_req),
+      .pc(_id_ex.slot.pc),
+      .csr_status(_csr_status),
+      .trap(_csr_trap)
   );
 
   trap_control _system_trap_control (
-    .trap_req(_system_illegal_trap_req),
-    .pc(_id_ex.slot.pc),
-    .csr_status(_csr_status),
-    .trap(_system_trap)
+      .trap_req(_system_illegal_trap_req),
+      .pc(_id_ex.slot.pc),
+      .csr_status(_csr_status),
+      .trap(_system_trap)
   );
 
   trap_control _redirect_trap_control (
-    .trap_req(_redirect_trap_req),
-    .pc(_id_ex.slot.pc),
-    .csr_status(_csr_status),
-    .trap(_redirect_trap)
+      .trap_req(_redirect_trap_req),
+      .pc(_id_ex.slot.pc),
+      .csr_status(_csr_status),
+      .trap(_redirect_trap)
   );
 
   trap_orchestrator _trap_orchestrator (
-    .clk(clk),
-    .rst(rst),
-    .id_trap((_if_id.valid && !_ex_mret_valid && !_ex_sret_valid) ? _id_trap : '0),
-    .ex_trap(_id_ex.valid ? _ex_trap : '0),
-    .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
-    .clear_trap(_retire.trap),
-    .trap_held(_trap_held),
-    .trap(_trap),
-    .trap_in_flight(_trap_in_flight),
-    .trap_from_id(_trap_from_id)
+      .clk(clk),
+      .rst(rst),
+      .id_trap((_if_id.valid && !_ex_mret_valid && !_ex_sret_valid) ? _id_trap : '0),
+      .ex_trap(_id_ex.valid ? _ex_trap : '0),
+      .mem_trap(_mem_wb.valid ? _mem_wb.trap : '0),
+      .clear_trap(_retire.trap),
+      .trap_held(_trap_held),
+      .trap(_trap),
+      .trap_in_flight(_trap_in_flight),
+      .trap_from_id(_trap_from_id)
   );
 
   flow_control _flow_control (
-    .redirect(_redirect),
-    .trap(_trap),
-    .mret_valid(_ex_mret_valid),
-    .sret_valid(_ex_sret_valid),
-    .mepc(_csr_status.mepc),
-    .sepc(_csr_status.sepc),
-    .flow(_flow)
+      .redirect(_execute_redirect),
+      .mem_order_redirect(_mem_order_redirect),
+      .trap(_trap),
+      .mret_valid(_ex_mret_valid),
+      .sret_valid(_ex_sret_valid),
+      .mepc(_csr_status.mepc),
+      .sepc(_csr_status.sepc),
+      .flow(_flow)
   );
 
   pipeline_control _pipeline_control (
-    .halted(halted),
-    .mem_wait(_dbus_wait),
-    .data_stall(_data_stall),
-    .trap_from_if_id(_trap_from_if_id),
-    .trap_in_flight(_trap_in_flight),
-    .flow(_flow),
-    .pipe_ctrl(_pipe_ctrl)
+      .halted(halted),
+      .mem_wait(_dbus_wait),
+      .data_stall(_data_stall),
+      .trap_from_if_id(_trap_from_if_id),
+      .trap_in_flight(_trap_in_flight),
+      .flow(_flow),
+      .mem_order_start(_mem_order_start),
+      .mem_order_busy(_mem_order_busy),
+      .pipe_ctrl(_pipe_ctrl)
   );
 
   // Fetch
@@ -374,32 +374,32 @@ module core
   end
 
   mem_arbiter _mem_arbiter (
-    .clk(clk),
-    .rst(rst),
-    .ifetch(_ifetch_cache_arb.slave),
-    .data(_data_cache_arb.slave),
-    .mem(mem)
+      .clk(clk),
+      .rst(rst),
+      .ifetch(_ifetch_cache_arb.slave),
+      .data(_data_cache_arb.slave),
+      .mem(mem)
   );
 
   l1_cache #(
-    .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+      .CacheableBase(CacheableBase),
+      .CacheableEnd (CacheableEnd)
   ) _l1i_cache (
-    .clk(clk),
-    .rst(rst),
-    .upstream(_ifetch_ifu_cache.slave),
-    .downstream(_ifetch_cache_arb.master),
-    .cache_command(_icache_command)
+      .clk(clk),
+      .rst(rst),
+      .upstream(_ifetch_ifu_cache.slave),
+      .downstream(_ifetch_cache_arb.master),
+      .cache_command(_icache_command)
   );
 
   ifu _ifu (
-    .clk(clk),
-    .rst(rst),
-    .fetch_en(_pipe_ctrl.fetch == STAGE_ADVANCE),
-    .redirect(_flow.redirect),
-    .pc(pc),
-    .fetched(_fetched),
-    .ibus(_ifetch_ifu_cache.master)
+      .clk(clk),
+      .rst(rst),
+      .fetch_en(_pipe_ctrl.fetch == STAGE_ADVANCE),
+      .redirect(_flow.redirect),
+      .pc(pc),
+      .fetched(_fetched),
+      .ibus(_ifetch_ifu_cache.master)
   );
 
   // Decode
@@ -432,15 +432,15 @@ module core
   end
 
   controller _controller (
-    .instr(_if_id.slot.instr),
-    .branch_flags(_id_branch_flags),
-    .ctrl(_ctrl)
+      .instr(_if_id.slot.instr),
+      .branch_flags(_id_branch_flags),
+      .ctrl(_ctrl)
   );
 
   extend _extend (
-    .imm_format(_ctrl.imm_format),
-    .instr(_if_id.slot.instr[31:7]),
-    .imm_ext(_id_imm)
+      .imm_format(_ctrl.imm_format),
+      .instr(_if_id.slot.instr[31:7]),
+      .imm_ext(_id_imm)
   );
 
   // Execute
@@ -474,34 +474,34 @@ module core
   end
 
   integer_execute _integer_execute (
-    .ctrl(_id_ex.ctrl),
-    .branch_funct3(_id_ex.slot.instr.r.funct3.br),
-    .pc(_id_ex.slot.pc),
-    .rs1_data(_ex_rs1_operand),
-    .rs2_data(_ex_rs2_operand),
-    .imm(_id_ex.imm),
-    .alu_result(_alu_result),
-    .store_data(_store_data),
-    .pc_src(_ex_pc_src)
+      .ctrl(_id_ex.ctrl),
+      .branch_funct3(_id_ex.slot.instr.r.funct3.br),
+      .pc(_id_ex.slot.pc),
+      .rs1_data(_ex_rs1_operand),
+      .rs2_data(_ex_rs2_operand),
+      .imm(_id_ex.imm),
+      .alu_result(_alu_result),
+      .store_data(_store_data),
+      .pc_src(_ex_pc_src)
   );
 
   csr_execute _csr_execute (
-    .csr_op(_id_ex.ctrl.csr.op),
-    .csr_use_zimm(_id_ex.ctrl.csr.use_zimm),
-    .csr_read_data(_csr.read_data),
-    .rs1_data(_ex_rs1_operand),
-    .zimm(_id_ex.slot.instr.r.rs1),
-    .csr_result(_csr.result),
-    .csr_write_data(_csr.write_data)
+      .csr_op(_id_ex.ctrl.csr.op),
+      .csr_use_zimm(_id_ex.ctrl.csr.use_zimm),
+      .csr_read_data(_csr.read_data),
+      .rs1_data(_ex_rs1_operand),
+      .zimm(_id_ex.slot.instr.r.rs1),
+      .csr_result(_csr.result),
+      .csr_write_data(_csr.write_data)
   );
 
   execute_result_mux _execute_result_mux (
-    .execute_result_kind(_id_ex.ctrl.execute_result),
-    .pc(_id_ex.slot.pc),
-    .imm(_id_ex.imm),
-    .alu_result(_alu_result),
-    .csr_result(_csr.result),
-    .execute_result(_ex_result)
+      .execute_result_kind(_id_ex.ctrl.execute_result),
+      .pc(_id_ex.slot.pc),
+      .imm(_id_ex.imm),
+      .alu_result(_alu_result),
+      .csr_result(_csr.result),
+      .execute_result(_ex_result)
   );
 
   // Memory
@@ -523,50 +523,63 @@ module core
     endcase
   end
 
+  mem_order_control _mem_order_control (
+      .clk(clk),
+      .rst(rst),
+      .ex_mem(_ex_mem),
+      .dbus_wait(_dbus_wait),
+      .trap_in_flight(_trap_in_flight),
+      .start(_mem_order_start),
+      .busy(_mem_order_busy),
+      .redirect(_mem_order_redirect),
+      .dcache_command(_dcache_command),
+      .icache_command(_icache_command)
+  );
+
   l1_cache #(
-    .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+      .CacheableBase(CacheableBase),
+      .CacheableEnd (CacheableEnd)
   ) _l1d_cache (
-    .clk(clk),
-    .rst(rst),
-    .upstream(_data_lsu_cache.slave),
-    .downstream(_data_cache_arb.master),
-    .cache_command(_dcache_command)
+      .clk(clk),
+      .rst(rst),
+      .upstream(_data_lsu_cache.slave),
+      .downstream(_data_cache_arb.master),
+      .cache_command(_dcache_command)
   );
 
   mem_stage _mem_stage (
-    .clk(clk),
-    .rst(rst),
-    .ex_mem(_ex_mem),
-    .csr_status(_csr_status),
-    .mem_wait(_dbus_wait),
-    .mem_wb_payload(_mem_wb_payload),
-    .dbus(_data_lsu_cache.master)
+      .clk(clk),
+      .rst(rst),
+      .ex_mem(_ex_mem),
+      .csr_status(_csr_status),
+      .mem_wait(_dbus_wait),
+      .mem_wb_payload(_mem_wb_payload),
+      .dbus(_data_lsu_cache.master)
   );
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id (_if_id),
-    .id_ex (_id_ex),
-    .ex_mem(_ex_mem),
-    .stall (_data_stall)
+      .if_id (_if_id),
+      .id_ex (_id_ex),
+      .ex_mem(_ex_mem),
+      .stall (_data_stall)
   );
 
   forwarding_unit _forwarding_unit (
-    .id_ex(_id_ex),
-    .ex_mem(_ex_mem),
-    .mem_wb(_mem_wb),
-    .rs1_operand(_ex_rs1_operand),
-    .rs2_operand(_ex_rs2_operand)
+      .id_ex(_id_ex),
+      .ex_mem(_ex_mem),
+      .mem_wb(_mem_wb),
+      .rs1_operand(_ex_rs1_operand),
+      .rs2_operand(_ex_rs2_operand)
   );
 
   decode_bypass_unit _decode_bypass_unit (
-    .if_id(_if_id),
-    .mem_wb(_mem_wb),
-    .rf_rs1_read(_rf_rs1_read),
-    .rf_rs2_read(_rf_rs2_read),
-    .id_rs1_operand(_id_rs1_operand),
-    .id_rs2_operand(_id_rs2_operand)
+      .if_id(_if_id),
+      .mem_wb(_mem_wb),
+      .rf_rs1_read(_rf_rs1_read),
+      .rf_rs2_read(_rf_rs2_read),
+      .id_rs1_operand(_id_rs1_operand),
+      .id_rs2_operand(_id_rs2_operand)
   );
 
   always_ff @(posedge clk) begin

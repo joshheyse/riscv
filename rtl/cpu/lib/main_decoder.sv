@@ -34,6 +34,7 @@ module main_decoder
   output flow_t             flow,
   output logic              alu_decode_en,
   output logic              clear_pc_lsb,
+  output mem_order_op_t     mem_order,
   output logic              main_op_illegal
 );
 
@@ -50,6 +51,7 @@ module main_decoder
     alu_decode_en    = 1'b0;
     clear_pc_lsb     = 1'b0;
     main_op_illegal  = 1'b0;
+    mem_order        = MEM_ORDER_NONE;
 
     case (instr.r.opcode)
       OP_R: begin
@@ -115,7 +117,16 @@ module main_decoder
         execute_result = EXEC_RESULT_ALU;
       end
 
-      OP_FENCE, OP_SYSTEM: begin
+      OP_MISC_MEM: begin
+        if (instr.i.funct3.raw != 3'b000 && instr.i.funct3.raw != 3'b001) begin
+          main_op_illegal = 1'b1;
+        end else begin
+          mem_order = instr.i.funct3.raw == 3'b000 ? MEM_ORDER_FENCE : MEM_ORDER_FENCE_I;
+          main_op_illegal = 1'b0;
+        end
+      end
+
+      OP_SYSTEM: begin
         main_op_illegal = 1'b0;
       end
 

@@ -5,6 +5,7 @@ module flow_control
   import pipelined_pkg::*;
 (
   input  redirect_t   redirect,
+  input  redirect_t   mem_order_redirect,
   /* verilator lint_off UNUSEDSIGNAL */
   input  trap_stage_t trap,
   /* verilator lint_on UNUSEDSIGNAL */
@@ -30,6 +31,9 @@ module flow_control
       flow.action         = FLOW_ACTION_SRET;
       flow.redirect.valid = 1'b1;
       flow.redirect.pc    = sepc;
+    end else if (mem_order_redirect.valid) begin
+      flow.action   = FLOW_ACTION_REDIRECT;
+      flow.redirect = mem_order_redirect;
     end else if (redirect.valid) begin
       flow.action   = FLOW_ACTION_REDIRECT;
       flow.redirect = redirect;

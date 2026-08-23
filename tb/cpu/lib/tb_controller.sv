@@ -24,9 +24,9 @@ module tb_controller
   int unsigned   printed = 0;
 
   controller _dut (
-    .instr(_instr),
-    .branch_flags(_branch_flags),
-    .ctrl(_ctrl)
+      .instr(_instr),
+      .branch_flags(_branch_flags),
+      .ctrl(_ctrl)
   );
 
   // ------------------------------------------------------------- helpers --
@@ -39,18 +39,18 @@ module tb_controller
 
   function automatic string op_name(input logic [6:0] op);
     case (op)
-      OP_R:      return "R";
-      OP_I_ALU:  return "I-ALU";
-      OP_LOAD:   return "LOAD";
-      OP_STORE:  return "STORE";
-      OP_BRANCH: return "BRANCH";
-      OP_JAL:    return "JAL";
-      OP_JALR:   return "JALR";
-      OP_LUI:    return "LUI";
-      OP_AUIPC:  return "AUIPC";
-      OP_SYSTEM: return "SYSTEM";
-      OP_FENCE:  return "FENCE";
-      default:   return "ILLEGAL";
+      OP_R:        return "R";
+      OP_I_ALU:    return "I-ALU";
+      OP_LOAD:     return "LOAD";
+      OP_STORE:    return "STORE";
+      OP_BRANCH:   return "BRANCH";
+      OP_JAL:      return "JAL";
+      OP_JALR:     return "JALR";
+      OP_LUI:      return "LUI";
+      OP_AUIPC:    return "AUIPC";
+      OP_SYSTEM:   return "SYSTEM";
+      OP_MISC_MEM: return "MISC_MEM";
+      default:     return "ILLEGAL";
     endcase
   endfunction
 
@@ -235,12 +235,24 @@ module tb_controller
     return op == OP_JALR;
   endfunction
 
-  function automatic logic exp_main_illegal(input logic [6:0] op);
+  function automatic logic exp_main_illegal(input logic [6:0] op, input funct3_t funct3);
     case (op)
-      OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_FENCE,
-      OP_SYSTEM:
+      OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_SYSTEM:
       return 1'b0;
+      OP_MISC_MEM: return funct3 != 3'b000 && funct3 != 3'b001;
       default: return 1'b1;
+    endcase
+  endfunction
+
+  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op, input funct3_t funct3);
+    if (op != OP_MISC_MEM) begin
+      return MEM_ORDER_NONE;
+    end
+
+    case (funct3)
+      3'b000:  return MEM_ORDER_FENCE;
+      3'b001:  return MEM_ORDER_FENCE_I;
+      default: return MEM_ORDER_NONE;
     endcase
   endfunction
 
@@ -339,7 +351,7 @@ module tb_controller
 
     trap = '0;
     system_op = exp_system_op(op, imm, funct3, rs1, rd);
-    trap.valid = exp_main_illegal(op) || exp_alu_illegal(op, funct3, funct7) ||
+    trap.valid = exp_main_illegal(op, funct3) || exp_alu_illegal(op, funct3, funct7) ||
         exp_mem_illegal(op, funct3) || exp_csr_illegal(op, imm, funct3, rs1, rd) ||
         (system_op == SYSTEM_OP_ECALL) || (system_op == SYSTEM_OP_EBREAK);
 
@@ -399,6 +411,8 @@ module tb_controller
             op, funct3
         ) || _ctrl.system !== exp_system_ctrl(
             op, imm, funct3, rs1, rd
+        ) || _ctrl.mem_order !== exp_mem_order(
+            op, funct3
         ) || _ctrl.imm_format !== exp_imm_format(
             op
         ) || _ctrl.alu_operands !== exp_alu_operands(
@@ -430,23 +444,24 @@ module tb_controller
         $display("  FAIL %-38s instr=0x%08h op=%s f3=%03b f7b5=%b eq=%b lt=%b", what, word,
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
-            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
+            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
             _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr.en, _ctrl.csr.write_en,
-            _ctrl.csr.op.name(), _ctrl.csr.use_zimm, _ctrl.system, _ctrl.imm_format.name(),
-            _ctrl.alu_operands.name(), _ctrl.execute_result.name(), _ctrl.alu_op.name(),
-            _ctrl.writeback_result.name(), _ctrl.flow.name(), _ctrl.sub_arith, _ctrl.pc_src.name(),
-            _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned, _ctrl.clear_pc_lsb,
-            _ctrl.trap);
+            _ctrl.csr.op.name(), _ctrl.csr.use_zimm, _ctrl.system, _ctrl.mem_order.name(),
+            _ctrl.imm_format.name(), _ctrl.alu_operands.name(), _ctrl.execute_result.name(),
+            _ctrl.alu_op.name(), _ctrl.writeback_result.name(), _ctrl.flow.name(), _ctrl.sub_arith,
+            _ctrl.pc_src.name(), _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned,
+            _ctrl.clear_pc_lsb, _ctrl.trap);
         $display(
-            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
+            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
             ).name(), exp_csr_use_zimm(op, funct3), exp_system_ctrl(op, imm, funct3, rs1, rd),
-            exp_imm_format(op).name(), exp_alu_operands(op).name(), exp_execute_result(op, funct3
-            ).name(), exp_alu_op(op, funct3).name(), exp_writeback_result(op).name(), exp_flow(op
-            ).name(), exp_sub_arith(op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(),
-            exp_branch_sgnd(funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(
-            op, funct3), exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd, word));
+            exp_mem_order(op, funct3).name(), exp_imm_format(op).name(), exp_alu_operands(op
+            ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3).name(),
+            exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
+            op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
+            funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),
+            exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd, word));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");

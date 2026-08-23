@@ -60,7 +60,7 @@ module hazard_unit
         _uses_rs2 = 1'b1;
       end
 
-      OP_JAL, OP_LUI, OP_AUIPC, OP_FENCE, OP_SYSTEM: begin
+      OP_JAL, OP_LUI, OP_AUIPC, OP_MISC_MEM, OP_SYSTEM: begin
       end
     endcase
 

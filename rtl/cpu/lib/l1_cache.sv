@@ -15,11 +15,12 @@ module l1_cache
 );
 
 
-  typedef enum logic [1:0] {
+  typedef enum logic [2:0] {
     IDLE,
-    CACHED_ACTIVE,     // accepted by cache; response still outstanding
-    UNCACHED_REQUEST,  // latched, presented downstream, not yet accepted
-    UNCACHED_WAIT      // accepted downstream, response outstanding
+    MAINTENANCE_ACTIVE,  // accepted by cache; response still outstanding
+    CACHED_ACTIVE,       // accepted by cache; response still outstanding
+    UNCACHED_REQUEST,    // latched, presented downstream, not yet accepted
+    UNCACHED_WAIT        // accepted downstream, response outstanding
   } state_t;
 
   initial begin
@@ -81,6 +82,11 @@ module l1_cache
         // upstream master is released immediately.
         upstream.req_ready = 1'b1;
       end
+    end else if (_state == MAINTENANCE_ACTIVE) begin
+      downstream.req = _from_cache.req;
+      _from_cache.req_ready = downstream.req_ready;
+      _from_cache.rsp = downstream.rsp;
+      downstream.rsp_ready = _from_cache.rsp_ready;
     end else if (_state == CACHED_ACTIVE) begin
       // Once a cached request transfers, its live upstream payload no longer
       // owns routing. Keep the cache connected until its response transfers.
@@ -107,7 +113,9 @@ module l1_cache
     end else begin
       unique case (_state)
         IDLE: begin
-          if (upstream.req.valid) begin
+          if (cache_command.valid && cache_command.ready) begin
+            _state <= MAINTENANCE_ACTIVE;
+          end else if (upstream.req.valid) begin
             if (_cacheable) begin
               if (_to_cache.req_ready && !(_to_cache.rsp.valid && upstream.rsp_ready)) begin
                 _state <= CACHED_ACTIVE;
@@ -116,6 +124,11 @@ module l1_cache
               _request <= upstream.req;
               _state   <= UNCACHED_REQUEST;
             end
+          end
+        end
+        MAINTENANCE_ACTIVE: begin
+          if (cache_command.done_valid && cache_command.done_ready) begin
+            _state <= IDLE;
           end
         end
         CACHED_ACTIVE: begin

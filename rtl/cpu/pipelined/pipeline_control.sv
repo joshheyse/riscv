@@ -19,6 +19,8 @@ module pipeline_control
   /* verilator lint_off UNUSEDSIGNAL */
   input  flow_ctrl_t     flow,
   /* verilator lint_on UNUSEDSIGNAL */
+  input  logic           mem_order_start,
+  input  logic           mem_order_busy,
   output pipeline_ctrl_t pipe_ctrl
 );
 
@@ -30,7 +32,6 @@ module pipeline_control
         ex_mem: STAGE_ADVANCE,
         mem_wb: STAGE_ADVANCE
     };
-
     if (halted) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
@@ -47,15 +48,38 @@ module pipeline_control
           ex_mem: STAGE_HOLD,
           mem_wb: STAGE_HOLD
       };
+    end else if (mem_order_start) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: STAGE_FLUSH,
+          ex_mem: STAGE_FLUSH,
+          mem_wb: STAGE_FLUSH
+      };
+    end else if (mem_order_busy) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: STAGE_FLUSH,
+          ex_mem: STAGE_FLUSH,
+          mem_wb: STAGE_FLUSH
+      };
     end else if (flow.action == FLOW_ACTION_TRAP) begin
-      pipe_ctrl.fetch  = STAGE_HOLD;
-      pipe_ctrl.if_id  = STAGE_FLUSH;
-      pipe_ctrl.id_ex  = trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH;
-      pipe_ctrl.ex_mem = STAGE_ADVANCE;
-      pipe_ctrl.mem_wb = STAGE_ADVANCE;
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH,
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
+      };
     end else if (trap_in_flight) begin
-      pipe_ctrl.fetch = STAGE_HOLD;
-      pipe_ctrl.if_id = STAGE_FLUSH;
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: STAGE_ADVANCE,
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
+      };
     end else if ((flow.action == FLOW_ACTION_MRET) || (flow.action == FLOW_ACTION_SRET)) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
@@ -73,9 +97,13 @@ module pipeline_control
           mem_wb: STAGE_ADVANCE
       };
     end else if (data_stall) begin
-      pipe_ctrl.fetch = STAGE_HOLD;
-      pipe_ctrl.if_id = STAGE_HOLD;
-      pipe_ctrl.id_ex = STAGE_FLUSH;
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_HOLD,
+          id_ex: STAGE_FLUSH,
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
+      };
     end
   end
 

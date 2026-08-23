@@ -16,7 +16,10 @@ interface irq_if
   } pending_t;
 
   /* verilator lint_off UNUSEDSIGNAL */
+  // A standalone sink has no source driving its pending bits during lint.
+  /* verilator lint_off UNDRIVEN */
   pending_t pending;
+  /* verilator lint_on UNDRIVEN */
   /* verilator lint_on UNUSEDSIGNAL */
 
   modport source(output pending);

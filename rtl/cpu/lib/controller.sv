@@ -78,12 +78,13 @@ module controller
     .flow(ctrl.flow),
     .alu_decode_en(_alu_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
+    .mem_order(ctrl.mem_order),
     .main_op_illegal(_main_op_illegal)
   );
 
   branch_logic _branch_logic (
-    .flow(ctrl.flow),
-    .flags(branch_flags),
+    .flow  (ctrl.flow),
+    .flags (branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );

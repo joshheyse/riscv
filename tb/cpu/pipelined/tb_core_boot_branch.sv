@@ -146,7 +146,8 @@ module tb_core_boot_branch
           "tb_core_boot_branch: state pc=0x%08h if_id_valid=%b if_id_pc=0x%08h if_id_instr=0x%08h id_ex_valid=%b id_ex_pc=0x%08h id_ex_instr=0x%08h ex_mem_valid=%b mem_wb_valid=%b data_stall=%b redirect_en=%b redirect_pc=0x%08h",
           _pc, _dut._if_id.valid, _dut._if_id.slot.pc, _dut._if_id.slot.instr.raw,
           _dut._id_ex.valid, _dut._id_ex.slot.pc, _dut._id_ex.slot.instr.raw, _dut._ex_mem.valid,
-          _dut._mem_wb.valid, _dut._data_stall, _dut._redirect.valid, _dut._redirect.pc);
+          _dut._mem_wb.valid, _dut._data_stall, _dut._execute_redirect.valid,
+          _dut._execute_redirect.pc);
       $display("tb_core_boot_branch: FAIL (%0d failures out of %0d checks)", _errors, _checks);
       $fatal(1);
     end
