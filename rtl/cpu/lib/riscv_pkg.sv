@@ -114,16 +114,16 @@ package riscv_pkg;
   //   0010111  AUIPC
   //   1110011  SYSTEM  currently inert
   typedef enum logic [6:0] {
-    OP_R      = 7'b0110011,
-    OP_I_ALU  = 7'b0010011,
-    OP_LOAD   = 7'b0000011,
-    OP_STORE  = 7'b0100011,
-    OP_JAL    = 7'b1101111,
-    OP_JALR   = 7'b1100111,
-    OP_BRANCH = 7'b1100011,
-    OP_LUI    = 7'b0110111,
-    OP_AUIPC  = 7'b0010111,
-    OP_SYSTEM = 7'b1110011,
+    OP_R        = 7'b0110011,
+    OP_I_ALU    = 7'b0010011,
+    OP_LOAD     = 7'b0000011,
+    OP_STORE    = 7'b0100011,
+    OP_JAL      = 7'b1101111,
+    OP_JALR     = 7'b1100111,
+    OP_BRANCH   = 7'b1100011,
+    OP_LUI      = 7'b0110111,
+    OP_AUIPC    = 7'b0010111,
+    OP_SYSTEM   = 7'b1110011,
     OP_MISC_MEM = 7'b0001111
   } opcode_t;
 
@@ -549,5 +549,29 @@ package riscv_pkg;
     logic invalidate;
   } cache_command_op_t;
 
+  localparam int unsigned CacheNumSets = 128;
+  localparam int unsigned CacheWordsPerLine = 8;
+  localparam int unsigned CacheSetIndexBits = $clog2(CacheNumSets);
+  localparam int unsigned CacheWordIndexBits = $clog2(CacheWordsPerLine);
+  localparam int unsigned CacheLineOffsetBits = CacheWordIndexBits + 2;
+  localparam int unsigned CacheDataIndexBits = CacheSetIndexBits + CacheWordIndexBits;
 
+  typedef logic [XLEN-CacheSetIndexBits-CacheLineOffsetBits-1:0] tag_t;
+  typedef logic [CacheSetIndexBits-1:0] set_index_t;
+  typedef logic [CacheWordIndexBits-1:0] word_index_t;
+  typedef logic [CacheLineOffsetBits-1:0] offset_t;
+  typedef logic [CacheDataIndexBits-1:0] data_index_t;
+  typedef struct packed {
+    tag_t tag;
+    set_index_t set;
+    offset_t offset;
+  } cache_line_address_t;
+
+  typedef enum logic [2:0] {
+    META_NONE,         // Preserve the selected set's metadata.
+    META_INSTALL,      // Write its tag, mark it valid, and clear dirty.
+    META_MARK_DIRTY,   // Mark the selected valid line dirty after a store.
+    META_CLEAR_DIRTY,  // Mark the selected line clean after write-back.
+    META_INVALIDATE    // Clear both valid and dirty for the selected set.
+  } cache_meta_op_t;
 endpackage
