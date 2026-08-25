@@ -22,8 +22,7 @@ module alu_execute
 (
   input  alu_data_t src_a,
   input  alu_data_t src_b,
-  input  alu_op_t   alu_op,
-  input  wire       sub_arith,
+  input  alu_ctrl_t ctrl,
   output alu_data_t alu_result
 );
 
@@ -43,13 +42,13 @@ module alu_execute
 
 
   always_comb begin
-    unique case (alu_op)
-      ALU_ADDSUB:  alu_result = sub_arith == 'b0 ? _add : _sub;
+    unique case (ctrl.op)
+      ALU_ADDSUB:  alu_result = ctrl.sub_arith == 'b0 ? _add : _sub;
       ALU_SLL:     alu_result = src_a << src_b[4:0];
       ALU_SLT:     alu_result = ($signed(src_a) < $signed(src_b)) ? 32'b1 : 32'b0;
       ALU_SLTU:    alu_result = (src_a < src_b) ? 32'b1 : 32'b0;
       ALU_XOR:     alu_result = _xor;
-      ALU_SRL_SRA: alu_result = sub_arith ? _arith : (src_a >> src_b[4:0]);
+      ALU_SRL_SRA: alu_result = ctrl.sub_arith ? _arith : (src_a >> src_b[4:0]);
       ALU_OR:      alu_result = _or;
       ALU_AND:     alu_result = _and;
     endcase

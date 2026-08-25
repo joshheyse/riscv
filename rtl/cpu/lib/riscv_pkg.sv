@@ -346,14 +346,18 @@ package riscv_pkg;
   } mem_order_op_t;
 
   typedef struct packed {
+    alu_op_t op;         // ALU function selected by decode
+    logic    sub_arith;  // use SUB/SRA variant for shared ALU op
+  } alu_ctrl_t;
+
+  typedef struct packed {
     logic              reg_write_en;      // commit a value to integer register rd
     logic              mem_write_en;      // issue a store on the data bus
     imm_format_t       imm_format;        // instruction immediate encoding
-    alu_op_t           alu_op;            // ALU function selected by decode
+    alu_ctrl_t         alu;               // integer ALU operation control
     alu_operands_t     alu_operands;      // values driven onto ALU src_a/src_b
     execute_result_t   execute_result;    // execute-stage value before memory
     writeback_result_t writeback_result;  // value committed to rd
-    logic              sub_arith;         // use SUB/SRA variant for shared ALU op
     pc_src_t           pc_src;            // sequential PC or IEU-computed target
     logic              branch_sgnd;       // compare branch operands as signed
     mem_size_t         mem_size;          // byte/half/word memory transfer width

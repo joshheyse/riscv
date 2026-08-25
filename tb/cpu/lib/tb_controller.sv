@@ -419,13 +419,13 @@ module tb_controller
             op
         ) || _ctrl.execute_result !== exp_execute_result(
             op, funct3
-        ) || _ctrl.alu_op !== exp_alu_op(
+        ) || _ctrl.alu.op !== exp_alu_op(
             op, funct3
         ) || _ctrl.writeback_result !== exp_writeback_result(
             op
         ) || _ctrl.flow !== exp_flow(
             op
-        ) || _ctrl.sub_arith !== exp_sub_arith(
+        ) || _ctrl.alu.sub_arith !== exp_sub_arith(
             op, funct3, funct7_bit5
         ) || _ctrl.pc_src !== exp_pc_src(
             op, eq, lt, funct3
@@ -448,7 +448,8 @@ module tb_controller
             _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr.en, _ctrl.csr.write_en,
             _ctrl.csr.op.name(), _ctrl.csr.use_zimm, _ctrl.system, _ctrl.mem_order.name(),
             _ctrl.imm_format.name(), _ctrl.alu_operands.name(), _ctrl.execute_result.name(),
-            _ctrl.alu_op.name(), _ctrl.writeback_result.name(), _ctrl.flow.name(), _ctrl.sub_arith,
+            _ctrl.alu.op.name(), _ctrl.writeback_result.name(), _ctrl.flow.name(),
+            _ctrl.alu.sub_arith,
             _ctrl.pc_src.name(), _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned,
             _ctrl.clear_pc_lsb, _ctrl.trap);
         $display(

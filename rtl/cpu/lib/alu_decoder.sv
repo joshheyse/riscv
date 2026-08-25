@@ -21,12 +21,11 @@ module alu_decoder
 (
   input  logic    alu_decode_en,
   input  instr_u  instr,
-  output alu_op_t alu_op,
-  output logic    sub_arith,
+  output alu_ctrl_t alu_ctrl,
   output logic    alu_op_illegal
 );
 
-  assign alu_op = alu_decode_en ? instr.r.funct3.alu : ALU_ADDSUB;
+  assign alu_ctrl.op = alu_decode_en ? instr.r.funct3.alu : ALU_ADDSUB;
 
   logic _funct7_zero;
   logic _funct7_alt;
@@ -35,7 +34,7 @@ module alu_decoder
   assign _funct7_alt  = instr.r.funct7 == 7'b0100000;
 
   always_comb begin
-    sub_arith = 1'b0;
+    alu_ctrl.sub_arith = 1'b0;
     alu_op_illegal = 1'b0;
     if (alu_decode_en) begin
       // slang lint_off case-enum-explicit
@@ -44,7 +43,7 @@ module alu_decoder
           case (instr.r.funct3.alu)
             ALU_ADDSUB, ALU_SRL_SRA: begin
               alu_op_illegal = !(_funct7_zero || _funct7_alt);
-              sub_arith = instr.r.funct7[5];
+              alu_ctrl.sub_arith = instr.r.funct7[5];
             end
             default: begin
               alu_op_illegal = !_funct7_zero;
@@ -59,7 +58,7 @@ module alu_decoder
             end
             ALU_SRL_SRA: begin
               alu_op_illegal = !(_funct7_zero || _funct7_alt);
-              sub_arith = instr.r.funct7[5];
+              alu_ctrl.sub_arith = instr.r.funct7[5];
             end
             default: begin
             end

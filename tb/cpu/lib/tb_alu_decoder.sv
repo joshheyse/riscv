@@ -53,8 +53,7 @@ module tb_alu_decoder
 
   logic        _alu_decode_en;
   instr_u      _instr;
-  alu_op_t     _alu_op;
-  logic        _sub_arith;
+  alu_ctrl_t   _alu_ctrl;
   logic        _alu_op_illegal;
 
   int unsigned errors = 0;
@@ -64,8 +63,7 @@ module tb_alu_decoder
   alu_decoder _dut (
     .alu_decode_en(_alu_decode_en),
     .instr(_instr),
-    .alu_op(_alu_op),
-    .sub_arith(_sub_arith),
+    .alu_ctrl(_alu_ctrl),
     .alu_op_illegal(_alu_op_illegal)
   );
 
@@ -86,13 +84,15 @@ module tb_alu_decoder
     _instr.raw = word;
     #1;
     checks++;
-    if (_alu_op !== exp_sel || _sub_arith !== exp_sub || _alu_op_illegal !== exp_illegal) begin
+    if (_alu_ctrl.op !== exp_sel || _alu_ctrl.sub_arith !== exp_sub ||
+        _alu_op_illegal !== exp_illegal) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
         printed++;
         $display(
             "  FAIL %-36s alu_decode_en=%b instr=0x%08h (f7=%07b f3=%03b op=%07b) -> %s/%b illegal=%b, expected %s/%b illegal=%b",
-            what, op, word, word[31:25], word[14:12], word[6:0], _alu_op.name(), _sub_arith,
+            what, op, word, word[31:25], word[14:12], word[6:0], _alu_ctrl.op.name(),
+            _alu_ctrl.sub_arith,
             _alu_op_illegal, exp_sel.name(), exp_sub, exp_illegal);
       end else if (printed == MaxPrintedFailures) begin
         printed++;

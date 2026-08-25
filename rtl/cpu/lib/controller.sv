@@ -92,8 +92,7 @@ module controller
   alu_decoder _alu_decoder (
     .alu_decode_en(_alu_decode_en),
     .instr(instr),
-    .alu_op(ctrl.alu_op),
-    .sub_arith(ctrl.sub_arith),
+    .alu_ctrl(ctrl.alu),
     .alu_op_illegal(_alu_op_illegal)
   );
 

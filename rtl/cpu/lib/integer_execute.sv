@@ -28,8 +28,7 @@ module integer_execute
   alu_execute _alu_execute (
     .src_a(_src_a),
     .src_b(_src_b),
-    .alu_op(ctrl.alu_op),
-    .sub_arith(ctrl.sub_arith),
+    .ctrl(ctrl.alu),
     .alu_result(alu_result)
   );
 

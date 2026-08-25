@@ -71,7 +71,7 @@ module tb_integer_execute
     end
 
     _ctrl = '0;
-    _ctrl.alu_op = ALU_ADDSUB;
+    _ctrl.alu.op = ALU_ADDSUB;
     _ctrl.alu_operands = ALU_OPERANDS_RS1_RS2;
     _ctrl.flow = FLOW_NONE;
     _ctrl.branch_sgnd = 1'b1;

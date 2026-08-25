@@ -43,8 +43,7 @@ module tb_alu_execute
 
   word_t       _src_a;
   word_t       _src_b;
-  alu_op_t     _alu_op;
-  logic        _sub_arith;
+  alu_ctrl_t   _ctrl;
   word_t       _alu_result;
 
   int unsigned errors = 0;
@@ -54,8 +53,7 @@ module tb_alu_execute
   alu_execute _dut (
     .src_a(_src_a),
     .src_b(_src_b),
-    .alu_op(_alu_op),
-    .sub_arith(_sub_arith),
+    .ctrl(_ctrl),
     .alu_result(_alu_result)
   );
 
@@ -66,8 +64,8 @@ module tb_alu_execute
   // call $fatal once at the end so `make sim` still exits non-zero.
   task automatic check(input alu_op_t sel, input logic sa, input word_t a, input word_t b,
                        input word_t exp, input string what);
-    _alu_op    = sel;
-    _sub_arith = sa;
+    _ctrl.op        = sel;
+    _ctrl.sub_arith = sa;
     _src_a     = a;
     _src_b     = b;
     #1;
