@@ -17,7 +17,7 @@
 //   OR          bitwise or        same
 //   AND         bitwise and       same
 //
-module alu
+module alu_execute
   import riscv_pkg::*;
 (
   input  alu_data_t src_a,

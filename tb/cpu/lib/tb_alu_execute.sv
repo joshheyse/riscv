@@ -1,6 +1,6 @@
-// tb_alu.sv — self-checking testbench for the RV32I ALU.
+// tb_alu_execute.sv — self-checking testbench for the RV32I ALU.
 //
-//   make sim TB=alu      /      just sim alu
+//   make sim TB=alu_execute      /      just sim alu_execute
 //
 // The ALU is purely combinational, so every check is: drive inputs, let them
 // settle, compare. No clock.
@@ -22,7 +22,7 @@
 
 `timescale 1ns / 1ps
 
-module tb_alu
+module tb_alu_execute
   import riscv_pkg::*;
 ();
 
@@ -51,7 +51,7 @@ module tb_alu
   int unsigned checks = 0;
   int unsigned printed = 0;
 
-  alu _dut (
+  alu_execute _dut (
     .src_a(_src_a),
     .src_b(_src_b),
     .alu_op(_alu_op),
@@ -322,16 +322,16 @@ module tb_alu
         check(sel, sa, a, b, ref_alu(sel, sa, a, b), $sformatf("random #%0d", t));
       end
 
-      $display("tb_alu: %0d random vectors vs reference model, %0d mismatches", RandomVectors,
+      $display("tb_alu_execute: %0d random vectors vs reference model, %0d mismatches", RandomVectors,
                errors - errs_before);
     end
 
     // ------------------------------------------------------------ summary --
     if (errors == 0) begin
-      $display("tb_alu: PASS (%0d checks)", checks);
+      $display("tb_alu_execute: PASS (%0d checks)", checks);
       $finish;
     end else begin
-      $display("tb_alu: FAIL (%0d/%0d checks failed)", errors, checks);
+      $display("tb_alu_execute: FAIL (%0d/%0d checks failed)", errors, checks);
       $fatal(1);
     end
   end
@@ -339,7 +339,7 @@ module tb_alu
   // -------------------------------------------------------------- watchdog --
   initial begin
     #(TimeoutNs);
-    $error("tb_alu: timeout after %0d ns", TimeoutNs);
+    $error("tb_alu_execute: timeout after %0d ns", TimeoutNs);
     $fatal(1);
   end
 
@@ -347,7 +347,7 @@ module tb_alu
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
-      $dumpvars(0, tb_alu);
+      $dumpvars(0, tb_alu_execute);
     end
   end
 

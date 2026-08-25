@@ -25,7 +25,7 @@ module integer_execute
   assign _src_b = ctrl.alu_operands[0] ? imm : rs2_data;
   assign store_data = rs2_data;
 
-  alu _alu (
+  alu_execute _alu_execute (
     .src_a(_src_a),
     .src_b(_src_b),
     .alu_op(ctrl.alu_op),

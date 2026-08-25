@@ -38,6 +38,7 @@ module alu_decoder
     sub_arith = 1'b0;
     alu_op_illegal = 1'b0;
     if (alu_decode_en) begin
+      // slang lint_off case-enum-explicit
       case (instr.r.opcode)
         OP_R: begin
           case (instr.r.funct3.alu)
@@ -69,6 +70,7 @@ module alu_decoder
           alu_op_illegal = 1'b1;
         end
       endcase
+      // slang lint_on case-enum-explicit
     end
   end
 
