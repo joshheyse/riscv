@@ -47,7 +47,7 @@ module l1_cache
     end
   endgenerate
 
-  direct_mapped_cache _cache (
+  set_associative_cache _cache (
     .clk(clk),
     .rst(rst),
     .upstream(_to_cache),

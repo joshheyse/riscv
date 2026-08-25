@@ -102,6 +102,10 @@ test:
     done; \
     exit $fail
 
+# Exercise lint, simulation, and BRAM inference for both cache geometries.
+cache-test:
+    make cache-test DESIGN={{ design }}
+
 # List slang-server build filelists.
 filelist:
     make filelist

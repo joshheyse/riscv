@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module tb_direct_mapped_cache;
+module tb_set_associative_cache;
   import riscv_pkg::*;
 
   localparam time ClkPeriod = 10ns;
@@ -15,12 +15,12 @@ module tb_direct_mapped_cache;
   string _phase;
 
   mem_if _upstream (
-    _clk,
-    _rst
+      _clk,
+      _rst
   );
   mem_if _downstream (
-    _clk,
-    _rst
+      _clk,
+      _rst
   );
   cache_command_if _cache_command ();
 
@@ -62,12 +62,12 @@ module tb_direct_mapped_cache;
     end
   end
 
-  direct_mapped_cache _dut (
-    .clk(_clk),
-    .rst(_rst),
-    .upstream(_upstream),
-    .downstream(_downstream),
-    .cache_command(_cache_command)
+  set_associative_cache _dut (
+      .clk(_clk),
+      .rst(_rst),
+      .upstream(_upstream),
+      .downstream(_downstream),
+      .cache_command(_cache_command)
   );
 
   always #(ClkPeriod / 2) _clk = ~_clk;
@@ -173,8 +173,7 @@ module tb_direct_mapped_cache;
     cache_access(addr, 1'b1, data, mask, discarded);
   endtask
 
-  task automatic issue_command(input cache_command_op_t op,
-                               input int unsigned response_stall = 0);
+  task automatic issue_command(input cache_command_op_t op, input int unsigned response_stall = 0);
     @(negedge _clk);
     _command_valid = 1'b1;
     _command_op = op;
@@ -230,7 +229,7 @@ module tb_direct_mapped_cache;
     expect_int(_downstream_reads, reads_before + 8, "invalidate forces a refill");
 
     cache_write(LineA + 32'd4, 32'hdead_beef, 4'b1111);
-    reads_before = _downstream_reads;
+    reads_before  = _downstream_reads;
     writes_before = _downstream_writes;
     issue_command('{clean: 1'b1, invalidate: 1'b0});
     expect_int(_downstream_writes, writes_before + 8, "clean writes one dirty line");
@@ -245,7 +244,7 @@ module tb_direct_mapped_cache;
     // clean+invalidate command must visit and write back both ways of the set.
     cache_write(LineA + 32'd4, 32'haaaa_aaaa, 4'b1111);
     cache_write(LineB + 32'd8, 32'hbbbb_bbbb, 4'b1111);
-    reads_before = _downstream_reads;
+    reads_before  = _downstream_reads;
     writes_before = _downstream_writes;
     issue_command('{clean: 1'b1, invalidate: 1'b1});
     expect_int(_downstream_writes, writes_before + 16,
@@ -258,8 +257,7 @@ module tb_direct_mapped_cache;
     expect_word(read_data, 32'haaaa_aaaa, "clean+invalidate refills first preserved line");
     cache_read(LineB + 32'd8, read_data);
     expect_word(read_data, 32'hbbbb_bbbb, "clean+invalidate refills second preserved line");
-    expect_int(_downstream_reads, reads_before + 16,
-               "clean+invalidate invalidates both ways");
+    expect_int(_downstream_reads, reads_before + 16, "clean+invalidate invalidates both ways");
   endtask
 
   // The full directed sequence, run against a minimally spaced bus and a
@@ -267,10 +265,11 @@ module tb_direct_mapped_cache;
   // both: bus back-pressure changes timing, never the traffic.
   task automatic run_sequence(input string label, input int unsigned grant_gap);
     localparam word_t LineA = 32'h0000_0020;
-    localparam word_t LineB = 32'h0000_0420;
-    localparam word_t LineC = 32'h0000_0820;
-    localparam word_t LineD = 32'h0000_0c20;
-    localparam word_t LineE = 32'h0000_1020;
+    localparam word_t SameSetStride = word_t'(CacheNumSets * CacheWordsPerLine * 4);
+    localparam word_t LineB = LineA + SameSetStride;
+    localparam word_t LineC = LineB + SameSetStride;
+    localparam word_t LineD = LineC + SameSetStride;
+    localparam word_t LineE = LineD + SameSetStride;
     word_t read_data;
 
     _phase = label;
@@ -360,40 +359,63 @@ module tb_direct_mapped_cache;
     expect_word(read_data, 32'hccdd_bbbb, "masked write hit updates selected bytes");
     expect_int(_downstream_writes, 0, "write-back cache defers hit store");
 
-    cache_read(LineB + 32'd4, read_data);
-    expect_word(read_data, 32'h2000_0001, "second same-set line refills correctly");
-    cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'h3000_0002, "third same-set line refills correctly");
-    cache_read(LineD + 32'd12, read_data);
-    expect_word(read_data, 32'h4000_0003, "fourth same-set line refills correctly");
-    expect_int(_downstream_writes, 0, "four same-set lines occupy empty ways");
-    expect_int(_downstream_reads, 32, "four same-set lines each refill once");
+    if (CacheNumWays == 4) begin
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "second same-set line refills correctly");
+      cache_read(LineC + 32'd8, read_data);
+      expect_word(read_data, 32'h3000_0002, "third same-set line refills correctly");
+      cache_read(LineD + 32'd12, read_data);
+      expect_word(read_data, 32'h4000_0003, "fourth same-set line refills correctly");
+      expect_int(_downstream_writes, 0, "four same-set lines occupy empty ways");
+      expect_int(_downstream_reads, 32, "four same-set lines each refill once");
 
-    cache_read(LineA + 32'd12, read_data);
-    expect_word(read_data, 32'hccdd_bbbb, "first of four same-set lines remains resident");
-    cache_read(LineB + 32'd4, read_data);
-    expect_word(read_data, 32'h2000_0001, "second of four same-set lines remains resident");
-    cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'h3000_0002, "third of four same-set lines remains resident");
-    cache_read(LineD + 32'd12, read_data);
-    expect_word(read_data, 32'h4000_0003, "fourth of four same-set lines remains resident");
-    expect_int(_downstream_reads, 32, "all four resident ways hit");
+      cache_read(LineA + 32'd12, read_data);
+      expect_word(read_data, 32'hccdd_bbbb, "first of four same-set lines remains resident");
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "second of four same-set lines remains resident");
+      cache_read(LineC + 32'd8, read_data);
+      expect_word(read_data, 32'h3000_0002, "third of four same-set lines remains resident");
+      cache_read(LineD + 32'd12, read_data);
+      expect_word(read_data, 32'h4000_0003, "fourth of four same-set lines remains resident");
+      expect_int(_downstream_reads, 32, "all four resident ways hit");
 
-    // The hit order above leaves dirty A as the tree-PLRU victim. A fifth tag
-    // must write A back and refill into its way while retaining B, C, and D.
-    cache_read(LineE + 32'd8, read_data);
-    expect_word(read_data, 32'h5000_0002, "fifth same-set tag refills correctly");
-    expect_int(_downstream_writes, 8, "dirty PLRU victim writes back eight beats");
-    expect_int(_downstream_reads, 40, "fifth same-set tag refills eight beats");
-    expect_word(_backing[(LineA+32'd12)>>2], 32'hccdd_bbbb,
-                "dirty PLRU write-back preserves modified data");
-    cache_read(LineB + 32'd4, read_data);
-    expect_word(read_data, 32'h2000_0001, "PLRU replacement retains second way");
-    cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'h3000_0002, "PLRU replacement retains third way");
-    cache_read(LineD + 32'd12, read_data);
-    expect_word(read_data, 32'h4000_0003, "PLRU replacement retains fourth way");
-    expect_int(_downstream_reads, 40, "three non-victim ways still hit");
+      // The hit order above leaves dirty A as the tree-PLRU victim. A fifth tag
+      // must write A back and refill into its way while retaining B, C, and D.
+      cache_read(LineE + 32'd8, read_data);
+      expect_word(read_data, 32'h5000_0002, "fifth same-set tag refills correctly");
+      expect_int(_downstream_writes, 8, "dirty PLRU victim writes back eight beats");
+      expect_int(_downstream_reads, 40, "fifth same-set tag refills eight beats");
+      expect_word(_backing[(LineA+32'd12)>>2], 32'hccdd_bbbb,
+                  "dirty PLRU write-back preserves modified data");
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "PLRU replacement retains second way");
+      cache_read(LineC + 32'd8, read_data);
+      expect_word(read_data, 32'h3000_0002, "PLRU replacement retains third way");
+      cache_read(LineD + 32'd12, read_data);
+      expect_word(read_data, 32'h4000_0003, "PLRU replacement retains fourth way");
+      expect_int(_downstream_reads, 40, "three non-victim ways still hit");
+    end else begin
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "second same-set line refills correctly");
+      expect_int(_downstream_writes, 0, "two same-set lines occupy empty ways");
+      expect_int(_downstream_reads, 16, "two same-set lines each refill once");
+
+      cache_read(LineA + 32'd12, read_data);
+      expect_word(read_data, 32'hccdd_bbbb, "first of two same-set lines remains resident");
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "second of two same-set lines remains resident");
+      expect_int(_downstream_reads, 16, "both resident ways hit");
+
+      cache_read(LineC + 32'd8, read_data);
+      expect_word(read_data, 32'h3000_0002, "third same-set tag refills correctly");
+      expect_int(_downstream_writes, 8, "dirty LRU victim writes back eight beats");
+      expect_int(_downstream_reads, 24, "third same-set tag refills eight beats");
+      expect_word(_backing[(LineA+32'd12)>>2], 32'hccdd_bbbb,
+                  "dirty LRU write-back preserves modified data");
+      cache_read(LineB + 32'd4, read_data);
+      expect_word(read_data, 32'h2000_0001, "LRU replacement retains non-victim way");
+      expect_int(_downstream_reads, 24, "non-victim way still hits");
+    end
 
     _rst = 1'b1;
     @(posedge _clk);
@@ -419,8 +441,8 @@ module tb_direct_mapped_cache;
     _command_done_ready = 1'b1;
 
     if ($test$plusargs("trace")) begin
-      $dumpfile("tb_direct_mapped_cache.vcd");
-      $dumpvars(0, tb_direct_mapped_cache);
+      $dumpfile("tb_set_associative_cache.vcd");
+      $dumpvars(0, tb_set_associative_cache);
     end
 
     run_sequence("arbiter-paced bus", 2);
@@ -428,9 +450,9 @@ module tb_direct_mapped_cache;
     run_maintenance_sequence();
 
     if (_errors == 0) begin
-      $display("tb_direct_mapped_cache: PASS (%0d checks)", _checks);
+      $display("tb_set_associative_cache: PASS (%0d checks)", _checks);
     end else begin
-      $display("tb_direct_mapped_cache: FAIL (%0d errors)", _errors);
+      $display("tb_set_associative_cache: FAIL (%0d errors)", _errors);
       $fatal(1);
     end
     $finish;
@@ -438,7 +460,7 @@ module tb_direct_mapped_cache;
 
   initial begin
     #200us;
-    $fatal(1, "tb_direct_mapped_cache: watchdog timeout");
+    $fatal(1, "tb_set_associative_cache: watchdog timeout");
   end
 
 endmodule

@@ -9,7 +9,7 @@ module tb_l1_cache;
   localparam mem_addr_t CacheableEnd = 32'h0000_4000;
   localparam mem_addr_t MmioAddr = 32'h1000_0000;
   localparam mem_addr_t LineA = 32'h0000_2020;
-  localparam mem_addr_t LineB = 32'h0000_3020;
+  localparam mem_addr_t SameSetStride = mem_addr_t'(CacheNumSets * CacheWordsPerLine * 4);
 
   logic  _clk;
   logic  _rst;
@@ -21,12 +21,12 @@ module tb_l1_cache;
   string _phase;
 
   mem_if _upstream (
-    _clk,
-    _rst
+      _clk,
+      _rst
   );
   mem_if _downstream (
-    _clk,
-    _rst
+      _clk,
+      _rst
   );
   cache_command_if _cache_command ();
   logic _command_valid;
@@ -79,14 +79,14 @@ module tb_l1_cache;
   end
 
   l1_cache #(
-    .CacheableBase(CacheableBase),
-    .CacheableEnd(CacheableEnd)
+      .CacheableBase(CacheableBase),
+      .CacheableEnd (CacheableEnd)
   ) _dut (
-    .clk(_clk),
-    .rst(_rst),
-    .upstream(_upstream),
-    .downstream(_downstream),
-    .cache_command(_cache_command)
+      .clk(_clk),
+      .rst(_rst),
+      .upstream(_upstream),
+      .downstream(_downstream),
+      .cache_command(_cache_command)
   );
 
   always #(ClkPeriod / 2) _clk = ~_clk;
@@ -238,8 +238,7 @@ module tb_l1_cache;
     _immediate_response = 1'b1;
     issue_command('{clean: 1'b1, invalidate: 1'b0});
     expect_int(_downstream_writes, 8, "L1 forwards all same-cycle clean write-back beats");
-    expect_word(_backing[(LineA+32'd4)>>2], 32'hface_cafe,
-                "L1 clean updates backing memory");
+    expect_word(_backing[(LineA+32'd4)>>2], 32'hface_cafe, "L1 clean updates backing memory");
 
     issue_command('{clean: 1'b0, invalidate: 1'b1});
     cache_read(LineA + 32'd4, read_data);
@@ -265,7 +264,10 @@ module tb_l1_cache;
     _mmio_value = 32'hfeed_face;
 
     seed_line(LineA, 32'h1000_0000);
-    seed_line(LineB, 32'h2000_0000);
+    for (int unsigned line = 1; line <= CacheNumWays; line++) begin
+      seed_line(LineA + mem_addr_t'(line) * SameSetStride,
+                32'h1000_0000 + word_t'(line * 32'h1000_0000));
+    end
 
     _rst = 1'b1;
     repeat (2) @(posedge _clk);
@@ -305,10 +307,19 @@ module tb_l1_cache;
     expect_word(read_data, 32'hdead_beef, "MMIO bypass does not evict dirty cache line");
     expect_int(_downstream_reads, 11, "post-MMIO cache hit avoids downstream request");
 
-    cache_read(LineB + 32'd4, read_data);
-    expect_word(read_data, 32'h2000_0001, "conflicting cacheable line refills correctly");
+    for (int unsigned line = 1; line < CacheNumWays; line++) begin
+      cache_read(LineA + mem_addr_t'(line) * SameSetStride + 32'd4, read_data);
+      expect_word(read_data, 32'h1000_0001 + word_t'(line * 32'h1000_0000),
+                  "additional same-set line occupies an empty way");
+    end
+    expect_int(_downstream_writes, 1, "empty cache ways need no write-back");
+
+    cache_read(LineA + mem_addr_t'(CacheNumWays) * SameSetStride + 32'd4, read_data);
+    expect_word(read_data, 32'h1000_0001 + word_t'(CacheNumWays * 32'h1000_0000),
+                "first over-capacity same-set line refills correctly");
     expect_int(_downstream_writes, 9, "dirty cache line writes back after later conflict");
-    expect_int(_downstream_reads, 19, "conflicting line performs one refill");
+    expect_int(_downstream_reads, 11 + int'(CacheNumWays * CacheWordsPerLine),
+               "same-set fills each issue one cache-line refill");
     expect_word(_backing[(LineA+32'd4)>>2], 32'hdead_beef,
                 "dirty line survives intervening MMIO transactions");
 

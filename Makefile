@@ -12,6 +12,11 @@
 
 DESIGN ?= pipelined
 TOP    ?= soc
+CACHE_WAYS ?= 4
+
+ifeq ($(filter $(CACHE_WAYS),2 4),)
+$(error CACHE_WAYS must be 2 or 4)
+endif
 
 DEFAULT_BOARD     := lfe5um5g_85f_evn
 DEFAULT_SIM_BOARD := sim
@@ -36,7 +41,7 @@ TB_COMMON_DIR  := tb/cpu/$(DESIGN)/common
 CPU_LIB_TB_DIR := tb/cpu/lib
 RTL_LIB_TB_DIR := tb/lib
 PERIPH_TB_DIR  := tb/periph
-BUILD_ROOT    := build/$(DESIGN)
+BUILD_ROOT    := build/$(DESIGN)/cache-$(CACHE_WAYS)-way
 SIM_DIR       := $(BUILD_ROOT)/$(TB_TOP)
 
 # Packages must be compiled before anything that imports them. Plain
@@ -65,7 +70,7 @@ BOARD_SIM_SRC_DIR := $(BOARD_DIR)/sim
 BOARD_TOP       ?= top
 BOARD_SIM       ?= top_sim
 BOARD_SIM_TOP   := $(BOARD_SIM)
-BOARD_BUILD_DIR := build/boards/$(BOARD)
+BOARD_BUILD_DIR := build/boards/$(BOARD)/cache-$(CACHE_WAYS)-way
 BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(DESIGN)/$(BOARD_SIM_TOP)/$(APP_NAME)
 BOARD_TB_DIR       := tb/boards/$(BOARD)
 BOARD_TB           ?= timer_mmio
@@ -156,7 +161,9 @@ ECP5_DEVICE  ?= --um5g-85k
 ECP5_PACKAGE ?= CABGA381
 ECP5_SPEED   ?= 8
 ECP5_FREQ    ?= 12
-MIN_DP16KD   ?= 8
+MIN_DP16KD   ?= $(shell echo $$(( $(CACHE_WAYS) + 3 )))
+CACHE_SYNTH_JSON := $(BUILD_ROOT)/set_associative_cache.json
+CACHE_SYNTH_TOP_SRC := $(CPU_LIB_TB_DIR)/set_associative_cache_synth_top.sv
 
 # Every testbench/simulator in the design — for formatting only. Simulation
 # compiles just the one selected by TB, so sibling top-level modules don't
@@ -172,15 +179,17 @@ ALL_BOARD_SRCS := $(sort $(wildcard boards/*/rtl/*.sv) $(wildcard boards/*/rtl/*
 
 VERILATOR ?= verilator
 VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
+                   -DCACHE_NUM_WAYS=$(CACHE_WAYS) \
                    -I$(RTL_LIB_DIR) -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                    -I$(TB_DIR) -I$(CPU_LIB_TB_DIR) -I$(RTL_LIB_TB_DIR)
 BOARD_SIM_VERILATOR_FLAGS := -sv --timing --assert -Wall -Werror-IMPLICIT \
+                              -DCACHE_NUM_WAYS=$(CACHE_WAYS) \
                               -I$(RTL_LIB_DIR) -I$(RTL_PERIPH_DIR) \
                               -I$(CPU_LIB_DIR) -I$(CPU_DESIGN_DIR) \
                               -I$(BOARD_RTL_DIR) -I$(BOARD_SIM_SRC_DIR)
 YOSYS ?= yosys
 YOSYS_FLAGS := -m slang
-YOSYS_READ := read_slang --ignore-assertions
+YOSYS_READ := read_slang --ignore-assertions -DCACHE_NUM_WAYS=$(CACHE_WAYS)
 
 # Set TRACE=1 to build with waveform support and dump a VCD.
 ifeq ($(TRACE),1)
@@ -192,7 +201,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -267,6 +276,29 @@ $(COMPILE_COMMANDS): FORCE tools/gen_compile_commands.py $(BOARD_CONSTANTS_HDR)
 
 ## compile-commands: regenerate compile_commands.json for clangd
 compile-commands: $(COMPILE_COMMANDS)
+
+$(CACHE_SYNTH_JSON): $(RTL_SRCS) $(CACHE_SYNTH_TOP_SRC)
+	@mkdir -p $(dir $@)
+	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top set_associative_cache_synth_top $(RTL_SRCS) $(CACHE_SYNTH_TOP_SRC); synth_ecp5 -top set_associative_cache_synth_top -json $@'
+	tools/check_bram.py $@ --minimum $(CACHE_WAYS)
+
+## cache-synth: synthesize the selected cache geometry and verify one BRAM per way
+cache-synth: $(CACHE_SYNTH_JSON)
+	tools/check_bram.py $(CACHE_SYNTH_JSON) --minimum $(CACHE_WAYS)
+
+## cache-test: lint, simulate, and synthesize both supported cache geometries
+cache-test:
+	$(MAKE) lint TOP=soc CACHE_WAYS=2
+	$(MAKE) sim TB=set_associative_cache CACHE_WAYS=2
+	$(MAKE) sim TB=l1_cache CACHE_WAYS=2
+	$(MAKE) sim TB=core CACHE_WAYS=2
+	$(MAKE) cache-synth CACHE_WAYS=2
+	$(MAKE) lint TOP=soc CACHE_WAYS=4
+	$(MAKE) sim TB=lru_4_way CACHE_WAYS=4
+	$(MAKE) sim TB=set_associative_cache CACHE_WAYS=4
+	$(MAKE) sim TB=l1_cache CACHE_WAYS=4
+	$(MAKE) sim TB=core CACHE_WAYS=4
+	$(MAKE) cache-synth CACHE_WAYS=4
 
 $(APP_BUILD_DIR)/%.S.o: %.S $(BOARD_CONSTANTS_HDR)
 	@test -f $< || { echo "no such app source: $<"; exit 1; }

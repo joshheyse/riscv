@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module direct_mapped_cache
+module set_associative_cache
   import riscv_pkg::*;
 (
   input logic clk,
