@@ -204,7 +204,6 @@ module tb_direct_mapped_cache;
   task automatic run_maintenance_sequence();
     localparam word_t LineA = 32'h0000_0020;
     localparam word_t LineB = 32'h0000_1020;
-    localparam word_t LineC = 32'h0000_0040;
     word_t read_data;
     int reads_before;
     int writes_before;
@@ -215,7 +214,6 @@ module tb_direct_mapped_cache;
     _backing = '{default: '0};
     seed_line(LineA, 32'h1000_0000);
     seed_line(LineB, 32'h2000_0000);
-    seed_line(LineC, 32'h3000_0000);
 
     _rst = 1'b1;
     repeat (2) begin
@@ -243,18 +241,25 @@ module tb_direct_mapped_cache;
     cache_read(LineB, read_data);
     expect_int(_downstream_writes, writes_before + 8, "cleaned line is not written back again");
 
-    cache_read(LineC + 32'd8, read_data);
-    cache_write(LineC + 32'd8, 32'hcafe_babe, 4'b1111);
+    // Both conflicting lines are resident in separate ways. Dirty both so a
+    // clean+invalidate command must visit and write back both ways of the set.
+    cache_write(LineA + 32'd4, 32'haaaa_aaaa, 4'b1111);
+    cache_write(LineB + 32'd8, 32'hbbbb_bbbb, 4'b1111);
     reads_before = _downstream_reads;
     writes_before = _downstream_writes;
     issue_command('{clean: 1'b1, invalidate: 1'b1});
-    expect_int(_downstream_writes, writes_before + 8,
-               "clean+invalidate writes one dirty line");
-    expect_word(_backing[(LineC+32'd8)>>2], 32'hcafe_babe,
-                "clean+invalidate preserves dirty data");
-    cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'hcafe_babe, "clean+invalidate refills preserved data");
-    expect_int(_downstream_reads, reads_before + 8, "clean+invalidate invalidates the line");
+    expect_int(_downstream_writes, writes_before + 16,
+               "clean+invalidate writes dirty lines from both ways");
+    expect_word(_backing[(LineA+32'd4)>>2], 32'haaaa_aaaa,
+                "clean+invalidate preserves dirty way zero data");
+    expect_word(_backing[(LineB+32'd8)>>2], 32'hbbbb_bbbb,
+                "clean+invalidate preserves dirty way one data");
+    cache_read(LineA + 32'd4, read_data);
+    expect_word(read_data, 32'haaaa_aaaa, "clean+invalidate refills first preserved line");
+    cache_read(LineB + 32'd8, read_data);
+    expect_word(read_data, 32'hbbbb_bbbb, "clean+invalidate refills second preserved line");
+    expect_int(_downstream_reads, reads_before + 16,
+               "clean+invalidate invalidates both ways");
   endtask
 
   // The full directed sequence, run against a minimally spaced bus and a
@@ -353,28 +358,38 @@ module tb_direct_mapped_cache;
 
     cache_read(LineB + 32'd4, read_data);
     expect_word(read_data, 32'h2000_0001, "conflicting miss returns new line");
-    expect_int(_downstream_writes, 8, "dirty eviction writes eight beats");
+    expect_int(_downstream_writes, 0, "second conflicting line uses the empty way");
     expect_int(_downstream_reads, 16, "conflicting miss refills eight beats");
-    for (int unsigned beat = 0; beat < 8; beat++) begin
-      expect_word(_backing[(LineA>>2)+beat], beat == 3 ? 32'hccdd_bbbb : 32'h1000_0000 + beat,
-                  "dirty write-back preserves every line beat");
-    end
 
     cache_read(LineA + 32'd12, read_data);
-    expect_word(read_data, 32'hccdd_bbbb, "written-back line refills correctly");
-    expect_int(_downstream_writes, 8, "clean eviction does not write back");
-    expect_int(_downstream_reads, 24, "second clean refill uses eight beats");
+    expect_word(read_data, 32'hccdd_bbbb, "both conflicting lines remain resident");
+    expect_int(_downstream_writes, 0, "two resident ways require no eviction");
+    expect_int(_downstream_reads, 16, "both conflicting lines hit after refill");
+
+    // A was just touched, so B is LRU. A third tag for the same set must evict
+    // clean B while retaining dirty A.
+    cache_read(LineC + 32'd8, read_data);
+    expect_word(read_data, 32'h3000_0002, "third conflicting tag refills correctly");
+    expect_int(_downstream_writes, 0, "clean LRU victim needs no write-back");
+    expect_int(_downstream_reads, 24, "third conflicting tag refills eight beats");
+    cache_read(LineA + 32'd12, read_data);
+    expect_word(read_data, 32'hccdd_bbbb, "MRU dirty line survives clean LRU eviction");
+    expect_int(_downstream_reads, 24, "surviving way still hits");
+
+    // Touching A made C least-recently used. Refilling B evicts C, leaving A's
+    // dirty state intact; a subsequent C store miss must evict and write A.
+    cache_read(LineB, read_data);
+    expect_word(read_data, 32'h2000_0000, "previously evicted line misses and refills");
+    expect_int(_downstream_writes, 0, "second clean LRU victim needs no write-back");
+    expect_int(_downstream_reads, 32, "evicted line refill uses eight beats");
 
     cache_write(LineC + 32'd8, 32'hdead_beef, 4'b1111);
-    expect_int(_downstream_reads, 32, "write miss first refills the line");
+    expect_int(_downstream_writes, 8, "dirty LRU victim writes back eight beats");
+    expect_int(_downstream_reads, 40, "write miss refills the replacement line");
+    expect_word(_backing[(LineA+32'd12)>>2], 32'hccdd_bbbb,
+                "dirty LRU write-back preserves modified data");
     cache_read(LineC + 32'd8, read_data);
     expect_word(read_data, 32'hdead_beef, "write miss is applied before response");
-
-    cache_read(LineB, read_data);
-    expect_word(read_data, 32'h2000_0000, "dirty store-miss line can be evicted");
-    expect_int(_downstream_writes, 16, "store-miss line writes back once");
-    expect_word(_backing[(LineC+32'd8)>>2], 32'hdead_beef,
-                "store-miss data reaches backing memory on eviction");
 
     _rst = 1'b1;
     @(posedge _clk);

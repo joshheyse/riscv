@@ -549,13 +549,16 @@ package riscv_pkg;
     logic invalidate;
   } cache_command_op_t;
 
-  localparam int unsigned CacheNumSets = 128;
+  localparam int unsigned CacheNumWays = 2;
+  localparam int unsigned CacheNumSets = 64;
   localparam int unsigned CacheWordsPerLine = 8;
+  localparam int unsigned CacheWayIndexBits = CacheNumWays > 1 ? $clog2(CacheNumWays) : 1;
   localparam int unsigned CacheSetIndexBits = $clog2(CacheNumSets);
   localparam int unsigned CacheWordIndexBits = $clog2(CacheWordsPerLine);
   localparam int unsigned CacheLineOffsetBits = CacheWordIndexBits + 2;
   localparam int unsigned CacheDataIndexBits = CacheSetIndexBits + CacheWordIndexBits;
 
+  typedef logic [CacheWayIndexBits-1:0] way_index_t;
   typedef logic [XLEN-CacheSetIndexBits-CacheLineOffsetBits-1:0] tag_t;
   typedef logic [CacheSetIndexBits-1:0] set_index_t;
   typedef logic [CacheWordIndexBits-1:0] word_index_t;
