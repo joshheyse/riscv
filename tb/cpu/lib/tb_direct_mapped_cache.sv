@@ -4,7 +4,7 @@ module tb_direct_mapped_cache;
   import riscv_pkg::*;
 
   localparam time ClkPeriod = 10ns;
-  localparam int unsigned BackingWords = 4096;
+  localparam int unsigned BackingWords = 8192;
 
   logic  _clk;
   logic  _rst;
@@ -267,8 +267,10 @@ module tb_direct_mapped_cache;
   // both: bus back-pressure changes timing, never the traffic.
   task automatic run_sequence(input string label, input int unsigned grant_gap);
     localparam word_t LineA = 32'h0000_0020;
-    localparam word_t LineB = 32'h0000_1020;
-    localparam word_t LineC = 32'h0000_2020;
+    localparam word_t LineB = 32'h0000_0420;
+    localparam word_t LineC = 32'h0000_0820;
+    localparam word_t LineD = 32'h0000_0c20;
+    localparam word_t LineE = 32'h0000_1020;
     word_t read_data;
 
     _phase = label;
@@ -279,6 +281,8 @@ module tb_direct_mapped_cache;
     seed_line(LineA, 32'h1000_0000);
     seed_line(LineB, 32'h2000_0000);
     seed_line(LineC, 32'h3000_0000);
+    seed_line(LineD, 32'h4000_0000);
+    seed_line(LineE, 32'h5000_0000);
 
     _rst = 1'b1;
     repeat (2) @(posedge _clk);
@@ -357,39 +361,39 @@ module tb_direct_mapped_cache;
     expect_int(_downstream_writes, 0, "write-back cache defers hit store");
 
     cache_read(LineB + 32'd4, read_data);
-    expect_word(read_data, 32'h2000_0001, "conflicting miss returns new line");
-    expect_int(_downstream_writes, 0, "second conflicting line uses the empty way");
-    expect_int(_downstream_reads, 16, "conflicting miss refills eight beats");
-
-    cache_read(LineA + 32'd12, read_data);
-    expect_word(read_data, 32'hccdd_bbbb, "both conflicting lines remain resident");
-    expect_int(_downstream_writes, 0, "two resident ways require no eviction");
-    expect_int(_downstream_reads, 16, "both conflicting lines hit after refill");
-
-    // A was just touched, so B is LRU. A third tag for the same set must evict
-    // clean B while retaining dirty A.
+    expect_word(read_data, 32'h2000_0001, "second same-set line refills correctly");
     cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'h3000_0002, "third conflicting tag refills correctly");
-    expect_int(_downstream_writes, 0, "clean LRU victim needs no write-back");
-    expect_int(_downstream_reads, 24, "third conflicting tag refills eight beats");
+    expect_word(read_data, 32'h3000_0002, "third same-set line refills correctly");
+    cache_read(LineD + 32'd12, read_data);
+    expect_word(read_data, 32'h4000_0003, "fourth same-set line refills correctly");
+    expect_int(_downstream_writes, 0, "four same-set lines occupy empty ways");
+    expect_int(_downstream_reads, 32, "four same-set lines each refill once");
+
     cache_read(LineA + 32'd12, read_data);
-    expect_word(read_data, 32'hccdd_bbbb, "MRU dirty line survives clean LRU eviction");
-    expect_int(_downstream_reads, 24, "surviving way still hits");
+    expect_word(read_data, 32'hccdd_bbbb, "first of four same-set lines remains resident");
+    cache_read(LineB + 32'd4, read_data);
+    expect_word(read_data, 32'h2000_0001, "second of four same-set lines remains resident");
+    cache_read(LineC + 32'd8, read_data);
+    expect_word(read_data, 32'h3000_0002, "third of four same-set lines remains resident");
+    cache_read(LineD + 32'd12, read_data);
+    expect_word(read_data, 32'h4000_0003, "fourth of four same-set lines remains resident");
+    expect_int(_downstream_reads, 32, "all four resident ways hit");
 
-    // Touching A made C least-recently used. Refilling B evicts C, leaving A's
-    // dirty state intact; a subsequent C store miss must evict and write A.
-    cache_read(LineB, read_data);
-    expect_word(read_data, 32'h2000_0000, "previously evicted line misses and refills");
-    expect_int(_downstream_writes, 0, "second clean LRU victim needs no write-back");
-    expect_int(_downstream_reads, 32, "evicted line refill uses eight beats");
-
-    cache_write(LineC + 32'd8, 32'hdead_beef, 4'b1111);
-    expect_int(_downstream_writes, 8, "dirty LRU victim writes back eight beats");
-    expect_int(_downstream_reads, 40, "write miss refills the replacement line");
+    // The hit order above leaves dirty A as the tree-PLRU victim. A fifth tag
+    // must write A back and refill into its way while retaining B, C, and D.
+    cache_read(LineE + 32'd8, read_data);
+    expect_word(read_data, 32'h5000_0002, "fifth same-set tag refills correctly");
+    expect_int(_downstream_writes, 8, "dirty PLRU victim writes back eight beats");
+    expect_int(_downstream_reads, 40, "fifth same-set tag refills eight beats");
     expect_word(_backing[(LineA+32'd12)>>2], 32'hccdd_bbbb,
-                "dirty LRU write-back preserves modified data");
+                "dirty PLRU write-back preserves modified data");
+    cache_read(LineB + 32'd4, read_data);
+    expect_word(read_data, 32'h2000_0001, "PLRU replacement retains second way");
     cache_read(LineC + 32'd8, read_data);
-    expect_word(read_data, 32'hdead_beef, "write miss is applied before response");
+    expect_word(read_data, 32'h3000_0002, "PLRU replacement retains third way");
+    cache_read(LineD + 32'd12, read_data);
+    expect_word(read_data, 32'h4000_0003, "PLRU replacement retains fourth way");
+    expect_int(_downstream_reads, 40, "three non-victim ways still hit");
 
     _rst = 1'b1;
     @(posedge _clk);

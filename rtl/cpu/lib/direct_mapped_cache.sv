@@ -55,14 +55,43 @@ module direct_mapped_cache
   logic                [CacheNumWays-1:0] _way_hit;
   logic                [CacheNumWays-1:0] _way_valid;
   logic                [CacheNumWays-1:0] _way_dirty;
-  tag_t                                   _way_stored_tag       [CacheNumWays];
-  cache_meta_op_t                         _way_meta_op          [CacheNumWays];
-  mem_data_t                              _way_read_data        [CacheNumWays];
-  logic                [CacheNumSets-1:0] _lru_victim;
+  tag_t                                   _way_stored_tag         [CacheNumWays];
+  cache_meta_op_t                         _way_meta_op            [CacheNumWays];
+  mem_data_t                              _way_read_data          [CacheNumWays];
   way_index_t                             _hit_way;
   way_index_t                             _victim_way;
+  way_index_t                             _replacement_victim_way;
   way_index_t                             _victim_candidate_way;
   way_index_t                             _maintenance_way;
+  logic                                   _lru_touch_valid;
+  way_index_t                             _lru_touch_way;
+
+
+  generate
+    if (CacheNumWays == 2) begin : gen_lru_2_way
+      lru_2_way _lru_2_way (
+        .clk(clk),
+        .rst(rst),
+        .touch_valid(_lru_touch_valid),
+        .touch_set(_request_addr.set),
+        .touch_way(_lru_touch_way),
+        .victim_set(_request_addr.set),
+        .victim_way(_replacement_victim_way)
+      );
+    end else if (CacheNumWays == 4) begin : gen_lru_4_way
+      lru_4_way _lru_4_way (
+        .clk(clk),
+        .rst(rst),
+        .touch_valid(_lru_touch_valid),
+        .touch_set(_request_addr.set),
+        .touch_way(_lru_touch_way),
+        .victim_set(_request_addr.set),
+        .victim_way(_replacement_victim_way)
+      );
+    end else begin : gen_unsupported_way_count
+      initial $error("CacheNumWays must be 2 or 4");
+    end
+  endgenerate
 
   assert property (@(posedge clk) $onehot0(_way_hit));
 
@@ -107,7 +136,7 @@ module direct_mapped_cache
     end
 
     if (&_way_valid) begin
-      _victim_candidate_way = _lru_victim[_request_addr.set] ? way_index_t'(1) : way_index_t'(0);
+      _victim_candidate_way = _replacement_victim_way;
     end else begin
       for (int unsigned idx = 0; idx < CacheNumWays; idx++) begin
         if (!_way_valid[idx]) begin
@@ -116,6 +145,31 @@ module direct_mapped_cache
       end
     end
 
+  end
+
+  always_comb begin
+    _lru_touch_valid = 1'b0;
+    _lru_touch_way   = '0;
+
+    // slang lint_off case-enum-explicit
+    case (_state)
+      LOOKUP, RESPOND: begin
+        if (_request_hit && _response_transfer) begin
+          _lru_touch_valid = 1'b1;
+          _lru_touch_way   = _hit_way;
+        end
+      end
+
+      REFILL_REQUEST, REFILL_WAIT: begin
+        if (_beat_done && _beat_idx == FinalBeatIdx) begin
+          _lru_touch_valid = 1'b1;
+          _lru_touch_way   = _victim_way;
+        end
+      end
+      default: begin
+      end
+    endcase
+    // slang lint_on case-enum-explicit
   end
 
   always_comb begin
@@ -238,13 +292,12 @@ module direct_mapped_cache
       _beat_idx <= '0;
       _command_op <= '0;
       _victim_way <= '0;
-      _lru_victim <= '0;
     end else begin
       case (_state)
         IDLE: begin
           if (cache_command.valid) begin
             _state <= MAINTENANCE;
-            _maintenance_way <= 1'b0;
+            _maintenance_way <= '0;
             _maintenance_set <= '0;
             _command_op <= cache_command.op;
           end else if (upstream.req.valid) begin
@@ -286,7 +339,6 @@ module direct_mapped_cache
         LOOKUP: begin
           if (_request_hit) begin
             if (_response_transfer) begin
-              _lru_victim[_request_addr.set] <= _hit_way ? 1'b0 : 1'b1;
               _state <= IDLE;
             end else begin
               _state <= RESPOND;
@@ -339,7 +391,6 @@ module direct_mapped_cache
               if (_beat_idx == FinalBeatIdx) begin
                 _beat_idx <= '0;
                 _state <= REFILL_FINISH;
-                _lru_victim[_request_addr.set] <= _victim_way ? 1'b0 : 1'b1;
               end else begin
                 _beat_idx <= _beat_idx + 1'b1;
               end
@@ -353,7 +404,6 @@ module direct_mapped_cache
             if (_beat_idx == FinalBeatIdx) begin
               _beat_idx <= '0;
               _state <= REFILL_FINISH;
-              _lru_victim[_request_addr.set] <= _victim_way ? 1'b0 : 1'b1;
             end else begin
               _beat_idx <= _beat_idx + 1'b1;
               _state <= REFILL_REQUEST;
@@ -365,7 +415,6 @@ module direct_mapped_cache
         end
         RESPOND: begin
           if (_response_transfer) begin
-            _lru_victim[_request_addr.set] <= _hit_way ? 1'b0 : 1'b1;
             _state <= IDLE;
           end
         end

@@ -549,8 +549,8 @@ package riscv_pkg;
     logic invalidate;
   } cache_command_op_t;
 
-  localparam int unsigned CacheNumWays = 2;
-  localparam int unsigned CacheNumSets = 64;
+  localparam int unsigned CacheNumWays = 4;
+  localparam int unsigned CacheNumSets = 32;
   localparam int unsigned CacheWordsPerLine = 8;
   localparam int unsigned CacheWayIndexBits = CacheNumWays > 1 ? $clog2(CacheNumWays) : 1;
   localparam int unsigned CacheSetIndexBits = $clog2(CacheNumSets);
