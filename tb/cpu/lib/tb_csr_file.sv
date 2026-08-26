@@ -294,15 +294,16 @@ module tb_csr_file
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "mret after invalid mpp stays machine");
     read_csr(CSR_MSTATUS, 32'h0000_0080, "mret clears legalized mpp");
 
-    // `satp` stores both RV32-defined translation modes: Bare and Sv32.
+    // `satp` stores both RV32-defined translation modes and the root PPN. ASIDs
+    // are hardwired to zero until the TLB can use them to tag translations.
     write_csr(CSR_SATP, 32'h0000_0000, "write Bare satp");
     read_csr(CSR_SATP, 32'h0000_0000, "Bare satp remains zero");
     write_csr(CSR_SATP, 32'h8048_d159, "write Sv32 satp");
-    read_csr(CSR_SATP, 32'h8048_d159, "read Sv32 satp");
-    expect_bits(word_t'(_status.satp), 32'h8048_d159, "status exposes Sv32 satp");
+    read_csr(CSR_SATP, 32'h8008_d159, "read Sv32 satp with ASID cleared");
+    expect_bits(word_t'(_status.satp), 32'h8008_d159, "status exposes legalized Sv32 satp");
     write_csr(CSR_SATP, 32'hffff_ffff, "write all satp bits");
-    read_csr(CSR_SATP, 32'hffff_ffff, "all satp fields are retained");
-    expect_bits(word_t'(_status.satp), 32'hffff_ffff, "status exposes all satp fields");
+    read_csr(CSR_SATP, 32'h803f_ffff, "mode and PPN retained while ASID is cleared");
+    expect_bits(word_t'(_status.satp), 32'h803f_ffff, "status exposes legalized satp fields");
 
     // Unknown CSRs and read-only ID writes should be illegal.
     expect_illegal_read(12'hfff, "unknown CSR read illegal");

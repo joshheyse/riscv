@@ -80,6 +80,12 @@ module csr_file
     legalize_tvec.mode = TVEC_MODE_DIRECT;
   endfunction
 
+  function automatic satp_t legalize_satp(input satp_t value);
+    legalize_satp      = value;
+    // ASIDs are not implemented until the TLB can tag translations with them.
+    legalize_satp.asid = '0;
+  endfunction
+
   assign status = '{
           mtvec: _mtvec,
           stvec: _stvec,
@@ -196,7 +202,7 @@ module csr_file
           _mip.seip <= csr_write_data[9];
         end
         CSR_SATP: begin
-          _satp <= csr_write_data;
+          _satp <= legalize_satp(satp_t'(csr_write_data));
         end
         default: begin
         end
