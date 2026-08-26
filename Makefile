@@ -48,7 +48,9 @@ SIM_DIR       := $(BUILD_ROOT)/$(TB_TOP)
 # alphabetical globbing would place riscv_pkg.sv after extend.sv and friends and
 # fail elaboration with "Reference to 'word_t' before declaration", so *_pkg.sv
 # is pulled out and placed first.
-CPU_PKG_SRCS := $(sort $(wildcard $(CPU_LIB_DIR)/*_pkg.sv) $(wildcard $(CPU_DESIGN_DIR)/*_pkg.sv))
+RISCV_PKG_SRC := $(CPU_LIB_DIR)/riscv_pkg.sv
+CPU_PKG_SRCS := $(RISCV_PKG_SRC) $(filter-out $(RISCV_PKG_SRC), \
+                  $(sort $(wildcard $(CPU_LIB_DIR)/*_pkg.sv) $(wildcard $(CPU_DESIGN_DIR)/*_pkg.sv)))
 RTL_LIB_SRCS := $(sort $(wildcard $(RTL_LIB_DIR)/*.sv) $(wildcard $(RTL_LIB_DIR)/*.v))
 CPU_LIB_SRCS := $(filter-out $(CPU_PKG_SRCS), \
                   $(sort $(wildcard $(CPU_LIB_DIR)/*.sv) $(wildcard $(CPU_LIB_DIR)/*.v)))

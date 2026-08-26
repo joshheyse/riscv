@@ -2,6 +2,7 @@
 
 module csr_file
   import riscv_pkg::*;
+  import csr_legalize_pkg::*;
 (
   input logic      clk,
   input logic      rst,
@@ -30,6 +31,12 @@ module csr_file
   word_t      _mideleg;
   priv_mode_t _priv_mode;
   mstatus_t   _mstatus_write;
+  // Supervisor status aliases only the implemented shared mstatus fields.
+  /* verilator lint_off UNUSEDSIGNAL */
+  sstatus_t   _sstatus_write;
+  /* verilator lint_on UNUSEDSIGNAL */
+  mie_t       _mie_write;
+  mip_t       _mip_write;
   tvec_t      _mtvec_write;
   csr_addr_t  _csr_addr;
 
@@ -54,40 +61,6 @@ module csr_file
   localparam word_t      MIDELEG_WRITABLE_MASK = 32'h0000_0222;
   // verilog_format: on
 
-  function automatic mstatus_t legalize_mstatus(
-      input logic mie, input logic mpie, input logic [1:0] mpp, input logic sie, input logic spie,
-      input logic spp, input logic tsr, input logic tvm);
-    legalize_mstatus = '0;
-    legalize_mstatus.mie = mie;
-    legalize_mstatus.mpie = mpie;
-    legalize_mstatus.sie = sie;
-    legalize_mstatus.spie = spie;
-    legalize_mstatus.spp = spp;
-    legalize_mstatus.tsr = tsr;
-    legalize_mstatus.tvm = tvm;
-
-    // `mpp` is WARL. Keep legal privilege encodings; coerce the reserved
-    // encoding to machine mode so `mret` cannot restore an invalid live mode.
-    case (mpp)
-      2'b00:   legalize_mstatus.mpp = MPP_USER;
-      2'b01:   legalize_mstatus.mpp = MPP_SUPERVISOR;
-      2'b11:   legalize_mstatus.mpp = MPP_MACHINE;
-      default: legalize_mstatus.mpp = MPP_MACHINE;
-    endcase
-  endfunction
-
-  function automatic tvec_t legalize_tvec(input logic [29:0] base);
-    legalize_tvec      = '0;
-    legalize_tvec.base = base;
-    legalize_tvec.mode = TVEC_MODE_DIRECT;
-  endfunction
-
-  function automatic satp_t legalize_satp(input satp_t value);
-    legalize_satp      = value;
-    // ASIDs are not implemented until the TLB can tag translations with them.
-    legalize_satp.asid = '0;
-  endfunction
-
   assign status = '{
           mtvec: _mtvec,
           stvec: _stvec,
@@ -104,21 +77,17 @@ module csr_file
 
   always_comb begin
     _csr_addr = csr_addr;
-    _mstatus_write = legalize_mstatus(
-      csr_write_data[3],
-      csr_write_data[7],
-      csr_write_data[12:11],
-      csr_write_data[1],
-      csr_write_data[5],
-      csr_write_data[8],
-      csr_write_data[22],
-      csr_write_data[20]
-    );
-    _mtvec_write = legalize_tvec(csr_write_data[31:2]);
+    _mstatus_write = build_legal_mstatus(csr_write_data);
+    _sstatus_write = build_legal_sstatus(csr_write_data);
+    _mie_write = build_legal_mie(csr_write_data);
+    _mip_write = build_legal_mip(csr_write_data);
+    _mtvec_write = build_legal_tvec(csr_write_data);
     _sstatus = '0;
     _sstatus.sie = _mstatus.sie;
     _sstatus.spie = _mstatus.spie;
     _sstatus.spp = _mstatus.spp;
+    _sstatus.sum = _mstatus.sum;
+    _sstatus.mxr = _mstatus.mxr;
   end
 
   always_ff @(posedge clk) begin
@@ -163,6 +132,9 @@ module csr_file
         // slang lint_on case-enum-explicit
       endcase
     end else if (mret_valid) begin
+      if (_mstatus.mpp != MPP_MACHINE) begin
+        _mstatus.mprv <= 1'b0;
+      end
       _mstatus.mie <= _mstatus.mpie;
       _mstatus.mpie <= 1'b1;
       _priv_mode <= priv_mode_t'(_mstatus.mpp);
@@ -177,20 +149,22 @@ module csr_file
       case (_csr_addr.named)
         CSR_MSTATUS:  _mstatus <= _mstatus_write;
         CSR_SSTATUS: begin
-          _mstatus.sie  <= csr_write_data[1];
-          _mstatus.spie <= csr_write_data[5];
-          _mstatus.spp  <= csr_write_data[8];
+          _mstatus.sie  <= _sstatus_write.sie;
+          _mstatus.spie <= _sstatus_write.spie;
+          _mstatus.spp  <= _sstatus_write.spp;
+          _mstatus.sum  <= _sstatus_write.sum;
+          _mstatus.mxr  <= _sstatus_write.mxr;
         end
         CSR_MEDELEG:  _medeleg <= csr_write_data & MEDELEG_WRITABLE_MASK;
         CSR_MIDELEG:  _mideleg <= csr_write_data & MIDELEG_WRITABLE_MASK;
-        CSR_MIE:      _mie <= csr_write_data;
+        CSR_MIE:      _mie <= _mie_write;
         CSR_SIE: begin
-          _mie.ssip <= csr_write_data[1];
-          _mie.stip <= csr_write_data[5];
-          _mie.seip <= csr_write_data[9];
+          _mie.ssip <= _mie_write.ssip;
+          _mie.stip <= _mie_write.stip;
+          _mie.seip <= _mie_write.seip;
         end
         CSR_MTVEC:    _mtvec <= _mtvec_write;
-        CSR_STVEC:    _stvec <= legalize_tvec(csr_write_data[31:2]);
+        CSR_STVEC:    _stvec <= build_legal_tvec(csr_write_data);
         CSR_SSCRATCH: _sscratch <= csr_write_data;
         CSR_MEPC:     _mepc <= csr_write_data;
         CSR_SEPC:     _sepc <= csr_write_data;
@@ -198,14 +172,14 @@ module csr_file
         CSR_SCAUSE:   _scause <= csr_write_data;
         CSR_MTVAL:    _mtval <= csr_write_data;
         CSR_STVAL:    _stval <= csr_write_data;
-        CSR_MIP:      _mip <= csr_write_data;
+        CSR_MIP:      _mip <= _mip_write;
         CSR_SIP: begin
-          _mip.ssip <= csr_write_data[1];
-          _mip.stip <= csr_write_data[5];
-          _mip.seip <= csr_write_data[9];
+          _mip.ssip <= _mip_write.ssip;
+          _mip.stip <= _mip_write.stip;
+          _mip.seip <= _mip_write.seip;
         end
         CSR_SATP: begin
-          _satp <= legalize_satp(satp_t'(csr_write_data));
+          _satp <= build_legal_satp(csr_write_data);
         end
         default: begin
         end

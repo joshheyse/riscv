@@ -219,11 +219,11 @@ module tb_csr_file
 
     // `sstatus` is a masked view of shared `mstatus` storage. Writes through
     // the supervisor view must preserve machine-only fields.
-    write_csr(CSR_MSTATUS, 32'h0000_19aa, "seed machine and supervisor status fields");
-    read_csr(CSR_SSTATUS, 32'h0000_0122, "sstatus reads supervisor fields from mstatus");
-    write_csr(CSR_SSTATUS, 32'h0000_0002, "write supervisor status view");
-    read_csr(CSR_MSTATUS, 32'h0000_188a, "sstatus write preserves machine status fields");
-    read_csr(CSR_SSTATUS, 32'h0000_0002, "sstatus write updates shared supervisor fields");
+    write_csr(CSR_MSTATUS, 32'h000e_19aa, "seed machine and supervisor status fields");
+    read_csr(CSR_SSTATUS, 32'h000c_0122, "sstatus reads supervisor fields from mstatus");
+    write_csr(CSR_SSTATUS, 32'h000c_0002, "write supervisor status view");
+    read_csr(CSR_MSTATUS, 32'h000e_188a, "sstatus write preserves machine status fields");
+    read_csr(CSR_SSTATUS, 32'h000c_0002, "sstatus write updates shared supervisor fields");
     write_csr(CSR_MSTATUS, 32'h0000_0000, "clear status after alias checks");
 
     write_csr(CSR_SSTATUS, 32'h0000_0120, "seed supervisor return to supervisor");
@@ -282,7 +282,7 @@ module tb_csr_file
     read_csr(CSR_MIP, 32'h0000_0888, "read mip");
 
     write_csr(CSR_MSTATUS, 32'hffff_ffff, "write all mstatus bits");
-    read_csr(CSR_MSTATUS, 32'h0050_19aa, "mstatus keeps only supported fields");
+    read_csr(CSR_MSTATUS, 32'h005e_19aa, "mstatus keeps only supported fields");
     expect_bool(_status.mstatus.tsr, 1'b1, "status exposes written tsr");
     expect_bool(_status.mstatus.tvm, 1'b1, "status exposes written tvm");
 
@@ -295,6 +295,19 @@ module tb_csr_file
     retire_mret();
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "mret after invalid mpp stays machine");
     read_csr(CSR_MSTATUS, 32'h0000_0080, "mret clears legalized mpp");
+
+    write_csr(CSR_MSTATUS, 32'h0002_1800, "seed mprv before machine-mode mret");
+    retire_mret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "mret returns to machine mode");
+    read_csr(CSR_MSTATUS, 32'h0002_0080, "machine-mode mret preserves mprv");
+
+    write_csr(CSR_MSTATUS, 32'h0002_0800, "seed mprv before supervisor-mode mret");
+    retire_mret();
+    expect_bits(32'(_status.priv_mode), 32'(PRIV_SUPERVISOR),
+                "mret returns to supervisor mode");
+    read_csr(CSR_MSTATUS, 32'h0000_0080, "mret below machine mode clears mprv");
+    take_trap(32'h0000_0000, '{is_interrupt: 1'b0, code: CAUSE_ECALL_S}, '0);
+    write_csr(CSR_MSTATUS, 32'h0000_0000, "clear status after mprv return checks");
 
     // `satp` stores both RV32-defined translation modes and the root PPN. ASIDs
     // are hardwired to zero until the TLB can use them to tag translations.
