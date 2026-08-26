@@ -2,6 +2,7 @@
 
 module sv32_walker
   import riscv_pkg::*;
+  import sv32_pkg::*;
 (
   input logic  clk,
   input logic  rst,
@@ -17,14 +18,14 @@ module sv32_walker
     PTE_WAIT,
     RESPOND
   } state_t;
-  state_t _state;
+  state_t          _state;
 
-  mmu_rsp_t _response;
-  mmu_req_t _request;
-  logic     _level;
-  logic [21:0] _table_ppn;
+  mmu_rsp_t        _response;
+  mmu_req_t        _request;
+  logic            _level;
+  logic     [21:0] _table_ppn;
 
-  mem_req_t _memory_request;
+  mem_req_t        _memory_request;
 
   always_comb begin
     translation.rsp       = _response;
@@ -58,7 +59,7 @@ module sv32_walker
           end
         end
         PTE_REQUEST: begin
-          if (_table_ppn[21:20] != 2'b00) begin
+          if (!ppn_is_supported(_table_ppn)) begin
             _response <= '{valid: 1'b1, fault: MMU_FAULT_ACCESS, physical_addr: '0};
             _state    <= RESPOND;
           end else begin
@@ -78,14 +79,14 @@ module sv32_walker
           if (memory.rsp.valid && memory.rsp_ready) begin
             sv32_pte_t pte;
             pte = sv32_pte_t'(memory.rsp.read_data);
-            if (!pte.valid || (!pte.read && pte.write)) begin
+            if (pte_is_invalid(pte)) begin
               _response <= '{valid: 1'b1, fault: MMU_FAULT_PAGE, physical_addr: '0};
               _state <= RESPOND;
-            end else if (pte.read || pte.execute) begin
-              if (_level && (pte.ppn0 != '0)) begin
+            end else if (pte_is_leaf(pte)) begin
+              if (!leaf_access_allowed(pte, _request) || leaf_is_misaligned(pte, _level)) begin
                 _response <= '{valid: 1'b1, fault: MMU_FAULT_PAGE, physical_addr: '0};
                 _state    <= RESPOND;
-              end else if (pte.ppn1[11:10] != 2'b00) begin
+              end else if (!ppn_is_supported({pte.ppn1, pte.ppn0})) begin
                 _response <= '{valid: 1'b1, fault: MMU_FAULT_ACCESS, physical_addr: '0};
                 _state    <= RESPOND;
               end else begin
@@ -100,10 +101,10 @@ module sv32_walker
                 };
                 _state <= RESPOND;
               end
-            end else if (!_level) begin
+            end else if (nonleaf_has_reserved_bits(pte) || !_level) begin
               _response <= '{valid: 1'b1, fault: MMU_FAULT_PAGE, physical_addr: '0};
               _state    <= RESPOND;
-            end else if (pte.ppn1[11:10] != 2'b00) begin
+            end else if (!ppn_is_supported({pte.ppn1, pte.ppn0})) begin
               _response <= '{valid: 1'b1, fault: MMU_FAULT_ACCESS, physical_addr: '0};
               _state    <= RESPOND;
             end else begin
@@ -112,8 +113,8 @@ module sv32_walker
                 pte.ppn1[9:0], pte.ppn0, _request.virtual_addr.named.vpn0, 2'b00
               };
               _table_ppn <= {pte.ppn1, pte.ppn0};
-              _level     <= 1'b0;
-              _state     <= PTE_REQUEST;
+              _level <= 1'b0;
+              _state <= PTE_REQUEST;
             end
           end
         end

@@ -639,17 +639,17 @@ package riscv_pkg;
   } virtual_address_fields_t;
 
   typedef struct packed {
-    logic [11:0] ppn1;
-    logic [9:0]  ppn0;
-    logic [1:0]  rsw;
-    logic        dirty;
-    logic        accessed;
-    logic        global_mapping;
-    logic        user;
-    logic        execute;
-    logic        write;
-    logic        read;
-    logic        valid;
+    logic [11:0] ppn1;            // [31:20] upper physical page number
+    logic [9:0]  ppn0;            // [19:10] lower physical page number
+    logic [1:0]  rsw;             // [9:8] reserved for supervisor software
+    logic        dirty;           // [7] page has been written
+    logic        accessed;        // [6] page has been read, written, or fetched
+    logic        global_mapping;  // [5] mapping applies to every address space
+    logic        user;            // [4] page is accessible from user mode
+    logic        execute;         // [3] instruction fetches are permitted
+    logic        write;           // [2] stores are permitted; requires read
+    logic        read;            // [1] loads are permitted
+    logic        valid;           // [0] PTE contains a valid mapping or pointer
   } sv32_pte_t;
 
   typedef union packed {
