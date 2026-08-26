@@ -20,24 +20,24 @@
 module alu_execute
   import riscv_pkg::*;
 (
-  input  alu_data_t src_a,
-  input  alu_data_t src_b,
+  input  integer_data_t src_a,
+  input  integer_data_t src_b,
   input  alu_ctrl_t ctrl,
-  output alu_data_t alu_result
+  output integer_data_t alu_result
 );
 
-  alu_data_t _add;
-  alu_data_t _sub;
-  alu_data_t _and;
-  alu_data_t _or;
-  alu_data_t _xor;
+  integer_data_t _add;
+  integer_data_t _sub;
+  integer_data_t _and;
+  integer_data_t _or;
+  integer_data_t _xor;
   assign _add = src_a + src_b;
   assign _sub = src_a - src_b;
   assign _and = src_a & src_b;
   assign _or  = src_a | src_b;
   assign _xor = src_a ^ src_b;
 
-  alu_data_t _arith;
+  integer_data_t _arith;
   assign _arith = $unsigned($signed(src_a) >>> src_b[4:0]);
 
 

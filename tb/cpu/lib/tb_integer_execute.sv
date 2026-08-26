@@ -17,7 +17,7 @@ module tb_integer_execute
   reg_data_t   _rs1_data;
   reg_data_t   _rs2_data;
   imm_t        _imm;
-  alu_data_t   _alu_result;
+  integer_data_t _alu_result;
   mem_data_t   _store_data;
   pc_src_t     _pc_src;
 
@@ -72,7 +72,7 @@ module tb_integer_execute
 
     _ctrl = '0;
     _ctrl.alu.op = ALU_ADDSUB;
-    _ctrl.alu_operands = ALU_OPERANDS_RS1_RS2;
+    _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;
     _ctrl.flow = FLOW_NONE;
     _ctrl.branch_sgnd = 1'b1;
     _branch_funct3 = br_funct3_t'(3'b000);
@@ -85,16 +85,16 @@ module tb_integer_execute
     expect_word(_store_data, 32'h0000_0005, "store data comes from rs2");
     expect_pc_src(_pc_src, PC_SRC_INC, "plain ALU op does not redirect");
 
-    _ctrl.alu_operands = ALU_OPERANDS_RS1_IMM;
+    _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_IMM;
     settle();
     expect_word(_alu_result, 32'h0000_0027, "rs1+imm ALU operands");
     expect_word(_store_data, 32'h0000_0005, "store data ignores immediate operand");
 
-    _ctrl.alu_operands = ALU_OPERANDS_PC_IMM;
+    _ctrl.integer_operands_sel = INTEGER_OPERANDS_PC_IMM;
     settle();
     expect_word(_alu_result, 32'h0000_1020, "pc+imm ALU operands");
 
-    _ctrl.alu_operands = ALU_OPERANDS_RS1_RS2;
+    _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;
     _ctrl.flow = FLOW_BRANCH;
     _branch_funct3 = br_funct3_t'(3'b000);
     _rs1_data = 32'h0000_0042;
@@ -122,6 +122,36 @@ module tb_integer_execute
     _ctrl.branch_sgnd = 1'b0;
     settle();
     expect_pc_src(_pc_src, PC_SRC_INC, "untaken unsigned bltu does not redirect");
+
+    _ctrl.flow = FLOW_NONE;
+    _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;
+    _ctrl.muldiv.en = 1'b1;
+    _ctrl.muldiv.unit = MULDIV_MUL;
+    _ctrl.muldiv.mul_op = MUL_OP_LOW;
+    _rs1_data = 32'hffff_ffff;
+    _rs2_data = 32'h0000_0002;
+    settle();
+    expect_word(_alu_result, 32'hffff_fffe, "MUL result overrides ALU result");
+
+    _ctrl.muldiv.unit = MULDIV_DIV;
+    _ctrl.muldiv.div_op = DIV_OP_QUOTIENT_SIGNED;
+    _rs1_data = -32'd7;
+    _rs2_data = 32'd3;
+    settle();
+    expect_word(_alu_result, 32'hffff_fffe, "DIV result overrides ALU result");
+
+    _ctrl.muldiv.div_op = DIV_OP_REMAINDER_UNSIGNED;
+    _rs1_data = 32'hffff_ffff;
+    _rs2_data = 32'd2;
+    settle();
+    expect_word(_alu_result, 32'h0000_0001, "REM result selected from divider");
+
+    _ctrl.muldiv.en = 1'b0;
+    _ctrl.alu.op = ALU_XOR;
+    _rs1_data = 32'hf0f0_0f0f;
+    _rs2_data = 32'h0ff0_f00f;
+    settle();
+    expect_word(_alu_result, 32'hff00_ff00, "disabled M control restores ALU result");
 
     if (_errors == 0) begin
       $display("tb_integer_execute: PASS (%0d checks)", _checks);

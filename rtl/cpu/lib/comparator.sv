@@ -14,14 +14,14 @@
 module comparator
   import riscv_pkg::*;
 (
-  input  alu_data_t     src_a,
-  input  alu_data_t     src_b,
+  input  integer_data_t src_a,
+  input  integer_data_t src_b,
   input  logic          sngd,
   output branch_flags_t branch_flags
 );
 
-  alu_data_t _af;
-  alu_data_t _bf;
+  integer_data_t _af;
+  integer_data_t _bf;
   assign _af = {src_a[XLEN-1] ^ sngd, src_a[XLEN-2:0]};
   assign _bf = {src_b[XLEN-1] ^ sngd, src_b[XLEN-2:0]};
   assign branch_flags.eq = (_af == _bf);

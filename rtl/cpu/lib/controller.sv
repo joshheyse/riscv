@@ -19,6 +19,7 @@ module controller
 );
 
   logic            _alu_decode_en;
+  logic            _muldiv_decode_en;
   logic            _main_op_illegal;
   logic            _alu_op_illegal;
   logic            _mem_op_illegal;
@@ -72,11 +73,12 @@ module controller
     .reg_write_en(_main_reg_write_en),
     .mem_write_en(ctrl.mem_write_en),
     .imm_format(ctrl.imm_format),
-    .alu_operands(ctrl.alu_operands),
+    .integer_operands_sel(ctrl.integer_operands_sel),
     .execute_result(_main_execute_result),
     .writeback_result(ctrl.writeback_result),
     .flow(ctrl.flow),
     .alu_decode_en(_alu_decode_en),
+    .muldiv_decode_en(_muldiv_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
     .mem_order(ctrl.mem_order),
     .main_op_illegal(_main_op_illegal)
@@ -94,6 +96,12 @@ module controller
     .instr(instr),
     .alu_ctrl(ctrl.alu),
     .alu_op_illegal(_alu_op_illegal)
+  );
+
+  muldiv_decoder _muldiv_decoder (
+    .muldiv_decode_en(_muldiv_decode_en),
+    .instr(instr),
+    .muldiv_ctrl(ctrl.muldiv)
   );
 
   mem_decoder _mem_decoder (

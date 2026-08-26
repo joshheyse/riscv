@@ -40,13 +40,15 @@ module tb_main_decoder
   logic              _reg_write_en;
   imm_format_t       _imm_format;
   logic              _mem_write_en;
-  alu_operands_t     _alu_operands;
+  integer_operands_sel_t _integer_operands_sel;
   execute_result_t   _execute_result;
   writeback_result_t _writeback_result;
   flow_t             _flow;
   logic              _alu_decode_en;
+  logic              _muldiv_decode_en;
   logic              _clear_pc_lsb;
   logic              _main_op_illegal;
+  mem_order_op_t     _mem_order;
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
@@ -57,12 +59,14 @@ module tb_main_decoder
     .reg_write_en(_reg_write_en),
     .imm_format(_imm_format),
     .mem_write_en(_mem_write_en),
-    .alu_operands(_alu_operands),
+    .integer_operands_sel(_integer_operands_sel),
     .execute_result(_execute_result),
     .writeback_result(_writeback_result),
     .flow(_flow),
     .alu_decode_en(_alu_decode_en),
+    .muldiv_decode_en(_muldiv_decode_en),
     .clear_pc_lsb(_clear_pc_lsb),
+    .mem_order(_mem_order),
     .main_op_illegal(_main_op_illegal)
   );
 
@@ -70,7 +74,7 @@ module tb_main_decoder
   //
   // The RV32I decode table. Each function below is one column of it.
   //
-  //   category op      branch jump alu_operands imm_format execute_result writeback_result alu_decode_en reg_write_en mem_write_en
+  //   category op      branch jump integer operands imm_format execute_result writeback_result alu_decode_en reg_write_en mem_write_en
   //   R-type   0110011 0      0    RS1_RS2 x       ALU            ALU        1      1         0
   //   I-ALU    0010011 0      0    RS1_IMM IMM_I   ALU            ALU        1      1         0
   //   load     0000011 0      0    RS1_IMM IMM_I   x              MEM        0      1         0
@@ -145,18 +149,18 @@ module tb_main_decoder
   //                              but goes to memory's write port, not the ALU.
   //   branch                  -> PC_IMM, because the ALU computes the target;
   //                              a separate comparator decides taken/not-taken.
-  function automatic alu_operands_t exp_alu_operands(input logic [6:0] op);
+  function automatic integer_operands_sel_t exp_integer_operands_sel(input logic [6:0] op);
     case (op)
-      7'b0110011: return ALU_OPERANDS_RS1_RS2;  // R-type
+      7'b0110011: return INTEGER_OPERANDS_RS1_RS2;  // R-type
       7'b0010011, 7'b0000011, 7'b0100011, 7'b1100111:
-      return ALU_OPERANDS_RS1_IMM;  // I-ALU, load, store, jalr
-      7'b1100011, 7'b1101111, 7'b0010111: return ALU_OPERANDS_PC_IMM;  // branch, jal, auipc
-      default: return ALU_OPERANDS_RS1_RS2;  // don't-care
+      return INTEGER_OPERANDS_RS1_IMM;  // I-ALU, load, store, jalr
+      7'b1100011, 7'b1101111, 7'b0010111: return INTEGER_OPERANDS_PC_IMM;
+      default: return INTEGER_OPERANDS_RS1_RS2;  // don't-care
     endcase
   endfunction
 
-  // lui does not use the ALU at all -- the table marks its alu_operands as x.
-  function automatic logic alu_operands_matters(input logic [6:0] op);
+  // lui does not use integer execution -- the table marks its operands as x.
+  function automatic logic integer_operands_sel_matters(input logic [6:0] op);
     case (op)
       7'b0110011, 7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111,
       7'b0010111:
@@ -201,23 +205,39 @@ module tb_main_decoder
 
   // 0 = "just add" (addresses, jump targets), 1 = "decode the operation from
   // funct3/funct7". Only lui is a don't-care -- it never reaches the ALU.
-  function automatic logic exp_alu_decode_en(input logic [6:0] op);
-    case (op)
-      7'b0110011, 7'b0010011: return 1'b1;
-      default:                return 1'b0;
-    endcase
+  function automatic logic exp_alu_decode_en(input logic [6:0] op, input logic [6:0] funct7);
+    return op == OP_I_ALU ||
+        (op == OP_R && (funct7 == 7'b0000000 || funct7 == 7'b0100000));
+  endfunction
+
+  function automatic logic exp_muldiv_decode_en(input logic [6:0] op,
+                                                input logic [6:0] funct7);
+    return op == OP_R && funct7 == 7'b0000001;
   endfunction
 
   function automatic logic exp_clear_pc_lsb(input logic [6:0] op);
     return op == 7'b1100111;
   endfunction
 
-  function automatic logic exp_main_op_illegal(input logic [6:0] op);
+  function automatic logic exp_main_op_illegal(input logic [6:0] op, input logic [2:0] funct3,
+                                               input logic [6:0] funct7);
     case (op)
-      7'b0110011, 7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111,
-      7'b0110111, 7'b0010111, 7'b0001111, 7'b1110011:
+      OP_R: return !(funct7 == 7'b0000000 || funct7 == 7'b0100000 || funct7 == 7'b0000001);
+      OP_MISC_MEM: return funct3 != 3'b000 && funct3 != 3'b001;
+      7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111, 7'b0110111,
+      7'b0010111, 7'b1110011:
       return 1'b0;
       default: return 1'b1;
+    endcase
+  endfunction
+
+  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op,
+                                                   input logic [2:0] funct3);
+    if (op != OP_MISC_MEM) return MEM_ORDER_NONE;
+    case (funct3)
+      3'b000:  return MEM_ORDER_FENCE;
+      3'b001:  return MEM_ORDER_FENCE_I;
+      default: return MEM_ORDER_NONE;
     endcase
   endfunction
 
@@ -257,11 +277,11 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string alu_operands_name(input alu_operands_t s);
+  function automatic string integer_operands_sel_name(input integer_operands_sel_t s);
     case (s)
-      ALU_OPERANDS_RS1_RS2: return "ALU_OPERANDS_RS1_RS2";
-      ALU_OPERANDS_RS1_IMM: return "ALU_OPERANDS_RS1_IMM";
-      ALU_OPERANDS_PC_IMM:  return "ALU_OPERANDS_PC_IMM";
+      INTEGER_OPERANDS_RS1_RS2: return "INTEGER_OPERANDS_RS1_RS2";
+      INTEGER_OPERANDS_RS1_IMM: return "INTEGER_OPERANDS_RS1_IMM";
+      INTEGER_OPERANDS_PC_IMM:  return "INTEGER_OPERANDS_PC_IMM";
       default:              return $sformatf("<%02b>", s);
     endcase
   endfunction
@@ -328,21 +348,32 @@ module tb_main_decoder
   // Drive one instruction and check every output against the table.
   task automatic check_all(input logic [6:0] op, input logic [24:0] upper, input string tag);
     string who;
+    logic [2:0] funct3;
+    logic [6:0] funct7;
     _instr.raw = {upper, op};
     #1;
+    funct3 = _instr.r.funct3.raw;
+    funct7 = _instr.r.funct7;
     who = $sformatf("%s %07b (%0s)", tag, op, opcode_name(op));
 
     chk_bit(_reg_write_en, exp_reg_write_en(op), 1'b1, who, "reg_write_en");
     chk_bit(_mem_write_en, exp_mem_write_en(op), 1'b1, who, "mem_write_en");
-    chk_bit(_alu_decode_en, exp_alu_decode_en(op), alu_decode_en_matters(op), who, "alu_decode_en");
+    chk_bit(_alu_decode_en, exp_alu_decode_en(op, funct7), alu_decode_en_matters(op), who,
+            "alu_decode_en");
+    chk_bit(_muldiv_decode_en, exp_muldiv_decode_en(op, funct7), 1'b1, who,
+            "muldiv_decode_en");
     chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
-    chk_bit(_main_op_illegal, exp_main_op_illegal(op), 1'b1, who, "main_op_illegal");
+    chk_bit(_main_op_illegal, exp_main_op_illegal(op, funct3, funct7), 1'b1, who,
+            "main_op_illegal");
+    chk_enum({1'b0, _mem_order}, {1'b0, exp_mem_order(op, funct3)}, 1'b1, who, "mem_order",
+             _mem_order.name(), exp_mem_order(op, funct3).name());
 
     chk_enum(_imm_format, exp_imm_format(op), imm_format_matters(op), who, "imm_format", imm_name(
              _imm_format), imm_name(exp_imm_format(op)));
-    chk_enum({1'b0, _alu_operands}, {1'b0, exp_alu_operands(op)}, alu_operands_matters(op), who,
-             "alu_operands", alu_operands_name(_alu_operands), alu_operands_name(
-             exp_alu_operands(op)));
+    chk_enum({1'b0, _integer_operands_sel}, {1'b0, exp_integer_operands_sel(op)},
+             integer_operands_sel_matters(op), who, "integer_operands_sel",
+             integer_operands_sel_name(_integer_operands_sel),
+             integer_operands_sel_name(exp_integer_operands_sel(op)));
     chk_enum({1'b0, _execute_result}, {1'b0, exp_execute_result(op)}, execute_result_matters(op),
              who, "execute_result", execute_result_name(_execute_result), execute_result_name(
              exp_execute_result(op)));

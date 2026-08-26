@@ -10,7 +10,7 @@ module execute_result_mux
   input execute_result_t execute_result_kind,
   input pc_t             pc,
   input imm_t            imm,
-  input alu_data_t       alu_result,
+  input integer_data_t   alu_result,
   input csr_data_t       csr_result,
 
   output reg_data_t execute_result

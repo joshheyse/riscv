@@ -12,7 +12,7 @@ package riscv_pkg;
   typedef word_t pc_t;  // program counter / instruction address
   typedef word_t reg_data_t;  // register file value
   typedef word_t imm_t;  // decoded immediate value
-  typedef word_t alu_data_t;  // ALU operand/result value
+  typedef word_t integer_data_t;  // integer execution operand/result value
   typedef word_t mem_addr_t;  // data-memory or MMIO byte address
   typedef word_t mem_data_t;  // data-memory or MMIO payload
   typedef struct packed {
@@ -239,14 +239,14 @@ package riscv_pkg;
     IMM_U = 3'b100
   } imm_format_t;
 
-  // Which pair of operands the ALU sees. Bit 1 selects SrcA (rs1 or PC), bit 0
+  // Which pair of operands integer execution sees. Bit 1 selects SrcA (rs1 or PC), bit 0
   // selects SrcB (rs2 or the immediate); the names below spell out the pair.
   // PC + rs2 (2'b10) is never needed by any RV32I instruction.
   typedef enum logic [1:0] {
-    ALU_OPERANDS_RS1_RS2 = 2'b00,  // R-type, and the branch comparison
-    ALU_OPERANDS_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
-    ALU_OPERANDS_PC_IMM  = 2'b11   // branch/jal target, auipc
-  } alu_operands_t;
+    INTEGER_OPERANDS_RS1_RS2 = 2'b00,  // register-register integer operations
+    INTEGER_OPERANDS_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
+    INTEGER_OPERANDS_PC_IMM  = 2'b11   // branch/jal target, auipc
+  } integer_operands_sel_t;
 
   // First level of the writeback mux. These sources reach rd without touching
   // memory: the ALU's own output, the link address, the raw immediate, or the
@@ -345,6 +345,32 @@ package riscv_pkg;
     MEM_ORDER_FENCE_I
   } mem_order_op_t;
 
+  typedef enum logic {
+    MULDIV_MUL,
+    MULDIV_DIV
+  } muldiv_unit_t;
+
+  typedef enum logic [1:0] {
+    MUL_OP_LOW,
+    MUL_OP_HIGH_SS,
+    MUL_OP_HIGH_SU,
+    MUL_OP_HIGH_UU
+  } mul_op_t;
+
+  typedef enum logic [1:0] {
+    DIV_OP_QUOTIENT_SIGNED,
+    DIV_OP_QUOTIENT_UNSIGNED,
+    DIV_OP_REMAINDER_SIGNED,
+    DIV_OP_REMAINDER_UNSIGNED
+  } div_op_t;
+
+  typedef struct packed {
+    logic en;
+    muldiv_unit_t unit;
+    mul_op_t mul_op;
+    div_op_t div_op;
+  } muldiv_ctrl_t;
+
   typedef struct packed {
     alu_op_t op;         // ALU function selected by decode
     logic    sub_arith;  // use SUB/SRA variant for shared ALU op
@@ -355,7 +381,8 @@ package riscv_pkg;
     logic              mem_write_en;      // issue a store on the data bus
     imm_format_t       imm_format;        // instruction immediate encoding
     alu_ctrl_t         alu;               // integer ALU operation control
-    alu_operands_t     alu_operands;      // values driven onto ALU src_a/src_b
+    muldiv_ctrl_t      muldiv;            // integer MUL/DIV operation control
+    integer_operands_sel_t integer_operands_sel;  // integer execution operand sources
     execute_result_t   execute_result;    // execute-stage value before memory
     writeback_result_t writeback_result;  // value committed to rd
     pc_src_t           pc_src;            // sequential PC or IEU-computed target
@@ -586,4 +613,5 @@ package riscv_pkg;
     META_CLEAR_DIRTY,  // Mark the selected line clean after write-back.
     META_INVALIDATE    // Clear both valid and dirty for the selected set.
   } cache_meta_op_t;
+
 endpackage

@@ -13,7 +13,7 @@ module redirect_control
   input logic      id_ex_valid,
   input pc_src_t   id_ex_pc_src,
   input logic      id_ex_clear_pc_lsb,
-  input alu_data_t alu_result,
+  input integer_data_t alu_result,
 
   output redirect_t redirect,
   output trap_req_t trap

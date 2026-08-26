@@ -126,12 +126,12 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic alu_operands_t exp_alu_operands(input logic [6:0] op);
+  function automatic integer_operands_sel_t exp_integer_operands_sel(input logic [6:0] op);
     case (op)
-      OP_R:                                 return ALU_OPERANDS_RS1_RS2;
-      OP_I_ALU, OP_LOAD, OP_STORE, OP_JALR: return ALU_OPERANDS_RS1_IMM;
-      OP_BRANCH, OP_JAL, OP_AUIPC:          return ALU_OPERANDS_PC_IMM;
-      default:                              return ALU_OPERANDS_RS1_RS2;
+      OP_R:                                 return INTEGER_OPERANDS_RS1_RS2;
+      OP_I_ALU, OP_LOAD, OP_STORE, OP_JALR: return INTEGER_OPERANDS_RS1_IMM;
+      OP_BRANCH, OP_JAL, OP_AUIPC:          return INTEGER_OPERANDS_PC_IMM;
+      default:                              return INTEGER_OPERANDS_RS1_RS2;
     endcase
   endfunction
 
@@ -149,12 +149,14 @@ module tb_controller
     return op == OP_LOAD ? WB_RESULT_MEM : WB_RESULT_EXEC;
   endfunction
 
-  function automatic logic exp_alu_decode_en(input logic [6:0] op);
-    return op == OP_R || op == OP_I_ALU;
+  function automatic logic exp_alu_decode_en(input logic [6:0] op, input logic [6:0] funct7);
+    return op == OP_I_ALU ||
+        (op == OP_R && (funct7 == 7'b0000000 || funct7 == 7'b0100000));
   endfunction
 
-  function automatic alu_op_t exp_alu_op(input logic [6:0] op, input funct3_t funct3);
-    if (!exp_alu_decode_en(op)) return ALU_ADDSUB;
+  function automatic alu_op_t exp_alu_op(input logic [6:0] op, input funct3_t funct3,
+                                         input logic [6:0] funct7);
+    if (!exp_alu_decode_en(op, funct7)) return ALU_ADDSUB;
     case (funct3)
       3'b000:  return ALU_ADDSUB;
       3'b001:  return ALU_SLL;
@@ -168,13 +170,21 @@ module tb_controller
   endfunction
 
   function automatic logic exp_sub_arith(input logic [6:0] op, input funct3_t funct3,
-                                         input logic funct7_bit5);
-    if (!exp_alu_decode_en(op)) return 1'b0;
+                                         input logic [6:0] funct7);
+    if (!exp_alu_decode_en(op, funct7)) return 1'b0;
     case (funct3)
-      3'b000:  return funct7_bit5 & op[5];
-      3'b101:  return funct7_bit5;
+      3'b000:  return funct7[5] & op[5];
+      3'b101:  return funct7[5];
       default: return 1'b0;
     endcase
+  endfunction
+
+  function automatic logic exp_muldiv_en(input logic [6:0] op, input logic [6:0] funct7);
+    return op == OP_R && funct7 == 7'b0000001;
+  endfunction
+
+  function automatic muldiv_unit_t exp_muldiv_unit(input logic funct3_bit2);
+    return funct3_bit2 ? MULDIV_DIV : MULDIV_MUL;
   endfunction
 
   function automatic logic exp_branch_taken(input logic eq, input logic lt, input funct3_t funct3);
@@ -235,9 +245,11 @@ module tb_controller
     return op == OP_JALR;
   endfunction
 
-  function automatic logic exp_main_illegal(input logic [6:0] op, input funct3_t funct3);
+  function automatic logic exp_main_illegal(input logic [6:0] op, input funct3_t funct3,
+                                            input logic [6:0] funct7);
     case (op)
-      OP_R, OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_SYSTEM:
+      OP_R: return !(funct7 == 7'b0000000 || funct7 == 7'b0100000 || funct7 == 7'b0000001);
+      OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_SYSTEM:
       return 1'b0;
       OP_MISC_MEM: return funct3 != 3'b000 && funct3 != 3'b001;
       default: return 1'b1;
@@ -258,6 +270,7 @@ module tb_controller
 
   function automatic logic exp_alu_illegal(input logic [6:0] op, input funct3_t funct3,
                                            input logic [6:0] funct7);
+    if (!exp_alu_decode_en(op, funct7)) return 1'b0;
     case (op)
       OP_R: begin
         case (funct3)
@@ -351,7 +364,7 @@ module tb_controller
 
     trap = '0;
     system_op = exp_system_op(op, imm, funct3, rs1, rd);
-    trap.valid = exp_main_illegal(op, funct3) || exp_alu_illegal(op, funct3, funct7) ||
+    trap.valid = exp_main_illegal(op, funct3, funct7) || exp_alu_illegal(op, funct3, funct7) ||
         exp_mem_illegal(op, funct3) || exp_csr_illegal(op, imm, funct3, rs1, rd) ||
         (system_op == SYSTEM_OP_ECALL) || (system_op == SYSTEM_OP_EBREAK);
 
@@ -378,6 +391,7 @@ module tb_controller
     logic    [ 4:0] rd;
     logic    [ 4:0] rs1;
     logic           mem_unsigned_bad;
+    logic           muldiv_bad;
 
     op = word[6:0];
     imm = word[31:20];
@@ -394,6 +408,11 @@ module tb_controller
     checks++;
     mem_unsigned_bad = mem_unsigned_matters(op) &&
         (_ctrl.mem_unsigned !== exp_mem_unsigned(op, funct3));
+    muldiv_bad = _ctrl.muldiv.en !== exp_muldiv_en(op, funct7) ||
+        (exp_muldiv_en(op, funct7) &&
+         (_ctrl.muldiv.unit !== exp_muldiv_unit(funct3[2]) ||
+          _ctrl.muldiv.mul_op !== mul_op_t'(funct3[1:0]) ||
+          _ctrl.muldiv.div_op !== div_op_t'(funct3[1:0])));
 
     if (_ctrl.reg_write_en !== (exp_reg_write_en(
             op
@@ -415,25 +434,25 @@ module tb_controller
             op, funct3
         ) || _ctrl.imm_format !== exp_imm_format(
             op
-        ) || _ctrl.alu_operands !== exp_alu_operands(
+        ) || _ctrl.integer_operands_sel !== exp_integer_operands_sel(
             op
         ) || _ctrl.execute_result !== exp_execute_result(
             op, funct3
         ) || _ctrl.alu.op !== exp_alu_op(
-            op, funct3
+            op, funct3, funct7
         ) || _ctrl.writeback_result !== exp_writeback_result(
             op
         ) || _ctrl.flow !== exp_flow(
             op
         ) || _ctrl.alu.sub_arith !== exp_sub_arith(
-            op, funct3, funct7_bit5
+            op, funct3, funct7
         ) || _ctrl.pc_src !== exp_pc_src(
             op, eq, lt, funct3
         ) || _ctrl.branch_sgnd !== exp_branch_sgnd(
             funct3[1]
         ) || _ctrl.mem_size !== exp_mem_size(
             op, funct3
-        ) || mem_unsigned_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
+        ) || mem_unsigned_bad || muldiv_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
             op
         ) || _ctrl.trap !== exp_trap(
             op, imm, funct3, funct7, rs1, rd, word
@@ -444,23 +463,23 @@ module tb_controller
         $display("  FAIL %-38s instr=0x%08h op=%s f3=%03b f7b5=%b eq=%b lt=%b", what, word,
                  op_name(op), funct3, funct7_bit5, eq, lt);
         $display(
-            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
+            "       got reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s integer_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
             _ctrl.reg_write_en, _ctrl.mem_write_en, _ctrl.csr.en, _ctrl.csr.write_en,
             _ctrl.csr.op.name(), _ctrl.csr.use_zimm, _ctrl.system, _ctrl.mem_order.name(),
-            _ctrl.imm_format.name(), _ctrl.alu_operands.name(), _ctrl.execute_result.name(),
+            _ctrl.imm_format.name(), _ctrl.integer_operands_sel.name(), _ctrl.execute_result.name(),
             _ctrl.alu.op.name(), _ctrl.writeback_result.name(), _ctrl.flow.name(),
             _ctrl.alu.sub_arith,
             _ctrl.pc_src.name(), _ctrl.branch_sgnd, _ctrl.mem_size.name(), _ctrl.mem_unsigned,
             _ctrl.clear_pc_lsb, _ctrl.trap);
         $display(
-            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s alu_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
+            "       exp reg=%b mem=%b csr_en=%b csr_write=%b csr_op=%s csr_zimm=%b system=%b mem_order=%s imm=%s integer_operands=%s alu_res=%s alu_sel=%s res=%s flow=%s sub=%b pc=%s sgnd=%b mem_size=%s mem_unsigned=%b clear_pc_lsb=%b trap=%b",
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
             ).name(), exp_csr_use_zimm(op, funct3), exp_system_ctrl(op, imm, funct3, rs1, rd),
-            exp_mem_order(op, funct3).name(), exp_imm_format(op).name(), exp_alu_operands(op
-            ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3).name(),
+            exp_mem_order(op, funct3).name(), exp_imm_format(op).name(), exp_integer_operands_sel(op
+            ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3, funct7).name(),
             exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
-            op, funct3, funct7_bit5), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
+            op, funct3, funct7), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
             funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),
             exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd, word));
       end else if (printed == MaxPrintedFailures) begin
@@ -512,6 +531,12 @@ module tb_controller
     check(encode(7'b0000000, 5'd3, 5'd2, 3'b000, 5'd1, OP_R), 1'b0, 1'b0, "R add selects ALU add");
     check(encode(7'b0100000, 5'd3, 5'd2, 3'b000, 5'd1, OP_R), 1'b0, 1'b0,
           "R sub asserts sub_arith");
+    check(encode(7'b0000001, 5'd3, 5'd2, 3'b000, 5'd1, OP_R), 1'b0, 1'b0,
+          "M mul enables multiplier control");
+    check(encode(7'b0000001, 5'd3, 5'd2, 3'b110, 5'd1, OP_R), 1'b0, 1'b0,
+          "M rem enables divider control");
+    check(encode(7'b0000010, 5'd3, 5'd2, 3'b000, 5'd1, OP_R), 1'b0, 1'b0,
+          "unsupported R funct7 traps");
     check(encode(7'b1111111, 5'b11111, 5'd2, 3'b000, 5'd1, OP_I_ALU), 1'b0, 1'b0,
           "addi with bit 30 set remains add");
     check(encode(7'b0100000, 5'd4, 5'd2, 3'b101, 5'd1, OP_I_ALU), 1'b0, 1'b0,

@@ -19,10 +19,10 @@
 module alu_decoder
   import riscv_pkg::*;
 (
-  input  logic    alu_decode_en,
-  input  instr_u  instr,
+  input  logic      alu_decode_en,
+  input  instr_u    instr,
   output alu_ctrl_t alu_ctrl,
-  output logic    alu_op_illegal
+  output logic      alu_op_illegal
 );
 
   assign alu_ctrl.op = alu_decode_en ? instr.r.funct3.alu : ALU_ADDSUB;
