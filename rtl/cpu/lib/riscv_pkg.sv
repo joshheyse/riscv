@@ -300,7 +300,8 @@ package riscv_pkg;
     SYSTEM_OP_ECALL,
     SYSTEM_OP_EBREAK,
     SYSTEM_OP_WFI,
-    SYSTEM_OP_ILLEGAL
+    SYSTEM_OP_ILLEGAL,
+    SYSTEM_OP_SFENCE_VMA
   } system_op_t;
 
   typedef struct packed {
@@ -342,7 +343,8 @@ package riscv_pkg;
   typedef enum logic [1:0] {
     MEM_ORDER_NONE,
     MEM_ORDER_FENCE,
-    MEM_ORDER_FENCE_I
+    MEM_ORDER_FENCE_I,
+    MEM_ORDER_SFENCE_VMA
   } mem_order_op_t;
 
   typedef enum logic {
@@ -530,7 +532,10 @@ package riscv_pkg;
     CAUSE_STORE_ACCESS_FAULT    = 31'd7,
     CAUSE_ECALL_U               = 31'd8,
     CAUSE_ECALL_S               = 31'd9,
-    CAUSE_ECALL_M               = 31'd11
+    CAUSE_ECALL_M               = 31'd11,
+    CAUSE_INSTR_PAGE_FAULT      = 31'd12,
+    CAUSE_LOAD_PAGE_FAULT       = 31'd13,
+    CAUSE_STORE_PAGE_FAULT      = 31'd15
   } cause_code_t;
 
   typedef struct packed {

@@ -31,6 +31,7 @@ module controller
   execute_result_t _main_execute_result;
   csr_ctrl_t       _csr_ctrl;
   system_ctrl_t    _system_ctrl;
+  mem_order_op_t   _main_mem_order;
 
   assign _system_op_illegal = _system_ctrl.op == SYSTEM_OP_ILLEGAL;
 
@@ -80,7 +81,7 @@ module controller
     .alu_decode_en(_alu_decode_en),
     .muldiv_decode_en(_muldiv_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
-    .mem_order(ctrl.mem_order),
+    .mem_order(_main_mem_order),
     .main_op_illegal(_main_op_illegal)
   );
 
@@ -116,6 +117,8 @@ module controller
     .csr_ctrl(_csr_ctrl),
     .system_ctrl(_system_ctrl)
   );
+
+  assign ctrl.mem_order = (_system_ctrl.op == SYSTEM_OP_SFENCE_VMA) ? MEM_ORDER_SFENCE_VMA : _main_mem_order;
 
 
 endmodule

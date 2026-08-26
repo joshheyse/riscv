@@ -92,6 +92,11 @@ module tb_riscv_pkg
     expect_bits(32'(TVEC_MODE_DIRECT), 32'h0000_0000, "tvec direct encoding");
     expect_bits(32'(TVEC_MODE_VECTORED), 32'h0000_0001, "tvec vectored encoding");
     expect_bits(32'(CAUSE_ILLEGAL_INSTR), 32'h0000_0002, "illegal instruction cause encoding");
+    expect_bits(32'(CAUSE_INSTR_PAGE_FAULT), 32'h0000_000c,
+                "instruction page fault cause encoding");
+    expect_bits(32'(CAUSE_LOAD_PAGE_FAULT), 32'h0000_000d, "load page fault cause encoding");
+    expect_bits(32'(CAUSE_STORE_PAGE_FAULT), 32'h0000_000f,
+                "store page fault cause encoding");
     expect_bits(32'(SYS_IMM_ECALL), 32'h0000_0000, "SYS_IMM_ECALL encoding");
     expect_bits(32'(SYS_IMM_EBREAK), 32'h0000_0001, "SYS_IMM_EBREAK encoding");
     expect_bits(32'(SYS_IMM_WFI), 32'h0000_0105, "SYS_IMM_WFI encoding");

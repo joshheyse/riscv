@@ -6,6 +6,7 @@ module system_access_control
   input  system_ctrl_t system_ctrl,
   input  priv_mode_t   priv_mode,
   input  logic         tsr,
+  input  logic         tvm,
   output logic         illegal_system_access
 );
 
@@ -16,6 +17,9 @@ module system_access_control
       case (system_ctrl.op)
         SYSTEM_OP_MRET: begin
           illegal_system_access = priv_mode != PRIV_MACHINE;
+        end
+        SYSTEM_OP_SFENCE_VMA: begin
+          illegal_system_access = (priv_mode == PRIV_USER) || (priv_mode == PRIV_SUPERVISOR && tvm);
         end
         SYSTEM_OP_SRET: begin
           illegal_system_access = (priv_mode == PRIV_USER) || ((priv_mode == PRIV_SUPERVISOR) && tsr);

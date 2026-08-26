@@ -113,6 +113,12 @@ module tb_system_decoder
           '{en: 1'b1, op: SYSTEM_OP_EBREAK}, "ebreak");
     check(OP_SYSTEM, SYS_IMM_WFI, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_WFI}, "wfi");
+    check(OP_SYSTEM, {7'b0001001, 5'd0}, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW,
+          1'b0, '{en: 1'b1, op: SYSTEM_OP_SFENCE_VMA}, "sfence.vma all addresses and ASIDs");
+    check(OP_SYSTEM, {7'b0001001, 5'd11}, SYS_F3_PRIV, 5'd7, 5'd0, 1'b0, 1'b0, CSR_OP_RW,
+          1'b0, '{en: 1'b1, op: SYSTEM_OP_SFENCE_VMA}, "sfence.vma register operands");
+    check(OP_SYSTEM, {7'b0001001, 5'd11}, SYS_F3_PRIV, 5'd7, 5'd1, 1'b0, 1'b0, CSR_OP_RW,
+          1'b0, '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "sfence.vma requires rd x0");
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd1, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "privileged system op with nonzero rs1");
     check(OP_SYSTEM, SYS_IMM_MRET, SYS_F3_PRIV, 5'd0, 5'd1, 1'b0, 1'b0, CSR_OP_RW, 1'b0,

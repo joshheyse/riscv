@@ -256,10 +256,11 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op, input funct3_t funct3);
-    if (op != OP_MISC_MEM) begin
-      return MEM_ORDER_NONE;
-    end
+  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op, input funct3_t funct3,
+                                                   input logic [6:0] funct7, input logic [4:0] rd);
+    if (op == OP_SYSTEM && funct3 == SYS_F3_PRIV && funct7 == 7'b0001001 && rd == 5'd0)
+      return MEM_ORDER_SFENCE_VMA;
+    if (op != OP_MISC_MEM) return MEM_ORDER_NONE;
 
     case (funct3)
       3'b000:  return MEM_ORDER_FENCE;
@@ -334,6 +335,8 @@ module tb_controller
         default: return SYSTEM_OP_ILLEGAL;
       endcase
     end
+
+    if ((imm[11:5] == 7'b0001001) && (rd == 5'd0)) return SYSTEM_OP_SFENCE_VMA;
 
     if ((rs1 != 5'd0) || (rd != 5'd0)) begin
       return SYSTEM_OP_ILLEGAL;
@@ -431,7 +434,7 @@ module tb_controller
         ) || _ctrl.system !== exp_system_ctrl(
             op, imm, funct3, rs1, rd
         ) || _ctrl.mem_order !== exp_mem_order(
-            op, funct3
+            op, funct3, funct7, rd
         ) || _ctrl.imm_format !== exp_imm_format(
             op
         ) || _ctrl.integer_operands_sel !== exp_integer_operands_sel(
@@ -476,7 +479,7 @@ module tb_controller
             exp_reg_write_en(op) | exp_csr_reg_write_en(op, funct3, rd), exp_mem_write_en(op),
             exp_csr_en(op, funct3), exp_csr_write_en(op, funct3, rs1), exp_csr_op(op, funct3
             ).name(), exp_csr_use_zimm(op, funct3), exp_system_ctrl(op, imm, funct3, rs1, rd),
-            exp_mem_order(op, funct3).name(), exp_imm_format(op).name(), exp_integer_operands_sel(op
+            exp_mem_order(op, funct3, funct7, rd).name(), exp_imm_format(op).name(), exp_integer_operands_sel(op
             ).name(), exp_execute_result(op, funct3).name(), exp_alu_op(op, funct3, funct7).name(),
             exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
             op, funct3, funct7), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(

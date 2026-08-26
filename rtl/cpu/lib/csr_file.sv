@@ -48,14 +48,15 @@ module csr_file
   localparam mhartid_t   MHARTID   = '0;
   // Delegatable exceptions implemented by this core: instruction-address
   // misaligned, illegal instruction, breakpoint, load/store-address
-  // misaligned, and U/S-mode ECALL. M-mode ECALL cannot delegate downward.
-  localparam word_t      MEDELEG_WRITABLE_MASK = 32'h0000_035d;
+  // misaligned, U/S-mode ECALL, and instruction/load/store page faults.
+  // M-mode ECALL cannot delegate downward.
+  localparam word_t      MEDELEG_WRITABLE_MASK = 32'h0000_b35d;
   localparam word_t      MIDELEG_WRITABLE_MASK = 32'h0000_0222;
   // verilog_format: on
 
-  function automatic mstatus_t legalize_mstatus(input logic mie, input logic mpie,
-                                                input logic [1:0] mpp, input logic sie,
-                                                input logic spie, input logic spp, input logic tsr);
+  function automatic mstatus_t legalize_mstatus(
+      input logic mie, input logic mpie, input logic [1:0] mpp, input logic sie, input logic spie,
+      input logic spp, input logic tsr, input logic tvm);
     legalize_mstatus = '0;
     legalize_mstatus.mie = mie;
     legalize_mstatus.mpie = mpie;
@@ -63,6 +64,7 @@ module csr_file
     legalize_mstatus.spie = spie;
     legalize_mstatus.spp = spp;
     legalize_mstatus.tsr = tsr;
+    legalize_mstatus.tvm = tvm;
 
     // `mpp` is WARL. Keep legal privilege encodings; coerce the reserved
     // encoding to machine mode so `mret` cannot restore an invalid live mode.
@@ -109,7 +111,8 @@ module csr_file
       csr_write_data[1],
       csr_write_data[5],
       csr_write_data[8],
-      csr_write_data[22]
+      csr_write_data[22],
+      csr_write_data[20]
     );
     _mtvec_write = legalize_tvec(csr_write_data[31:2]);
     _sstatus = '0;

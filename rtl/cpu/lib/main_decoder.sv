@@ -130,12 +130,10 @@ module main_decoder
           main_op_illegal = 1'b1;
         end else begin
           mem_order = instr.i.funct3.raw == 3'b000 ? MEM_ORDER_FENCE : MEM_ORDER_FENCE_I;
-          main_op_illegal = 1'b0;
         end
       end
 
       OP_SYSTEM: begin
-        main_op_illegal = 1'b0;
       end
 
       default: begin

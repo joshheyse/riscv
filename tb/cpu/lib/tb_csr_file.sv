@@ -254,7 +254,8 @@ module tb_csr_file
     write_csr(CSR_MEDELEG, 32'h0000_0100, "write medeleg");
     read_csr(CSR_MEDELEG, 32'h0000_0100, "read medeleg");
     write_csr(CSR_MEDELEG, 32'hffff_ffff, "write all medeleg bits");
-    read_csr(CSR_MEDELEG, 32'h0000_035d, "medeleg keeps implemented exception positions");
+    read_csr(CSR_MEDELEG, 32'h0000_b35d,
+             "medeleg keeps implemented exceptions including page faults");
     write_csr(CSR_MEDELEG, 32'h0000_0100, "restore user ecall delegation");
     write_csr(CSR_MIDELEG, 32'h0000_0222, "delegate supervisor interrupt positions");
     read_csr(CSR_MIDELEG, 32'h0000_0222, "read mideleg");
@@ -281,8 +282,9 @@ module tb_csr_file
     read_csr(CSR_MIP, 32'h0000_0888, "read mip");
 
     write_csr(CSR_MSTATUS, 32'hffff_ffff, "write all mstatus bits");
-    read_csr(CSR_MSTATUS, 32'h0040_19aa, "mstatus keeps only supported fields");
+    read_csr(CSR_MSTATUS, 32'h0050_19aa, "mstatus keeps only supported fields");
     expect_bool(_status.mstatus.tsr, 1'b1, "status exposes written tsr");
+    expect_bool(_status.mstatus.tvm, 1'b1, "status exposes written tvm");
 
     write_csr(CSR_MSTATUS, 32'h0040_0000, "write tsr only");
     read_csr(CSR_MSTATUS, 32'h0040_0000, "mstatus preserves tsr bit");

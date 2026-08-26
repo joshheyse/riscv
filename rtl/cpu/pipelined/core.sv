@@ -275,6 +275,7 @@ module core
     .system_ctrl(_id_ex.ctrl.system),
     .priv_mode(_csr_status.priv_mode),
     .tsr(_csr_status.mstatus.tsr),
+    .tvm(_csr_status.mstatus.tvm),
     .illegal_system_access(_system_access_illegal)
   );
 

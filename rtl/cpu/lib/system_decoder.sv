@@ -29,7 +29,9 @@ module system_decoder
     if (instr.r.opcode == OP_SYSTEM) begin
       case (instr.r.funct3.sys)
         SYS_F3_PRIV: begin
-          if (!_priv_fields_valid) begin
+          if (instr.r.funct7 == 7'b0001001 && instr.r.rd == 5'b00000) begin
+            system_ctrl.op = SYSTEM_OP_SFENCE_VMA;
+          end else if (!_priv_fields_valid) begin
             system_ctrl.op = SYSTEM_OP_ILLEGAL;
           end else begin
             case (instr.i.imm.sys)
