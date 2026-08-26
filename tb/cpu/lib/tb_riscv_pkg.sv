@@ -11,19 +11,20 @@ module tb_riscv_pkg
 
   localparam int unsigned TimeoutSteps = 10;
 
-  int unsigned        errors = 0;
-  int unsigned        checks = 0;
+  int unsigned             errors = 0;
+  int unsigned             checks = 0;
 
-  mstatus_t           _mstatus;
-  mstatush_t          _mstatush;
-  sstatus_t           _sstatus;
-  senvcfg_t           _senvcfg;
-  menvcfg_t           _menvcfg;
-  mip_t               _mip;
-  tvec_t              _mtvec;
-  cause_t             _cause;
-  csr_addr_t          _csr_addr;
-  logic        [31:0] _packed;
+  mstatus_t                _mstatus;
+  mstatush_t               _mstatush;
+  sstatus_t                _sstatus;
+  senvcfg_t                _senvcfg;
+  menvcfg_t                _menvcfg;
+  mip_t                    _mip;
+  tvec_t                   _mtvec;
+  cause_t                  _cause;
+  csr_addr_t               _csr_addr;
+  virtual_address_u        _virtual_addr;
+  logic             [31:0] _packed;
 
   task automatic expect_int(input int unsigned got, input int unsigned exp, input string what);
     checks++;
@@ -59,6 +60,8 @@ module tb_riscv_pkg
     expect_int($bits(cause_t), 32, "cause_t width");
     expect_int($bits(tval_t), 32, "tval_t width");
     expect_int($bits(satp_t), 32, "satp_t width");
+    expect_int($bits(virtual_address_fields_t), 32, "virtual address fields width");
+    expect_int($bits(virtual_address_u), 32, "virtual address width");
     expect_int($bits(mvendorid_t), 32, "mvendorid_t width");
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");
@@ -74,6 +77,7 @@ module tb_riscv_pkg
     expect_int($bits(mpp_t), 2, "mpp_t width");
     expect_int($bits(sys_imm_t), 12, "sys_imm_t width");
     expect_int($bits(imm12_u), 12, "imm12_u width");
+    expect_int($bits(mmu_fault_t), 2, "mmu_fault_t width");
 
     expect_bits(32'(CBIE_NONE), 32'h0000_0000, "CBIE none encoding");
     expect_bits(32'(CBIE_FLUSH), 32'h0000_0001, "CBIE flush encoding");
@@ -85,6 +89,10 @@ module tb_riscv_pkg
     expect_bits(32'(EXT_STATUS_CLEAN), 32'h0000_0002, "extension status clean encoding");
     expect_bits(32'(EXT_STATUS_DIRTY), 32'h0000_0003, "extension status dirty encoding");
 
+    expect_bits(32'(MMU_FAULT_NONE), 32'h0000_0000, "MMU no-fault encoding");
+    expect_bits(32'(MMU_FAULT_PAGE), 32'h0000_0001, "MMU page-fault encoding");
+    expect_bits(32'(MMU_FAULT_ACCESS), 32'h0000_0002, "MMU access-fault encoding");
+
     expect_bits(32'(MPP_USER), 32'h0000_0000, "MPP user encoding");
     expect_bits(32'(MPP_SUPERVISOR), 32'h0000_0001, "MPP supervisor encoding");
     expect_bits(32'(MPP_MACHINE), 32'h0000_0003, "MPP machine encoding");
@@ -95,13 +103,17 @@ module tb_riscv_pkg
     expect_bits(32'(CAUSE_INSTR_PAGE_FAULT), 32'h0000_000c,
                 "instruction page fault cause encoding");
     expect_bits(32'(CAUSE_LOAD_PAGE_FAULT), 32'h0000_000d, "load page fault cause encoding");
-    expect_bits(32'(CAUSE_STORE_PAGE_FAULT), 32'h0000_000f,
-                "store page fault cause encoding");
+    expect_bits(32'(CAUSE_STORE_PAGE_FAULT), 32'h0000_000f, "store page fault cause encoding");
     expect_bits(32'(SYS_IMM_ECALL), 32'h0000_0000, "SYS_IMM_ECALL encoding");
     expect_bits(32'(SYS_IMM_EBREAK), 32'h0000_0001, "SYS_IMM_EBREAK encoding");
     expect_bits(32'(SYS_IMM_WFI), 32'h0000_0105, "SYS_IMM_WFI encoding");
     expect_bits(32'(SYS_IMM_MRET), 32'h0000_0302, "SYS_IMM_MRET encoding");
     expect_bits(32'(SYS_IMM_SRET), 32'h0000_0102, "SYS_IMM_SRET encoding");
+
+    _virtual_addr.raw = 32'habcd_e123;
+    expect_bits(32'(_virtual_addr.named.vpn1), 32'h0000_02af, "virtual address VPN[1] view");
+    expect_bits(32'(_virtual_addr.named.vpn0), 32'h0000_00de, "virtual address VPN[0] view");
+    expect_bits(32'(_virtual_addr.named.offset), 32'h0000_0123, "virtual address page-offset view");
 
     expect_bits(32'(CSR_SSTATUS), 32'h0000_0100, "CSR_SSTATUS address");
     expect_bits(32'(CSR_SENVCFG), 32'h0000_010a, "CSR_SENVCFG address");

@@ -620,4 +620,57 @@ package riscv_pkg;
     META_INVALIDATE    // Clear both valid and dirty for the selected set.
   } cache_meta_op_t;
 
+  typedef enum logic [1:0] {
+    MMU_ACCESS_FETCH,
+    MMU_ACCESS_LOAD,
+    MMU_ACCESS_STORE
+  } mmu_access_t;
+
+  typedef enum logic [1:0] {
+    MMU_FAULT_NONE,    // Translation completed successfully.
+    MMU_FAULT_PAGE,    // Page-table contents or permissions rejected the access.
+    MMU_FAULT_ACCESS   // Translation required an unsupported physical access.
+  } mmu_fault_t;
+
+  typedef struct packed {
+    logic [9:0]  vpn1;    // virtual address bits [31:22]
+    logic [9:0]  vpn0;    // virtual address bits [21:12]
+    logic [11:0] offset;  // page offset bits [11:0]
+  } virtual_address_fields_t;
+
+  typedef struct packed {
+    logic [11:0] ppn1;
+    logic [9:0]  ppn0;
+    logic [1:0]  rsw;
+    logic        dirty;
+    logic        accessed;
+    logic        global_mapping;
+    logic        user;
+    logic        execute;
+    logic        write;
+    logic        read;
+    logic        valid;
+  } sv32_pte_t;
+
+  typedef union packed {
+    mem_addr_t               raw;
+    virtual_address_fields_t named;
+  } virtual_address_u;
+
+  typedef struct packed {
+    logic                valid;
+    virtual_address_u    virtual_addr;
+    mmu_access_t access;
+    priv_mode_t          privilege;
+    logic                sum;
+    logic                mxr;
+  } mmu_req_t;
+
+  typedef struct packed {
+    logic       valid;
+    mmu_fault_t fault;
+    mem_addr_t  physical_addr;
+  } mmu_rsp_t;
+
+
 endpackage
