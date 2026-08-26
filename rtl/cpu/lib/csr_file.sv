@@ -39,6 +39,7 @@ module csr_file
   cause_t     _scause;
   tval_t      _stval;
   word_t      _sscratch;
+  satp_t      _satp;
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
@@ -89,7 +90,8 @@ module csr_file
           sepc: _sepc,
           medeleg: _medeleg,
           mideleg: _mideleg,
-          priv_mode: _priv_mode
+          priv_mode: _priv_mode,
+          satp: _satp
       };
 
   always_comb begin
@@ -126,6 +128,7 @@ module csr_file
       _medeleg <= '0;
       _mideleg <= '0;
       _sscratch <= '0;
+      _satp <= '0;
       _priv_mode <= PRIV_MACHINE;
     end else if (trap_valid) begin
       // slang lint_off case-enum-explicit
@@ -193,6 +196,7 @@ module csr_file
           _mip.seip <= csr_write_data[9];
         end
         CSR_SATP: begin
+          _satp <= csr_write_data;
         end
         default: begin
         end
@@ -229,7 +233,7 @@ module csr_file
         CSR_MCAUSE:    csr_read_data = _mcause;
         CSR_MTVAL:     csr_read_data = _mtval;
         CSR_MIP:       csr_read_data = _mip;
-        CSR_SATP:      csr_read_data = 32'h0000_0000;
+        CSR_SATP:      csr_read_data = _satp;
         CSR_SSTATUS:   csr_read_data = _sstatus;
         CSR_SIE:       csr_read_data = word_t'(_mie) & _mideleg;
         CSR_STVEC:     csr_read_data = _stvec;

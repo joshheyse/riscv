@@ -377,24 +377,24 @@ package riscv_pkg;
   } alu_ctrl_t;
 
   typedef struct packed {
-    logic              reg_write_en;      // commit a value to integer register rd
-    logic              mem_write_en;      // issue a store on the data bus
-    imm_format_t       imm_format;        // instruction immediate encoding
-    alu_ctrl_t         alu;               // integer ALU operation control
-    muldiv_ctrl_t      muldiv;            // integer MUL/DIV operation control
+    logic                  reg_write_en;          // commit a value to integer register rd
+    logic                  mem_write_en;          // issue a store on the data bus
+    imm_format_t           imm_format;            // instruction immediate encoding
+    alu_ctrl_t             alu;                   // integer ALU operation control
+    muldiv_ctrl_t          muldiv;                // integer MUL/DIV operation control
     integer_operands_sel_t integer_operands_sel;  // integer execution operand sources
-    execute_result_t   execute_result;    // execute-stage value before memory
-    writeback_result_t writeback_result;  // value committed to rd
-    pc_src_t           pc_src;            // sequential PC or IEU-computed target
-    logic              branch_sgnd;       // compare branch operands as signed
-    mem_size_t         mem_size;          // byte/half/word memory transfer width
-    logic              mem_unsigned;      // zero-extend load instead of sign-extend
-    logic              clear_pc_lsb;      // force JALR target bit 0 to zero
-    flow_t flow;                          // decoded branch/jump class
-    trap_req_t         trap;              // decoded synchronous trap request
-    csr_ctrl_t         csr;               // CSR read/write/set/clear control
-    system_ctrl_t      system;            // privileged SYSTEM instruction control
-    mem_order_op_t     mem_order;         // fence and related controls
+    execute_result_t       execute_result;        // execute-stage value before memory
+    writeback_result_t     writeback_result;      // value committed to rd
+    pc_src_t               pc_src;                // sequential PC or IEU-computed target
+    logic                  branch_sgnd;           // compare branch operands as signed
+    mem_size_t             mem_size;              // byte/half/word memory transfer width
+    logic                  mem_unsigned;          // zero-extend load instead of sign-extend
+    logic                  clear_pc_lsb;          // force JALR target bit 0 to zero
+    flow_t flow;                                  // decoded branch/jump class
+    trap_req_t             trap;                  // decoded synchronous trap request
+    csr_ctrl_t             csr;                   // CSR read/write/set/clear control
+    system_ctrl_t          system;                // privileged SYSTEM instruction control
+    mem_order_op_t         mem_order;             // fence and related controls
   } control_t;
 
   typedef enum logic [1:0] {
@@ -557,6 +557,12 @@ package riscv_pkg;
   } trap_stage_t;
 
   typedef struct packed {
+    logic        mode;
+    logic [8:0]  asid;
+    logic [21:0] ppn;
+  } satp_t;
+
+  typedef struct packed {
     tvec_t      mtvec;
     tvec_t      stvec;
     mstatus_t   mstatus;
@@ -567,13 +573,8 @@ package riscv_pkg;
     word_t      medeleg;
     word_t      mideleg;
     priv_mode_t priv_mode;
+    satp_t      satp;
   } csr_status_t;
-
-  typedef struct packed {
-    logic        mode;
-    logic [8:0]  asid;
-    logic [21:0] ppn;
-  } satp_t;
 
   typedef struct packed {
     logic clean;
