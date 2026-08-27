@@ -149,6 +149,17 @@ Key commit: `47436c0`.
 Key commits: `2043be5`, `60ac66d`, `4578f56`, `7b74dc2`, `af1e042`,
 `55219fc`.
 
+### 11. Multicycle RV32M Execution
+
+- Replaced the combinational divider with a 32-step restoring divider and the
+  combinational multiplier with a 32-step shift-add multiplier.
+- Added request/response backpressure, pipeline holds, and cancellation when a
+  multicycle instruction is flushed.
+- Removed all inferred DSP multipliers from the FPGA design and recovered
+  routed timing from 8.03 MHz to 45.92 MHz on the Sv32-integrated core.
+
+Key commit: `f026e60`.
+
 ## Performance History
 
 Keep this table current when a major architectural feature changes CPI, FPGA
@@ -180,6 +191,7 @@ when memory-system latency changes.
 | Pipelined    | Four-way cache replacement                    | `5920533` |  5,989 |   1,699 | 3.53 |   61.39 MHz |     17.42 |   8,648 |   2,025 |       7 |           0 |
 | Pipelined    | RV32M execution                               | `47436c0` |  5,989 |   1,699 | 3.53 |    ~7.9 MHz |     ~2.24 |  19,205 |   2,026 |       7 |          10 |
 | Pipelined    | Sv32 integration and request bypass           | `55219fc` |  7,832 |   1,699 | 4.61 |    8.03 MHz |      1.74 |  17,544 |   2,759 |       7 |          10 |
+| Pipelined    | Multicycle RV32M multiply and divide          | `f026e60` |  7,832 |   1,699 | 4.61 |   45.92 MHz |      9.96 |  11,087 |   3,101 |       7 |           0 |
 
 For architectural comparisons, also report estimated instruction throughput:
 
