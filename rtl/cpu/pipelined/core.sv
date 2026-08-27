@@ -404,22 +404,9 @@ module core
   // Fetch
   always_comb begin
     _if_id_next = '0;
-
-    unique case (_pipe_ctrl.if_id)
-      STAGE_HOLD: begin
-        _if_id_next = _if_id;
-      end
-
-      STAGE_FLUSH: begin
-        _if_id_next = '0;
-      end
-
-      STAGE_ADVANCE: begin
-        if (_fetched.valid) begin
-          _if_id_next = _fetched;
-        end
-      end
-    endcase
+    if (_fetched.valid) begin
+      _if_id_next = _fetched;
+    end
   end
 
   mem_arbiter _mem_arbiter (
@@ -487,30 +474,17 @@ module core
   // Decode
   always_comb begin
     _id_ex_next = '0;
-
-    unique case (_pipe_ctrl.id_ex)
-      STAGE_HOLD: begin
-        _id_ex_next = _id_ex;
-      end
-
-      STAGE_FLUSH: begin
-        _id_ex_next = '0;
-      end
-
-      STAGE_ADVANCE: begin
-        if (_if_id.valid) begin
-          _id_ex_next = '{
-              valid: 1'b1,
-              slot: _if_id.slot,
-              ctrl: _ctrl,
-              rs1_operand: _id_rs1_operand,
-              rs2_operand: _id_rs2_operand,
-              imm: _id_imm,
-              trap: _id_trap
-          };
-        end
-      end
-    endcase
+    if (_if_id.valid) begin
+      _id_ex_next = '{
+          valid: 1'b1,
+          slot: _if_id.slot,
+          ctrl: _ctrl,
+          rs1_operand: _id_rs1_operand,
+          rs2_operand: _id_rs2_operand,
+          imm: _id_imm,
+          trap: _id_trap
+      };
+    end
   end
 
   controller _controller (
@@ -528,31 +502,18 @@ module core
   // Execute
   always_comb begin
     _ex_mem_next = '0;
-
-    unique case (_pipe_ctrl.ex_mem)
-      STAGE_HOLD: begin
-        _ex_mem_next = _ex_mem;
-      end
-
-      STAGE_FLUSH: begin
-        _ex_mem_next = '0;
-      end
-
-      STAGE_ADVANCE: begin
-        if (_id_ex.valid) begin
-          _ex_mem_next = '{
-              valid: 1'b1,
-              pc: _id_ex.slot.pc,
-              ctrl: _id_ex.ctrl,
-              alu_result: _alu_result,
-              execute_result: _ex_result,
-              write_data: _store_data,
-              rd: _id_ex.slot.instr.r.rd,
-              trap: _ex_trap
-          };
-        end
-      end
-    endcase
+    if (_id_ex.valid) begin
+      _ex_mem_next = '{
+          valid: 1'b1,
+          pc: _id_ex.slot.pc,
+          ctrl: _id_ex.ctrl,
+          alu_result: _alu_result,
+          execute_result: _ex_result,
+          write_data: _store_data,
+          rd: _id_ex.slot.instr.r.rd,
+          trap: _ex_trap
+      };
+    end
   end
 
   integer_execute _integer_execute (
@@ -594,21 +555,7 @@ module core
 
   // Memory
   always_comb begin
-    _mem_wb_next = '0;
-
-    unique case (_pipe_ctrl.mem_wb)
-      STAGE_HOLD: begin
-        _mem_wb_next = _mem_wb;
-      end
-
-      STAGE_FLUSH: begin
-        _mem_wb_next = '0;
-      end
-
-      STAGE_ADVANCE: begin
-        _mem_wb_next = _mem_wb_payload;
-      end
-    endcase
+    _mem_wb_next = _mem_wb_payload;
   end
 
   mem_order_control _mem_order_control (
@@ -704,10 +651,30 @@ module core
       _ex_mem <= '0;
       _mem_wb <= '0;
     end else begin
-      _if_id  <= _if_id_next;
-      _id_ex  <= _id_ex_next;
-      _ex_mem <= _ex_mem_next;
-      _mem_wb <= _mem_wb_next;
+      unique case (_pipe_ctrl.if_id)
+        STAGE_HOLD: begin
+        end
+        STAGE_FLUSH:   _if_id <= '0;
+        STAGE_ADVANCE: _if_id <= _if_id_next;
+      endcase
+      unique case (_pipe_ctrl.id_ex)
+        STAGE_HOLD: begin
+        end
+        STAGE_FLUSH:   _id_ex <= '0;
+        STAGE_ADVANCE: _id_ex <= _id_ex_next;
+      endcase
+      unique case (_pipe_ctrl.ex_mem)
+        STAGE_HOLD: begin
+        end
+        STAGE_FLUSH:   _ex_mem <= '0;
+        STAGE_ADVANCE: _ex_mem <= _ex_mem_next;
+      endcase
+      unique case (_pipe_ctrl.mem_wb)
+        STAGE_HOLD: begin
+        end
+        STAGE_FLUSH:   _mem_wb <= '0;
+        STAGE_ADVANCE: _mem_wb <= _mem_wb_next;
+      endcase
     end
   end
 

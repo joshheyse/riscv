@@ -193,7 +193,8 @@ when memory-system latency changes.
 | Pipelined    | Sv32 integration and request bypass           | `55219fc` |  7,832 |   1,699 | 4.61 |    8.03 MHz |      1.74 |  17,544 |   2,759 |       7 |          10 |
 | Pipelined    | Multicycle RV32M multiply and divide          | `f026e60` |  7,832 |   1,699 | 4.61 |   45.92 MHz |      9.96 |  11,087 |   3,101 |       7 |           0 |
 | Pipelined    | Registered physical-memory boundary           | `750d373` |  7,993 |   1,699 | 4.70 |   56.39 MHz |     11.99 |  10,673 |   3,208 |       7 |           0 |
-| Pipelined    | Decoupled multiplier result slot              | this commit |  7,993 |   1,699 | 4.70 |   60.81 MHz |     12.93 |  11,354 |   3,207 |       7 |           0 |
+| Pipelined    | Decoupled multiplier result slot              | `bbf6b6e` |  7,993 |   1,699 | 4.70 |   60.81 MHz |     12.93 |  11,354 |   3,207 |       7 |           0 |
+| Pipelined    | Divider result slot and pipeline clock enables | this commit |  7,993 |   1,699 | 4.70 |   54.89 MHz |     11.67 |  11,463 |   3,206 |       7 |           0 |
 
 For architectural comparisons, also report estimated instruction throughput:
 

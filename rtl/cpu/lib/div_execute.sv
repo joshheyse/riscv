@@ -34,13 +34,13 @@ module div_execute
   localparam integer_data_t MinSigned = 32'h8000_0000;
   localparam integer_data_t NegOne = 32'hffff_ffff;
 
-  typedef enum logic [1:0] {
+  typedef enum logic {
     IDLE,
-    DIVIDE,
-    RESPOND
+    DIVIDE
   } state_t;
 
   state_t               _state;
+  logic                 _result_valid;
   integer_data_t        _result;
   integer_data_t        _divisor;
   integer_data_t        _quotient;
@@ -56,9 +56,9 @@ module div_execute
   integer_data_t        _signed_result;
 
   always_comb begin
-    rsp.valid = (_state == RESPOND);
+    rsp.valid = _result_valid;
     rsp.result = _result;
-    req_ready = (_state == IDLE);
+    req_ready = (_state == IDLE) && !_result_valid;
 
     _shifted_remainder = {_remainder, _quotient[31]};
     _next_remainder = _shifted_remainder[31:0];
@@ -75,6 +75,7 @@ module div_execute
   always_ff @(posedge clk) begin
     if (rst || cancel) begin
       _state <= IDLE;
+      _result_valid <= 1'b0;
       _result <= '0;
       _divisor <= '0;
       _quotient <= '0;
@@ -83,6 +84,10 @@ module div_execute
       _result_negative <= 1'b0;
       _return_remainder <= 1'b0;
     end else begin
+      if (_result_valid && rsp_ready) begin
+        _result_valid <= 1'b0;
+      end
+
       unique case (_state)
         IDLE: begin
           if (req.valid && req_ready) begin
@@ -95,11 +100,11 @@ module div_execute
                   _result <= req.src_a;
                 end
               endcase
-              _state <= RESPOND;
+              _result_valid <= 1'b1;
             end else if (req.src_a == MinSigned && req.src_b == NegOne &&
                       (req.op == DIV_OP_QUOTIENT_SIGNED || req.op == DIV_OP_REMAINDER_SIGNED)) begin
-              _result <= req.op == DIV_OP_QUOTIENT_SIGNED ? MinSigned : '0;
-              _state  <= RESPOND;
+              _result       <= req.op == DIV_OP_QUOTIENT_SIGNED ? MinSigned : '0;
+              _result_valid <= 1'b1;
             end else begin
               _return_remainder <= (req.op == DIV_OP_REMAINDER_SIGNED) ||
                                    (req.op == DIV_OP_REMAINDER_UNSIGNED);
@@ -123,16 +128,11 @@ module div_execute
           _remainder <= _next_remainder;
           _quotient  <= _next_quotient;
           if (_iteration == 6'd31) begin
-            _result <= _signed_result;
-            _state  <= RESPOND;
+            _result       <= _signed_result;
+            _result_valid <= 1'b1;
+            _state        <= IDLE;
           end else begin
             _iteration <= _iteration + 6'd1;
-          end
-        end
-        RESPOND: begin
-          if (rsp.valid && rsp_ready) begin
-            _result <= '0;
-            _state  <= IDLE;
           end
         end
       endcase

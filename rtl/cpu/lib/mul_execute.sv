@@ -72,7 +72,6 @@ module mul_execute
     end else begin
       if (_result_valid && rsp_ready) begin
         _result_valid <= 1'b0;
-        _result       <= '0;
       end
 
       unique case (_state)
