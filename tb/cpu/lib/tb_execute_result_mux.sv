@@ -10,7 +10,7 @@ module tb_execute_result_mux
 
   localparam int unsigned TimeoutNs = 10_000;
 
-  execute_result_t _execute_result_kind;
+  execute_result_e _execute_result_kind;
   pc_t             _pc;
   word_t           _imm;
   word_t           _alu_result;
@@ -29,7 +29,7 @@ module tb_execute_result_mux
     .execute_result(_execute_result)
   );
 
-  task automatic check(input execute_result_t execute_result, input pc_t pc, input word_t imm,
+  task automatic check(input execute_result_e execute_result, input pc_t pc, input word_t imm,
                        input word_t alu_result, input word_t csr_result, input word_t exp,
                        input string what);
     _execute_result_kind = execute_result;

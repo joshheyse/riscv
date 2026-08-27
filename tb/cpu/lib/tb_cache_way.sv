@@ -15,7 +15,7 @@ module tb_cache_way;
   logic            _data_write_en;
   mem_data_t       _write_data;
   mem_write_mask_t _write_mask;
-  cache_meta_op_t  _meta_op;
+  cache_meta_op_e  _meta_op;
   tag_t            _install_tag;
   logic            _hit;
   logic            _valid;
@@ -72,7 +72,7 @@ module tb_cache_way;
     end
   endtask
 
-  task automatic apply_meta(input set_index_t set, input cache_meta_op_t op,
+  task automatic apply_meta(input set_index_t set, input cache_meta_op_e op,
                             input tag_t install_tag = '0);
     @(negedge _clk);
     _set         = set;
@@ -86,7 +86,7 @@ module tb_cache_way;
 
   task automatic write_word(input set_index_t set, input word_index_t word_index,
                             input mem_data_t data, input mem_write_mask_t mask,
-                            input cache_meta_op_t op = META_NONE, input tag_t install_tag = '0);
+                            input cache_meta_op_e op = META_NONE, input tag_t install_tag = '0);
     @(negedge _clk);
     _set           = set;
     _word_index    = word_index;

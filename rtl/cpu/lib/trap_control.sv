@@ -63,37 +63,37 @@ module trap_control
       TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(MACHINE_SOFTWARE_INTERRUPT_CODE)
+            code: cause_code_e'(MACHINE_SOFTWARE_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_MACHINE_TIMER_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(MACHINE_TIMER_INTERRUPT_CODE)
+            code: cause_code_e'(MACHINE_TIMER_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(MACHINE_EXTERNAL_INTERRUPT_CODE)
+            code: cause_code_e'(MACHINE_EXTERNAL_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(SUPERVISOR_SOFTWARE_INTERRUPT_CODE)
+            code: cause_code_e'(SUPERVISOR_SOFTWARE_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(SUPERVISOR_TIMER_INTERRUPT_CODE)
+            code: cause_code_e'(SUPERVISOR_TIMER_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT: begin
         trap.payload.cause = '{
             is_interrupt: 1'b1,
-            code: cause_code_t'(SUPERVISOR_EXTERNAL_INTERRUPT_CODE)
+            code: cause_code_e'(SUPERVISOR_EXTERNAL_INTERRUPT_CODE)
         };
       end
       TRAP_SRC_LOAD_ADDR_MISALIGNED: begin

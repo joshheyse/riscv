@@ -30,9 +30,9 @@ module mul_execute
   typedef enum logic {
     IDLE,
     MULTIPLY
-  } state_t;
+  } state_e;
 
-  state_t               _state;
+  state_e               _state;
   logic          [63:0] _accumulator;
   logic          [63:0] _multiplicand;
   integer_data_t        _multiplier;

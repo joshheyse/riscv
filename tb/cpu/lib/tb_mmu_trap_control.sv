@@ -5,8 +5,8 @@
 module tb_mmu_trap_control;
   import riscv_pkg::*;
 
-  mmu_fault_t  _fault;
-  mmu_access_t _access;
+  mmu_fault_e  _fault;
+  mmu_access_e _access;
   mem_addr_t   _virtual_addr;
   trap_req_t   _trap_req;
 
@@ -20,8 +20,8 @@ module tb_mmu_trap_control;
     .trap_req(_trap_req)
   );
 
-  task automatic check(input mmu_fault_t fault, input mmu_access_t access,
-                       input logic expected_valid, input trap_src_t expected_src,
+  task automatic check(input mmu_fault_e fault, input mmu_access_e access,
+                       input logic expected_valid, input trap_src_e expected_src,
                        input string what);
     _fault = fault;
     _access = access;

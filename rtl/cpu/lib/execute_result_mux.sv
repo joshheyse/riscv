@@ -7,7 +7,7 @@
 module execute_result_mux
   import riscv_pkg::*;
 (
-  input execute_result_t execute_result_kind,
+  input execute_result_e execute_result_kind,
   input pc_t             pc,
   input imm_t            imm,
   input integer_data_t   alu_result,

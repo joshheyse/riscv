@@ -106,7 +106,7 @@ module tb_translation_adapter;
     _translation.req_ready = 1'b0;
   endtask
 
-  task automatic return_translation(input mmu_fault_t fault, input mem_addr_t physical_addr,
+  task automatic return_translation(input mmu_fault_e fault, input mem_addr_t physical_addr,
                                     input int unsigned delay_cycles);
     repeat (delay_cycles) @(negedge _clk);
     _translation.rsp = '{valid: 1'b1, fault: fault, physical_addr: physical_addr};
@@ -226,7 +226,7 @@ module tb_translation_adapter;
     _downstream.rsp = '0;
   endtask
 
-  task automatic expect_upstream_response(input mmu_fault_t expected_fault,
+  task automatic expect_upstream_response(input mmu_fault_e expected_fault,
                                           input mem_data_t expected_data,
                                           input int unsigned stall_cycles,
                                           input string what);

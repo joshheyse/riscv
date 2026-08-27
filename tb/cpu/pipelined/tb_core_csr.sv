@@ -7,6 +7,7 @@
 
 module tb_core_csr
   import riscv_pkg::*;
+  import csr_legalize_pkg::*;
   import pipelined_pkg::*;
 ();
 
@@ -80,7 +81,7 @@ module tb_core_csr
   end
 
   function automatic instr_t csr_instr(input logic [11:0] csr, input regaddr_t rs1_or_zimm,
-                                       input sys_funct3_t funct3, input regaddr_t rd);
+                                       input sys_funct3_e funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
@@ -152,9 +153,8 @@ module tb_core_csr
     expect_word(_dut._reg_file._regs[9], 32'h0000_000a, "csrrsi zimm=0 returns old mstatus");
     expect_word(_dut._reg_file._regs[10], 32'h0000_000a, "csrrc x0 returns old mstatus");
     expect_word(_dut._reg_file._regs[0], 32'h0000_0000, "csrrw rd=x0 does not write x0");
-    // mstatus.TSR (bit 22) became writable with supervisor support; the old
-    // expectation of 0x000019aa predates it.
-    expect_word(_dut._csr_file._mstatus, 32'h0040_19aa, "final csrrw rd=x0 writes mstatus");
+    expect_word(_dut._csr_file._mstatus, word_t'(build_legal_mstatus('1)),
+                "final csrrw rd=x0 writes legal mstatus fields");
     expect_bit(_halted, 1'b0, "legal CSR sequence does not halt");
 
     if (_errors == 0) begin

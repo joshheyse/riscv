@@ -42,8 +42,8 @@ module tb_trap_control
     end
   endtask
 
-  task automatic drive(input logic trap_valid, input trap_src_t trap_src, input tval_t tval,
-                       input pc_t pc, input tvec_t tvec, input priv_mode_t priv_mode);
+  task automatic drive(input logic trap_valid, input trap_src_e trap_src, input tval_t tval,
+                       input pc_t pc, input tvec_t tvec, input priv_mode_e priv_mode);
     _trap_req             = '{valid: trap_valid, src: trap_src, tval: tval};
     _pc                   = pc;
     _csr_status           = '0;
@@ -72,8 +72,8 @@ module tb_trap_control
     expect_bits(32'(_trap.payload.target_priv), 32'(PRIV_MACHINE), {what, " target_priv"});
   endtask
 
-  task automatic drive_delegated(input trap_src_t trap_src, input tval_t tval, input pc_t pc,
-                                 input priv_mode_t priv_mode, input word_t medeleg,
+  task automatic drive_delegated(input trap_src_e trap_src, input tval_t tval, input pc_t pc,
+                                 input priv_mode_e priv_mode, input word_t medeleg,
                                  input tvec_t mtvec, input tvec_t stvec);
     _trap_req             = '{valid: 1'b1, src: trap_src, tval: tval};
     _pc                   = pc;
@@ -86,7 +86,7 @@ module tb_trap_control
   endtask
 
   task automatic expect_delegated_trap(input word_t cause, input tval_t tval, input pc_t epc,
-                                       input pc_t handler_pc, input priv_mode_t target_priv,
+                                       input pc_t handler_pc, input priv_mode_e target_priv,
                                        input string what);
     expect_bool(_trap.valid, 1'b1, {what, " valid"});
     expect_bits(_trap.payload.epc, epc, {what, " epc"});

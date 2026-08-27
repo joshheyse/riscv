@@ -30,7 +30,7 @@ package riscv_pkg;
     PRIV_USER       = 2'b00,
     PRIV_SUPERVISOR = 2'b01,
     PRIV_MACHINE    = 2'b11
-  } priv_mode_t;
+  } priv_mode_e;
 
   typedef enum csr_addr_raw_t {
     CSR_SSTATUS    = 12'h100,
@@ -77,7 +77,7 @@ package riscv_pkg;
 
   typedef struct packed {
     logic [1:0] rw;        // [11:10] read/write class; 2'b11 is read-only
-    priv_mode_t min_priv;  // [9:8] minimum privilege required by CSR address
+    priv_mode_e min_priv;  // [9:8] minimum privilege required by CSR address
     logic [7:0] index;     // [7:0] CSR index within the privilege/class space
   } csr_addr_fields_t;
 
@@ -85,7 +85,7 @@ package riscv_pkg;
     csr_addr_raw_t    raw;     // full 12-bit CSR address
     csr_addr_e        named;   // known CSR address enum view
     csr_addr_fields_t fields;  // decoded CSR address fields
-  } csr_addr_t;
+  } csr_addr_u;
 
   typedef logic [2:0] funct3_t;
   typedef logic [6:0] funct7_t;
@@ -132,7 +132,7 @@ package riscv_pkg;
     OP_AUIPC    = 7'b0010111,
     OP_SYSTEM   = 7'b1110011,
     OP_MISC_MEM = 7'b0001111
-  } opcode_t;
+  } opcode_e;
 
   // ------------------------------------------------------------- funct3 --
   //
@@ -167,7 +167,7 @@ package riscv_pkg;
     ALU_SRL_SRA = 3'b101,
     ALU_OR      = 3'b110,
     ALU_AND     = 3'b111
-  } alu_op_t;
+  } alu_op_e;
 
   typedef enum logic [2:0] {
     MEM_BYTE  = 3'b000,  // LB / SB
@@ -175,7 +175,7 @@ package riscv_pkg;
     MEM_WORD  = 3'b010,  // LW / SW
     MEM_BYTEU = 3'b100,  // LBU
     MEM_HALFU = 3'b101   // LHU
-  } mem_funct3_t;
+  } mem_funct3_e;
 
   typedef enum logic [2:0] {
     SYS_F3_PRIV = 3'b000,  // ecall, ebreak, mret, wfi, etc.
@@ -185,7 +185,7 @@ package riscv_pkg;
     SYS_F3_RWI  = 3'b101,  // csrrwi
     SYS_F3_RSI  = 3'b110,  // csrrsi
     SYS_F3_RCI  = 3'b111   // csrrci
-  } sys_funct3_t;
+  } sys_funct3_e;
 
   typedef enum logic [11:0] {
     SYS_IMM_ECALL  = 12'h000,
@@ -193,19 +193,19 @@ package riscv_pkg;
     SYS_IMM_SRET   = 12'h102,
     SYS_IMM_WFI    = 12'h105,
     SYS_IMM_MRET   = 12'h302
-  } sys_imm_t;
+  } sys_imm_e;
 
   typedef union packed {
     logic [11:0] raw;  // the bits, uninterpreted
-    sys_imm_t    sys;  // SYSTEM privileged instruction immediate
+    sys_imm_e    sys;  // SYSTEM privileged instruction immediate
   } imm12_u;
 
   typedef union packed {
     funct3_t     raw;  // the bits, uninterpreted
-    alu_op_t     alu;  // OP, OP-IMM
+    alu_op_e     alu;  // OP, OP-IMM
     br_funct3_t  br;   // BRANCH
-    mem_funct3_t mem;  // LOAD, STORE
-    sys_funct3_t sys;  // SYSTEM
+    mem_funct3_e mem;  // LOAD, STORE
+    sys_funct3_e sys;  // SYSTEM
   } funct3_u;
 
   // --------------------------------------------------- instruction formats --
@@ -216,7 +216,7 @@ package riscv_pkg;
     logic [4:0] rs1;     // [19:15]
     funct3_u    funct3;  // [14:12]
     logic [4:0] rd;      // [11:7]
-    opcode_t    opcode;  // [6:0]
+    opcode_e    opcode;  // [6:0]
   } r_type_t;
 
   typedef struct packed {
@@ -224,7 +224,7 @@ package riscv_pkg;
     logic [4:0] rs1;     // [19:15]
     funct3_u    funct3;  // [14:12]
     logic [4:0] rd;      // [11:7]
-    opcode_t    opcode;  // [6:0]
+    opcode_e    opcode;  // [6:0]
   } i_type_t;
 
   typedef union packed {
@@ -244,7 +244,7 @@ package riscv_pkg;
     IMM_B = 3'b010,
     IMM_J = 3'b011,
     IMM_U = 3'b100
-  } imm_format_t;
+  } imm_format_e;
 
   // Which pair of operands integer execution sees. Bit 1 selects SrcA (rs1 or PC), bit 0
   // selects SrcB (rs2 or the immediate); the names below spell out the pair.
@@ -253,7 +253,7 @@ package riscv_pkg;
     INTEGER_OPERANDS_RS1_RS2 = 2'b00,  // register-register integer operations
     INTEGER_OPERANDS_RS1_IMM = 2'b01,  // I-type ALU, load/store address, jalr target
     INTEGER_OPERANDS_PC_IMM  = 2'b11   // branch/jal target, auipc
-  } integer_operands_sel_t;
+  } integer_operands_sel_e;
 
   // First level of the writeback mux. These sources reach rd without touching
   // memory: the ALU's own output, the link address, the raw immediate, or the
@@ -263,13 +263,13 @@ package riscv_pkg;
     EXEC_RESULT_PC_PLUS4 = 2'b01,  // jal, jalr -- the return address
     EXEC_RESULT_IMM      = 2'b10,  // lui, which bypasses the ALU entirely
     EXEC_RESULT_CSR      = 2'b11   // CSR read result
-  } execute_result_t;
+  } execute_result_e;
 
   // Second level of the writeback mux: the value chosen above, or memory.
   typedef enum logic {
     WB_RESULT_EXEC = 1'b0,
     WB_RESULT_MEM  = 1'b1   // loads
-  } writeback_result_t;
+  } writeback_result_e;
 
   typedef struct packed {
     logic eq;
@@ -279,24 +279,24 @@ package riscv_pkg;
   typedef enum logic {
     PC_SRC_INC     = 1'b0,
     PC_SRC_IEU_ADR = 1'b1
-  } pc_src_t;
+  } pc_src_e;
 
   typedef enum logic [1:0] {
     MEM_SIZE_BYTE,
     MEM_SIZE_HALF,
     MEM_SIZE_WORD
-  } mem_size_t;
+  } mem_size_e;
 
   typedef enum logic [1:0] {
     CSR_OP_RW,
     CSR_OP_RS,
     CSR_OP_RC
-  } csr_op_t;
+  } csr_op_e;
 
   typedef struct packed {
     logic    en;
     logic    write_en;
-    csr_op_t op;
+    csr_op_e op;
     logic    use_zimm;
   } csr_ctrl_t;
 
@@ -309,11 +309,11 @@ package riscv_pkg;
     SYSTEM_OP_WFI,
     SYSTEM_OP_ILLEGAL,
     SYSTEM_OP_SFENCE_VMA
-  } system_op_t;
+  } system_op_e;
 
   typedef struct packed {
     logic       en;
-    system_op_t op;
+    system_op_e op;
   } system_ctrl_t;
 
   // Decoded control-flow class. Branch and jump are mutually exclusive; the
@@ -322,7 +322,7 @@ package riscv_pkg;
     FLOW_NONE,
     FLOW_BRANCH,
     FLOW_JUMP
-  } flow_t;
+  } flow_e;
 
   typedef enum logic [4:0] {
     TRAP_SRC_NONE,
@@ -345,11 +345,11 @@ package riscv_pkg;
     TRAP_SRC_INSTR_PAGE_FAULT,
     TRAP_SRC_LOAD_PAGE_FAULT,
     TRAP_SRC_STORE_PAGE_FAULT
-  } trap_src_t;
+  } trap_src_e;
 
   typedef struct packed {
     logic      valid;  // stage requests a trap
-    trap_src_t src;    // trap source
+    trap_src_e src;    // trap source
     tval_t     tval;   // trap-specific value
   } trap_req_t;
 
@@ -358,39 +358,56 @@ package riscv_pkg;
     MEM_ORDER_FENCE,
     MEM_ORDER_FENCE_I,
     MEM_ORDER_SFENCE_VMA
-  } mem_order_op_t;
+  } mem_order_op_e;
 
   typedef enum logic {
     MULDIV_MUL,
     MULDIV_DIV
-  } muldiv_unit_t;
+  } muldiv_unit_e;
 
   typedef enum logic [1:0] {
     MUL_OP_LOW,
     MUL_OP_HIGH_SS,
     MUL_OP_HIGH_SU,
     MUL_OP_HIGH_UU
-  } mul_op_t;
+  } mul_op_e;
 
   typedef enum logic [1:0] {
     DIV_OP_QUOTIENT_SIGNED,
     DIV_OP_QUOTIENT_UNSIGNED,
     DIV_OP_REMAINDER_SIGNED,
     DIV_OP_REMAINDER_UNSIGNED
-  } div_op_t;
+  } div_op_e;
+
+  // Atomic-memory operation selected by an OP-AMO instruction. These values
+  // are the ISA-defined funct5 encodings, so decode may use the instruction
+  // field directly after validating that it names a supported operation.
+  typedef enum logic [4:0] {
+    AMO_OP_ADD  = 5'b00000,
+    AMO_OP_SWAP = 5'b00001,
+    AMO_OP_LR   = 5'b00010,
+    AMO_OP_SC   = 5'b00011,
+    AMO_OP_XOR  = 5'b00100,
+    AMO_OP_OR   = 5'b01000,
+    AMO_OP_AND  = 5'b01100,
+    AMO_OP_MIN  = 5'b10000,
+    AMO_OP_MAX  = 5'b10100,
+    AMO_OP_MINU = 5'b11000,
+    AMO_OP_MAXU = 5'b11100
+  } amo_op_e;
 
   typedef struct packed {
     logic en;
-    muldiv_unit_t unit;
-    mul_op_t mul_op;
-    div_op_t div_op;
+    muldiv_unit_e unit;
+    mul_op_e mul_op;
+    div_op_e div_op;
   } muldiv_ctrl_t;
 
   typedef struct packed {
     logic          valid;
     integer_data_t src_a;
     integer_data_t src_b;
-    mul_op_t       op;
+    mul_op_e       op;
   } mul_req_t;
 
   typedef struct packed {
@@ -399,29 +416,29 @@ package riscv_pkg;
   } mul_rsp_t;
 
   typedef struct packed {
-    alu_op_t op;         // ALU function selected by decode
+    alu_op_e op;         // ALU function selected by decode
     logic    sub_arith;  // use SUB/SRA variant for shared ALU op
   } alu_ctrl_t;
 
   typedef struct packed {
     logic                  reg_write_en;          // commit a value to integer register rd
     logic                  mem_write_en;          // issue a store on the data bus
-    imm_format_t           imm_format;            // instruction immediate encoding
+    imm_format_e           imm_format;            // instruction immediate encoding
     alu_ctrl_t             alu;                   // integer ALU operation control
     muldiv_ctrl_t          muldiv;                // integer MUL/DIV operation control
-    integer_operands_sel_t integer_operands_sel;  // integer execution operand sources
-    execute_result_t       execute_result;        // execute-stage value before memory
-    writeback_result_t     writeback_result;      // value committed to rd
-    pc_src_t               pc_src;                // sequential PC or IEU-computed target
+    integer_operands_sel_e integer_operands_sel;  // integer execution operand sources
+    execute_result_e       execute_result;        // execute-stage value before memory
+    writeback_result_e     writeback_result;      // value committed to rd
+    pc_src_e               pc_src;                // sequential PC or IEU-computed target
     logic                  branch_sgnd;           // compare branch operands as signed
-    mem_size_t             mem_size;              // byte/half/word memory transfer width
+    mem_size_e             mem_size;              // byte/half/word memory transfer width
     logic                  mem_unsigned;          // zero-extend load instead of sign-extend
     logic                  clear_pc_lsb;          // force JALR target bit 0 to zero
-    flow_t flow;                                  // decoded branch/jump class
+    flow_e flow;                                  // decoded branch/jump class
     trap_req_t             trap;                  // decoded synchronous trap request
     csr_ctrl_t             csr;                   // CSR read/write/set/clear control
     system_ctrl_t          system;                // privileged SYSTEM instruction control
-    mem_order_op_t         mem_order;             // fence and related controls
+    mem_order_op_e         mem_order;             // fence and related controls
   } control_t;
 
   typedef enum logic [1:0] {
@@ -429,20 +446,20 @@ package riscv_pkg;
     EXT_STATUS_INITIAL = 2'b01,
     EXT_STATUS_CLEAN   = 2'b10,
     EXT_STATUS_DIRTY   = 2'b11
-  } ext_status_t;
+  } ext_status_e;
 
   typedef enum logic [1:0] {
     MPP_USER       = 2'b00,
     MPP_SUPERVISOR = 2'b01,
     MPP_MACHINE    = 2'b11
-  } mpp_t;
+  } mpp_e;
 
   typedef enum logic [1:0] {
     CBIE_NONE     = 2'b00,
     CBIE_FLUSH    = 2'b01,
     CBIE_RESERVED = 2'b10,
     CBIE_INVAL    = 2'b11
-  } cbie_t;
+  } cbie_e;
 
   typedef struct packed {
     logic [25:0] wpri5;  // [31:6] write-preserved, reads ignored
@@ -460,10 +477,10 @@ package riscv_pkg;
     logic        mxr;    // [19] make executable readable
     logic        sum;    // [18] permit S-mode user-memory access
     logic        mprv;   // [17] modify privilege for data accesses
-    ext_status_t xs;     // [16:15] user extension status
-    ext_status_t fs;     // [14:13] floating-point status
-    mpp_t        mpp;    // [12:11] previous machine privilege
-    ext_status_t vs;     // [10:9] vector extension status
+    ext_status_e xs;     // [16:15] user extension status
+    ext_status_e fs;     // [14:13] floating-point status
+    mpp_e        mpp;    // [12:11] previous machine privilege
+    ext_status_e vs;     // [10:9] vector extension status
     logic        spp;    // [8] previous supervisor privilege
     logic        mpie;   // [7] previous machine interrupt enable
     logic        ube;    // [6] user big-endian mode
@@ -481,10 +498,10 @@ package riscv_pkg;
     logic        mxr;    // [19] make executable readable
     logic        sum;    // [18] permit S-mode user-memory access
     logic        wpri4;  // [17] write-preserved, reads ignored
-    ext_status_t xs;     // [16:15] user extension status
-    ext_status_t fs;     // [14:13] floating-point status
+    ext_status_e xs;     // [16:15] user extension status
+    ext_status_e fs;     // [14:13] floating-point status
     logic [1:0]  wpri3;  // [12:11] write-preserved, reads ignored
-    ext_status_t vs;     // [10:9] vector extension status
+    ext_status_e vs;     // [10:9] vector extension status
     logic        spp;    // [8] previous supervisor privilege
     logic        wpri2;  // [7] write-preserved, reads ignored
     logic        ube;    // [6] user big-endian mode
@@ -498,7 +515,7 @@ package riscv_pkg;
     logic [23:0] wpri1;  // [31:8] write-preserved, reads ignored
     logic        cbze;   // [7] cache-block zero instruction enable
     logic        cbcfe;  // [6] cache-block clean/flush instruction enable
-    cbie_t       cbie;   // [5:4] cache-block invalidate instruction enable
+    cbie_e       cbie;   // [5:4] cache-block invalidate instruction enable
     logic        sse;    // [3] shadow stack enable
     logic        lpe;    // [2] landing pad enable
     logic        wpri0;  // [1] write-preserved, reads ignored
@@ -537,11 +554,11 @@ package riscv_pkg;
   typedef enum logic [1:0] {
     TVEC_MODE_DIRECT   = 2'b00,
     TVEC_MODE_VECTORED = 2'b01
-  } tvec_mode_t;
+  } tvec_mode_e;
 
   typedef struct packed {
     logic [29:0] base;  // [31:2] trap-vector base address
-    tvec_mode_t  mode;  // [1:0] trap-vector mode
+    tvec_mode_e  mode;  // [1:0] trap-vector mode
   } tvec_t;
 
   typedef pc_t epc_t;
@@ -561,11 +578,11 @@ package riscv_pkg;
     CAUSE_INSTR_PAGE_FAULT      = 31'd12,
     CAUSE_LOAD_PAGE_FAULT       = 31'd13,
     CAUSE_STORE_PAGE_FAULT      = 31'd15
-  } cause_code_t;
+  } cause_code_e;
 
   typedef struct packed {
     logic        is_interrupt;  // [31] 1 = interrupt, 0 = exception
-    cause_code_t code;          // [30:0] exception/interrupt cause code
+    cause_code_e code;          // [30:0] exception/interrupt cause code
   } cause_t;
 
   typedef csr_data_t mvendorid_t;
@@ -578,7 +595,7 @@ package riscv_pkg;
     cause_t     cause;        // value saved in the target privilege's xcause CSR
     tval_t      tval;         // value saved in the target privilege's xtval CSR
     pc_t        handler_pc;   // resolved trap-vector target
-    priv_mode_t target_priv;  // privilege mode entered by this trap
+    priv_mode_e target_priv;  // privilege mode entered by this trap
   } trap_t;
 
   typedef struct packed {
@@ -609,7 +626,7 @@ package riscv_pkg;
     epc_t       sepc;
     word_t      medeleg;
     word_t      mideleg;
-    priv_mode_t priv_mode;
+    priv_mode_e priv_mode;
     satp_t      satp;
     counteren_t mcounteren;
     counteren_t scounteren;
@@ -652,19 +669,19 @@ package riscv_pkg;
     META_MARK_DIRTY,   // Mark the selected valid line dirty after a store.
     META_CLEAR_DIRTY,  // Mark the selected line clean after write-back.
     META_INVALIDATE    // Clear both valid and dirty for the selected set.
-  } cache_meta_op_t;
+  } cache_meta_op_e;
 
   typedef enum logic [1:0] {
     MMU_ACCESS_FETCH,
     MMU_ACCESS_LOAD,
     MMU_ACCESS_STORE
-  } mmu_access_t;
+  } mmu_access_e;
 
   typedef enum logic [1:0] {
     MMU_FAULT_NONE,   // Translation completed successfully.
     MMU_FAULT_PAGE,   // Page-table contents or permissions rejected the access.
     MMU_FAULT_ACCESS  // Translation required an unsupported physical access.
-  } mmu_fault_t;
+  } mmu_fault_e;
 
   typedef struct packed {
     logic [9:0]  vpn1;    // virtual address bits [31:22]
@@ -692,8 +709,8 @@ package riscv_pkg;
   } virtual_address_u;
 
   typedef struct packed {
-    mmu_access_t access;
-    priv_mode_t          privilege;
+    mmu_access_e access;
+    priv_mode_e          privilege;
     logic                sum;
     logic                mxr;
   } translation_ctx_t;
@@ -706,7 +723,7 @@ package riscv_pkg;
 
   typedef struct packed {
     logic       valid;
-    mmu_fault_t fault;
+    mmu_fault_e fault;
     mem_addr_t  physical_addr;
   } mmu_rsp_t;
 
@@ -721,19 +738,26 @@ package riscv_pkg;
   typedef struct packed {
     logic       valid;      // response data is on the bus this cycle
     mem_data_t  read_data;  // read payload when valid=1 and write_en=0
-    mmu_fault_t fault;
+    mmu_fault_e fault;
   } vmem_rsp_t;
 
   typedef struct packed {
     logic          valid;
     integer_data_t src_a;
     integer_data_t src_b;
-    div_op_t       op;
+    div_op_e       op;
   } div_req_t;
 
   typedef struct packed {
     logic          valid;
     integer_data_t result;
   } div_rsp_t;
+
+  typedef struct packed {
+    logic    en;
+    amo_op_e op;
+    logic    acquire;
+    logic    release_order;
+  } amo_ctrl_t;
 
 endpackage

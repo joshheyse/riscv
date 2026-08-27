@@ -38,9 +38,9 @@ module ifu
     WAIT,
     DROP_REQUEST,
     DROP_WAIT
-  } state_t;
+  } state_e;
 
-  state_t _state;
+  state_e _state;
   pc_t    _request_pc;
   logic   _request_transfer;
   logic   _response_transfer;

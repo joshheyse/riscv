@@ -5,8 +5,8 @@ module csr_access_control
 (
   input  logic       csr_en,
   input  logic       csr_write_en,
-  input  csr_addr_t  csr_addr,
-  input  priv_mode_t priv_mode,
+  input  csr_addr_u  csr_addr,
+  input  priv_mode_e priv_mode,
   /* verilator lint_off UNUSEDSIGNAL */
   input  counteren_t mcounteren,
   input  counteren_t scounteren,
@@ -14,7 +14,7 @@ module csr_access_control
   output logic       illegal_csr_access
 );
 
-  function automatic logic counter_access_allowed(input priv_mode_t mode,
+  function automatic logic counter_access_allowed(input priv_mode_e mode,
                                                    input logic       machine_enabled,
                                                    input logic       supervisor_enabled);
     case (mode)

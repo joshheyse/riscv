@@ -25,14 +25,14 @@ module set_associative_cache
     REFILL_WAIT,
     REFILL_FINISH,
     RESPOND
-  } state_t;
+  } state_e;
 
   typedef enum logic {
     WRITE_BACK_FOR_REFILL,
     WRITE_BACK_FOR_MAINTENANCE
-  } write_back_reason_t;
+  } write_back_reason_e;
 
-  state_t                                 _state;
+  state_e                                 _state;
   mem_req_t                               _request;
   word_index_t                            _beat_idx;
   logic                                   _data_read_en;
@@ -44,7 +44,7 @@ module set_associative_cache
   logic                                   _beat_done;
   logic                                   _response_transfer;
   cache_command_op_t                      _command_op;
-  write_back_reason_t                     _write_back_reason;
+  write_back_reason_e                     _write_back_reason;
   set_index_t                             _write_back_set;
   tag_t                                   _write_back_tag;
   set_index_t                             _maintenance_set;
@@ -56,7 +56,7 @@ module set_associative_cache
   logic                [CacheNumWays-1:0] _way_valid;
   logic                [CacheNumWays-1:0] _way_dirty;
   tag_t                                   _way_stored_tag         [CacheNumWays];
-  cache_meta_op_t                         _way_meta_op            [CacheNumWays];
+  cache_meta_op_e                         _way_meta_op            [CacheNumWays];
   mem_data_t                              _way_read_data          [CacheNumWays];
   way_index_t                             _hit_way;
   way_index_t                             _victim_way;

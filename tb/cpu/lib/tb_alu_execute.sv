@@ -62,7 +62,7 @@ module tb_alu_execute
   // $display rather than $error: Verilator treats $error as $stop and aborts
   // on the first mismatch, which hides every later failure. Count here, and
   // call $fatal once at the end so `make sim` still exits non-zero.
-  task automatic check(input alu_op_t sel, input logic sa, input word_t a, input word_t b,
+  task automatic check(input alu_op_e sel, input logic sa, input word_t a, input word_t b,
                        input word_t exp, input string what);
     _ctrl.op        = sel;
     _ctrl.sub_arith = sa;
@@ -94,7 +94,7 @@ module tb_alu_execute
   // reproduces the DUT's mistakes and agrees with it enthusiastically. The
   // signedness trap that made SRA behave as SRL is exactly the kind of bug a
   // lazily written model would share.
-  function automatic word_t ref_alu(input alu_op_t sel, input logic sa, input word_t a,
+  function automatic word_t ref_alu(input alu_op_e sel, input logic sa, input word_t a,
                                     input word_t b);
     word_t                 r;
     word_t                 addend;
@@ -304,7 +304,7 @@ module tb_alu_execute
     // hand-written vector set can claim to cover.
     begin
       int unsigned errs_before;
-      alu_op_t     sel;
+      alu_op_e     sel;
       logic        sa;
       word_t       a;
       word_t       b;
@@ -313,7 +313,7 @@ module tb_alu_execute
       void'($urandom(RandomSeed));
 
       for (int unsigned t = 0; t < RandomVectors; t++) begin
-        sel = alu_op_t'(3'($urandom_range(0, 7)));
+        sel = alu_op_e'(3'($urandom_range(0, 7)));
         sa  = 1'($urandom_range(0, 1));
         a   = rand_operand();
         b   = rand_operand();

@@ -10,7 +10,7 @@ module tb_writeback_mux
 
   localparam int unsigned TimeoutNs = 10_000;
 
-  writeback_result_t _writeback_result;
+  writeback_result_e _writeback_result;
   word_t             _execute_result;
   word_t             _read_data;
   word_t             _writeback_data;
@@ -25,7 +25,7 @@ module tb_writeback_mux
     .writeback_data(_writeback_data)
   );
 
-  task automatic check(input writeback_result_t writeback_result, input word_t execute_result,
+  task automatic check(input writeback_result_e writeback_result, input word_t execute_result,
                        input word_t read_data, input word_t exp, input string what);
     _writeback_result = writeback_result;
     _execute_result   = execute_result;

@@ -28,8 +28,8 @@ module muldiv_decoder
 );
 
   assign muldiv_ctrl.unit = instr.r.funct3[2] ? MULDIV_DIV : MULDIV_MUL;
-  assign muldiv_ctrl.mul_op = mul_op_t'(instr.r.funct3[1:0]);
-  assign muldiv_ctrl.div_op = div_op_t'(instr.r.funct3[1:0]);
+  assign muldiv_ctrl.mul_op = mul_op_e'(instr.r.funct3[1:0]);
+  assign muldiv_ctrl.div_op = div_op_e'(instr.r.funct3[1:0]);
   assign muldiv_ctrl.en = muldiv_decode_en;
 
 endmodule

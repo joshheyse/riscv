@@ -88,7 +88,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic csr_op_t exp_csr_op(input logic [6:0] op, input funct3_t funct3);
+  function automatic csr_op_e exp_csr_op(input logic [6:0] op, input funct3_t funct3);
     if (op != OP_SYSTEM) return CSR_OP_RW;
     case (funct3)
       SYS_F3_RS, SYS_F3_RSI: return CSR_OP_RS;
@@ -109,13 +109,13 @@ module tb_controller
     return op == OP_JAL || op == OP_JALR;
   endfunction
 
-  function automatic flow_t exp_flow(input logic [6:0] op);
+  function automatic flow_e exp_flow(input logic [6:0] op);
     if (exp_branch(op)) return FLOW_BRANCH;
     if (exp_jump(op)) return FLOW_JUMP;
     return FLOW_NONE;
   endfunction
 
-  function automatic imm_format_t exp_imm_format(input logic [6:0] op);
+  function automatic imm_format_e exp_imm_format(input logic [6:0] op);
     case (op)
       OP_I_ALU, OP_LOAD, OP_JALR: return IMM_I;
       OP_STORE:                   return IMM_S;
@@ -126,7 +126,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic integer_operands_sel_t exp_integer_operands_sel(input logic [6:0] op);
+  function automatic integer_operands_sel_e exp_integer_operands_sel(input logic [6:0] op);
     case (op)
       OP_R:                                 return INTEGER_OPERANDS_RS1_RS2;
       OP_I_ALU, OP_LOAD, OP_STORE, OP_JALR: return INTEGER_OPERANDS_RS1_IMM;
@@ -135,7 +135,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic execute_result_t exp_execute_result(input logic [6:0] op,
+  function automatic execute_result_e exp_execute_result(input logic [6:0] op,
                                                          input funct3_t funct3);
     if (exp_csr_en(op, funct3)) return EXEC_RESULT_CSR;
     case (op)
@@ -145,7 +145,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic writeback_result_t exp_writeback_result(input logic [6:0] op);
+  function automatic writeback_result_e exp_writeback_result(input logic [6:0] op);
     return op == OP_LOAD ? WB_RESULT_MEM : WB_RESULT_EXEC;
   endfunction
 
@@ -154,7 +154,7 @@ module tb_controller
         (op == OP_R && (funct7 == 7'b0000000 || funct7 == 7'b0100000));
   endfunction
 
-  function automatic alu_op_t exp_alu_op(input logic [6:0] op, input funct3_t funct3,
+  function automatic alu_op_e exp_alu_op(input logic [6:0] op, input funct3_t funct3,
                                          input logic [6:0] funct7);
     if (!exp_alu_decode_en(op, funct7)) return ALU_ADDSUB;
     case (funct3)
@@ -183,7 +183,7 @@ module tb_controller
     return op == OP_R && funct7 == 7'b0000001;
   endfunction
 
-  function automatic muldiv_unit_t exp_muldiv_unit(input logic funct3_bit2);
+  function automatic muldiv_unit_e exp_muldiv_unit(input logic funct3_bit2);
     return funct3_bit2 ? MULDIV_DIV : MULDIV_MUL;
   endfunction
 
@@ -199,7 +199,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic pc_src_t exp_pc_src(input logic [6:0] op, input logic eq, input logic lt,
+  function automatic pc_src_e exp_pc_src(input logic [6:0] op, input logic eq, input logic lt,
                                          input funct3_t funct3);
     return ((exp_branch(op) && exp_branch_taken(eq, lt, funct3)) || exp_jump(op)) ? PC_SRC_IEU_ADR :
         PC_SRC_INC;
@@ -209,7 +209,7 @@ module tb_controller
     return ~unsgnd;
   endfunction
 
-  function automatic mem_size_t exp_mem_size(input logic [6:0] op, input funct3_t funct3);
+  function automatic mem_size_e exp_mem_size(input logic [6:0] op, input funct3_t funct3);
     case (op)
       OP_LOAD: begin
         case (funct3)
@@ -256,7 +256,7 @@ module tb_controller
     endcase
   endfunction
 
-  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op, input funct3_t funct3,
+  function automatic mem_order_op_e exp_mem_order(input logic [6:0] op, input funct3_t funct3,
                                                    input logic [6:0] funct7, input logic [4:0] rd);
     if (op == OP_SYSTEM && funct3 == SYS_F3_PRIV && funct7 == 7'b0001001 && rd == 5'd0)
       return MEM_ORDER_SFENCE_VMA;
@@ -324,7 +324,7 @@ module tb_controller
     return ctrl;
   endfunction
 
-  function automatic system_op_t exp_system_op(input logic [6:0] op, input logic [11:0] imm,
+  function automatic system_op_e exp_system_op(input logic [6:0] op, input logic [11:0] imm,
                                                input funct3_t funct3, input logic [4:0] rs1,
                                                input logic [4:0] rd);
     if (op != OP_SYSTEM) return SYSTEM_OP_NONE;
@@ -363,7 +363,7 @@ module tb_controller
       input logic [6:0] op, input logic [11:0] imm, input funct3_t funct3, input logic [6:0] funct7,
       input logic [4:0] rs1, input logic [4:0] rd, input instr_t instr);
     trap_req_t  trap;
-    system_op_t system_op;
+    system_op_e system_op;
 
     trap = '0;
     system_op = exp_system_op(op, imm, funct3, rs1, rd);
@@ -414,8 +414,8 @@ module tb_controller
     muldiv_bad = _ctrl.muldiv.en !== exp_muldiv_en(op, funct7) ||
         (exp_muldiv_en(op, funct7) &&
          (_ctrl.muldiv.unit !== exp_muldiv_unit(funct3[2]) ||
-          _ctrl.muldiv.mul_op !== mul_op_t'(funct3[1:0]) ||
-          _ctrl.muldiv.div_op !== div_op_t'(funct3[1:0])));
+          _ctrl.muldiv.mul_op !== mul_op_e'(funct3[1:0]) ||
+          _ctrl.muldiv.div_op !== div_op_e'(funct3[1:0])));
 
     if (_ctrl.reg_write_en !== (exp_reg_write_en(
             op

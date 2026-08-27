@@ -19,8 +19,8 @@ module sv32_walker
     PTE_REQUEST,
     PTE_WAIT,
     RESPOND
-  } state_t;
-  state_t          _state;
+  } state_e;
+  state_e          _state;
 
   mmu_rsp_t        _response;
   mmu_req_t        _request;

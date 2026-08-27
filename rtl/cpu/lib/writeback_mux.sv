@@ -4,7 +4,7 @@
 module writeback_mux
   import riscv_pkg::*;
 (
-  input writeback_result_t writeback_result,
+  input writeback_result_e writeback_result,
   input reg_data_t         execute_result,
   input mem_data_t         read_data,
 

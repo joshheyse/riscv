@@ -2,7 +2,7 @@ module mem_decoder
   import riscv_pkg::*;
 (
   input  instr_u    instr,
-  output mem_size_t mem_size,
+  output mem_size_e mem_size,
   output logic      mem_unsigned,
   output logic      mem_op_illegal
 );

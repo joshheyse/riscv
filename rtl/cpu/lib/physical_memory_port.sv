@@ -22,9 +22,9 @@ module physical_memory_port
     REQUEST,
     WAIT,
     RESPONSE
-  } state_t;
+  } state_e;
 
-  state_t   _state;
+  state_e   _state;
   mem_req_t _request;
   mem_rsp_t _response;
 

@@ -47,7 +47,7 @@ module tb_pipeline_control
     end
   endtask
 
-  task automatic expect_stage(input stage_ctrl_t got, input stage_ctrl_t exp, input string what);
+  task automatic expect_stage(input stage_ctrl_e got, input stage_ctrl_e exp, input string what);
     checks++;
     if (got !== exp) begin
       errors++;
@@ -55,9 +55,9 @@ module tb_pipeline_control
     end
   endtask
 
-  task automatic expect_control(input stage_ctrl_t fetch_ctrl, input stage_ctrl_t if_id_ctrl,
-                                input stage_ctrl_t id_ex_ctrl, input stage_ctrl_t ex_mem_ctrl,
-                                input stage_ctrl_t mem_wb_ctrl, input string what);
+  task automatic expect_control(input stage_ctrl_e fetch_ctrl, input stage_ctrl_e if_id_ctrl,
+                                input stage_ctrl_e id_ex_ctrl, input stage_ctrl_e ex_mem_ctrl,
+                                input stage_ctrl_e mem_wb_ctrl, input string what);
     #1;
     expect_stage(_pipe_ctrl.fetch, fetch_ctrl, {what, " fetch_ctrl"});
     expect_stage(_pipe_ctrl.if_id, if_id_ctrl, {what, " if_id_ctrl"});

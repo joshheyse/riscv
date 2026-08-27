@@ -94,7 +94,7 @@ module tb_core_privilege_return
   end
 
   function automatic instr_t csr_instr(input logic [11:0] csr, input regaddr_t rs1_or_zimm,
-                                       input sys_funct3_t funct3, input regaddr_t rd);
+                                       input sys_funct3_e funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
@@ -163,7 +163,7 @@ module tb_core_privilege_return
     expect_bit(_dut._csr_file._priv_mode == PRIV_USER, 1'b1, what);
   endtask
 
-  task automatic wait_for_trap_entry(input priv_mode_t expect_priv_mode, input word_t expect_cause,
+  task automatic wait_for_trap_entry(input priv_mode_e expect_priv_mode, input word_t expect_cause,
                                      input int unsigned max_waits, input string what);
     int unsigned waits;
 

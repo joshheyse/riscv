@@ -36,7 +36,7 @@ module tb_mul_execute
 
   function automatic integer_data_t reference(input integer_data_t src_a,
                                                input integer_data_t src_b,
-                                               input mul_op_t op);
+                                               input mul_op_e op);
     logic signed [63:0] a;
     logic signed [63:0] b;
     logic signed [63:0] product;
@@ -49,7 +49,7 @@ module tb_mul_execute
     return op == MUL_OP_LOW ? product[31:0] : product[63:32];
   endfunction
 
-  task automatic check(input mul_op_t op, input integer_data_t src_a,
+  task automatic check(input mul_op_e op, input integer_data_t src_a,
                        input integer_data_t src_b, input string what);
     integer_data_t expected;
 
@@ -109,7 +109,7 @@ module tb_mul_execute
 
     void'($urandom(32'h6d75_6c31));
     for (int unsigned i = 0; i < RandomVectors; i++) begin
-      check(mul_op_t'($urandom_range(0, 3)), 32'($urandom), 32'($urandom), "random");
+      check(mul_op_e'($urandom_range(0, 3)), 32'($urandom), 32'($urandom), "random");
     end
 
     if (_errors == 0) begin

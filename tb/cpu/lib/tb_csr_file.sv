@@ -16,7 +16,7 @@ module tb_csr_file
   logic        _rst;
   logic        _csr_en;
   logic        _csr_write_en;
-  csr_addr_t   _csr_addr;
+  csr_addr_u   _csr_addr;
   csr_data_t   _csr_write_data;
   logic        _trap_valid;
   trap_t       _trap;
@@ -167,7 +167,7 @@ module tb_csr_file
   endtask
 
   task automatic take_target_trap(input epc_t epc, input cause_t cause, input tval_t tval,
-                                  input priv_mode_t target_priv);
+                                  input priv_mode_e target_priv);
     @(negedge _clk);
     _trap_valid = 1'b1;
     _trap = '{epc: epc, cause: cause, tval: tval, handler_pc: '0, target_priv: target_priv};
@@ -463,7 +463,7 @@ module tb_csr_file
 
     // Unsupported target encodings defensively take the machine trap path.
     take_target_trap(32'h0000_0280, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT}, 32'h0000_00cc,
-                     priv_mode_t'(2'b10));
+                     priv_mode_e'(2'b10));
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE),
                 "reserved trap target falls back to machine mode");
     read_csr(CSR_MEPC, 32'h0000_0280, "fallback trap writes mepc");

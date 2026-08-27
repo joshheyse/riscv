@@ -27,15 +27,15 @@ module main_decoder
   input  instr_u                instr,
   output logic                  reg_write_en,
   output logic                  mem_write_en,
-  output imm_format_t           imm_format,
-  output integer_operands_sel_t integer_operands_sel,
-  output execute_result_t       execute_result,
-  output writeback_result_t     writeback_result,
-  output flow_t                 flow,
+  output imm_format_e           imm_format,
+  output integer_operands_sel_e integer_operands_sel,
+  output execute_result_e       execute_result,
+  output writeback_result_e     writeback_result,
+  output flow_e                 flow,
   output logic                  alu_decode_en,
   output logic                  muldiv_decode_en,
   output logic                  clear_pc_lsb,
-  output mem_order_op_t         mem_order,
+  output mem_order_op_e         mem_order,
   output logic                  main_op_illegal
 );
 

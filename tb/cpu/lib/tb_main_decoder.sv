@@ -38,17 +38,17 @@ module tb_main_decoder
 
   instr_u            _instr;
   logic              _reg_write_en;
-  imm_format_t       _imm_format;
+  imm_format_e       _imm_format;
   logic              _mem_write_en;
-  integer_operands_sel_t _integer_operands_sel;
-  execute_result_t   _execute_result;
-  writeback_result_t _writeback_result;
-  flow_t             _flow;
+  integer_operands_sel_e _integer_operands_sel;
+  execute_result_e   _execute_result;
+  writeback_result_e _writeback_result;
+  flow_e             _flow;
   logic              _alu_decode_en;
   logic              _muldiv_decode_en;
   logic              _clear_pc_lsb;
   logic              _main_op_illegal;
-  mem_order_op_t     _mem_order;
+  mem_order_op_e     _mem_order;
 
   int unsigned       errors = 0;
   int unsigned       checks = 0;
@@ -104,7 +104,7 @@ module tb_main_decoder
 
   // Decoded control-flow class. A spurious branch or jump redirects control
   // flow, so this is checked strictly everywhere.
-  function automatic flow_t exp_flow(input logic [6:0] op);
+  function automatic flow_e exp_flow(input logic [6:0] op);
     case (op)
       7'b1100011:             return FLOW_BRANCH;
       7'b1101111, 7'b1100111: return FLOW_JUMP;  // jal, jalr
@@ -118,7 +118,7 @@ module tb_main_decoder
   // immediate is a plain 12-bit signed value at instr[31:20] -- the same
   // encoding as a load, which is why objdump prints `jalr ra,-4(sp)`. Only
   // jal uses the scrambled 21-bit J-type immediate.
-  function automatic imm_format_t exp_imm_format(input logic [6:0] op);
+  function automatic imm_format_e exp_imm_format(input logic [6:0] op);
     case (op)
       7'b0010011: return IMM_I;  // I-ALU:  addi/slti/xori/...
       7'b0000011: return IMM_I;  // load:   lw rd, imm(rs1)
@@ -149,7 +149,7 @@ module tb_main_decoder
   //                              but goes to memory's write port, not the ALU.
   //   branch                  -> PC_IMM, because the ALU computes the target;
   //                              a separate comparator decides taken/not-taken.
-  function automatic integer_operands_sel_t exp_integer_operands_sel(input logic [6:0] op);
+  function automatic integer_operands_sel_e exp_integer_operands_sel(input logic [6:0] op);
     case (op)
       7'b0110011: return INTEGER_OPERANDS_RS1_RS2;  // R-type
       7'b0010011, 7'b0000011, 7'b0100011, 7'b1100111:
@@ -176,7 +176,7 @@ module tb_main_decoder
   //                different destinations from one instruction, which is
   //                exactly what this mux exists to arbitrate.
   //   lui       -> IMM, bypassing the ALU entirely.
-  function automatic execute_result_t exp_execute_result(input logic [6:0] op);
+  function automatic execute_result_e exp_execute_result(input logic [6:0] op);
     case (op)
       7'b1101111, 7'b1100111: return EXEC_RESULT_PC_PLUS4;  // jal, jalr
       7'b0110111:             return EXEC_RESULT_IMM;  // lui
@@ -194,7 +194,7 @@ module tb_main_decoder
   endfunction
 
   // Second level: the value chosen above, or memory. Only loads take memory.
-  function automatic writeback_result_t exp_writeback_result(input logic [6:0] op);
+  function automatic writeback_result_e exp_writeback_result(input logic [6:0] op);
     return (op == 7'b0000011) ? WB_RESULT_MEM : WB_RESULT_EXEC;
   endfunction
 
@@ -231,7 +231,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic mem_order_op_t exp_mem_order(input logic [6:0] op,
+  function automatic mem_order_op_e exp_mem_order(input logic [6:0] op,
                                                    input logic [2:0] funct3);
     if (op != OP_MISC_MEM) return MEM_ORDER_NONE;
     case (funct3)
@@ -266,7 +266,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string imm_name(input imm_format_t s);
+  function automatic string imm_name(input imm_format_e s);
     case (s)
       IMM_I:   return "IMM_I";
       IMM_S:   return "IMM_S";
@@ -277,7 +277,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string integer_operands_sel_name(input integer_operands_sel_t s);
+  function automatic string integer_operands_sel_name(input integer_operands_sel_e s);
     case (s)
       INTEGER_OPERANDS_RS1_RS2: return "INTEGER_OPERANDS_RS1_RS2";
       INTEGER_OPERANDS_RS1_IMM: return "INTEGER_OPERANDS_RS1_IMM";
@@ -286,7 +286,7 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string execute_result_name(input execute_result_t s);
+  function automatic string execute_result_name(input execute_result_e s);
     case (s)
       EXEC_RESULT_ALU:      return "EXEC_RESULT_ALU";
       EXEC_RESULT_PC_PLUS4: return "EXEC_RESULT_PC_PLUS4";
@@ -295,11 +295,11 @@ module tb_main_decoder
     endcase
   endfunction
 
-  function automatic string writeback_result_name(input writeback_result_t s);
+  function automatic string writeback_result_name(input writeback_result_e s);
     return (s == WB_RESULT_MEM) ? "WB_RESULT_MEM" : "WB_RESULT_EXEC";
   endfunction
 
-  function automatic string flow_name(input flow_t s);
+  function automatic string flow_name(input flow_e s);
     case (s)
       FLOW_BRANCH: return "FLOW_BRANCH";
       FLOW_JUMP:   return "FLOW_JUMP";
@@ -410,7 +410,7 @@ module tb_main_decoder
       // Both union views must agree about the opcode, which catches a struct
       // whose members drifted out of order.
       checks++;
-      if (_instr.r.opcode !== opcode_t'(op) || _instr.i.opcode !== opcode_t'(op))
+      if (_instr.r.opcode !== opcode_e'(op) || _instr.i.opcode !== opcode_e'(op))
         fail($sformatf(
              "union views disagree: raw[6:0]=%07b r=%07b i=%07b",
              op,

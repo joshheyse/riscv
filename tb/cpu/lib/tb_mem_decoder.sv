@@ -13,7 +13,7 @@ module tb_mem_decoder
   localparam int unsigned MaxPrintedFailures = 20;
 
   instr_u      _instr;
-  mem_size_t   _mem_size;
+  mem_size_e   _mem_size;
   logic        _mem_unsigned;
   logic        _mem_op_illegal;
 
@@ -28,11 +28,11 @@ module tb_mem_decoder
     .mem_op_illegal(_mem_op_illegal)
   );
 
-  function automatic instr_t encode(input opcode_t opcode, input funct3_t funct3);
+  function automatic instr_t encode(input opcode_e opcode, input funct3_t funct3);
     return {17'b0, funct3, 5'b0, opcode};
   endfunction
 
-  function automatic string mem_size_name(input mem_size_t size);
+  function automatic string mem_size_name(input mem_size_e size);
     case (size)
       MEM_SIZE_BYTE: return "MEM_SIZE_BYTE";
       MEM_SIZE_HALF: return "MEM_SIZE_HALF";
@@ -52,7 +52,7 @@ module tb_mem_decoder
     end
   endtask
 
-  task automatic check(input opcode_t opcode, input funct3_t funct3, input mem_size_t exp_size,
+  task automatic check(input opcode_e opcode, input funct3_t funct3, input mem_size_e exp_size,
                        input logic exp_unsigned, input logic exp_illegal, input string what);
     _instr.raw = encode(opcode, funct3);
     #1;

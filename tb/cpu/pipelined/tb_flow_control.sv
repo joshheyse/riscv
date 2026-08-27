@@ -13,6 +13,7 @@ module tb_flow_control
   localparam int unsigned TimeoutNs = 100_000;
 
   redirect_t   _redirect;
+  redirect_t   _mem_order_redirect;
   trap_stage_t _trap;
   logic        _mret_valid;
   logic        _sret_valid;
@@ -25,6 +26,7 @@ module tb_flow_control
 
   flow_control _dut (
     .redirect(_redirect),
+    .mem_order_redirect(_mem_order_redirect),
     .trap(_trap),
     .mret_valid(_mret_valid),
     .sret_valid(_sret_valid),
@@ -49,7 +51,7 @@ module tb_flow_control
     end
   endtask
 
-  task automatic expect_action(input flow_action_t got, input flow_action_t exp, input string what);
+  task automatic expect_action(input flow_action_e got, input flow_action_e exp, input string what);
     _checks++;
     if (got !== exp) begin
       _errors++;
@@ -57,7 +59,7 @@ module tb_flow_control
     end
   endtask
 
-  task automatic check(input string what, input flow_action_t exp_action,
+  task automatic check(input string what, input flow_action_e exp_action,
                        input logic exp_redirect_valid, input pc_t exp_pc);
     #1;
     expect_action(_flow.action, exp_action, {what, " action"});
@@ -67,6 +69,7 @@ module tb_flow_control
 
   initial begin
     _redirect = '0;
+    _mem_order_redirect = '0;
     _trap = '0;
     _mret_valid = 1'b0;
     _sret_valid = 1'b0;

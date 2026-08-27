@@ -26,8 +26,8 @@ module tb_system_decoder
     .system_ctrl(_system_ctrl)
   );
 
-  function automatic instr_t encode(input opcode_t opcode, input logic [11:0] imm,
-                                    input sys_funct3_t funct3, input logic [4:0] rs1,
+  function automatic instr_t encode(input opcode_e opcode, input logic [11:0] imm,
+                                    input sys_funct3_e funct3, input logic [4:0] rs1,
                                     input logic [4:0] rd);
     return {imm, rs1, funct3, rd, opcode};
   endfunction
@@ -43,9 +43,9 @@ module tb_system_decoder
     end
   endtask
 
-  task automatic check(input opcode_t opcode, input logic [11:0] imm, input sys_funct3_t funct3,
+  task automatic check(input opcode_e opcode, input logic [11:0] imm, input sys_funct3_e funct3,
                        input logic [4:0] rs1, input logic [4:0] rd, input logic exp_en,
-                       input logic exp_write_en, input csr_op_t exp_op, input logic exp_use_zimm,
+                       input logic exp_write_en, input csr_op_e exp_op, input logic exp_use_zimm,
                        input system_ctrl_t exp_system_ctrl, input string what);
     _instr.raw = encode(opcode, imm, funct3, rs1, rd);
     #1;
@@ -125,7 +125,7 @@ module tb_system_decoder
           '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "privileged system op with nonzero rd");
     check(OP_SYSTEM, 12'hfff, SYS_F3_PRIV, 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "reserved privileged system immediate");
-    check(OP_SYSTEM, 12'h300, sys_funct3_t'(3'b100), 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
+    check(OP_SYSTEM, 12'h300, sys_funct3_e'(3'b100), 5'd0, 5'd0, 1'b0, 1'b0, CSR_OP_RW, 1'b0,
           '{en: 1'b1, op: SYSTEM_OP_ILLEGAL}, "reserved system funct3");
 
     if (errors == 0) begin

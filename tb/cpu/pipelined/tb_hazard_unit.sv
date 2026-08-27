@@ -54,7 +54,7 @@ module tb_hazard_unit
     _id_ex.slot.instr.r.rd = rd;
   endtask
 
-  task automatic set_ex_mem_producer(input regaddr_t rd, input writeback_result_t writeback_result);
+  task automatic set_ex_mem_producer(input regaddr_t rd, input writeback_result_e writeback_result);
     _ex_mem.valid = 1'b1;
     _ex_mem.ctrl.reg_write_en = 1'b1;
     _ex_mem.rd = rd;

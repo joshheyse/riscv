@@ -5,7 +5,7 @@ typedef enum logic [2:0] {
   UART_RX_START = 3'b001,
   UART_RX_DATA  = 3'b010,
   UART_RX_STOP  = 3'b011
-} uart_state_t;
+} uart_state_e;
 
 module uart_mmio
   import riscv_pkg::*;
@@ -52,7 +52,7 @@ module uart_mmio
   localparam logic [RxCounterBits-1:0] RxFullBitCount = RxCounterBits'(ClocksPerBit - 1);
   logic        [RxCounterBits-1:0] _rx_counter;
 
-  uart_state_t                     _state;
+  uart_state_e                     _state;
 
   initial begin
     assert (ClocksPerBit >= 2);

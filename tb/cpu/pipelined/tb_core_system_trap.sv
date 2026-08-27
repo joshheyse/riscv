@@ -150,7 +150,7 @@ module tb_core_system_trap
     end
   endtask
 
-  task automatic check_system_trap(input instr_t instr, input trap_src_t src, input word_t mcause,
+  task automatic check_system_trap(input instr_t instr, input trap_src_e src, input word_t mcause,
                                    input string what);
     load_instr(instr);
     reset_core();
@@ -166,7 +166,7 @@ module tb_core_system_trap
     expect_word(_dut._id_trap.payload.tval, 32'h0000_0000, {what, " trap tval"});
   endtask
 
-  task automatic check_mret_privilege_trap(input priv_mode_t priv_mode, input string what);
+  task automatic check_mret_privilege_trap(input priv_mode_e priv_mode, input string what);
     int unsigned waits;
 
     load_instr(MRET);

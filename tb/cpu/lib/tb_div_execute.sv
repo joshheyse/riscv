@@ -37,7 +37,7 @@ module tb_div_execute
   );
 
   function automatic integer_data_t reference(input integer_data_t src_a,
-                                              input integer_data_t src_b, input div_op_t op);
+                                              input integer_data_t src_b, input div_op_e op);
     if (src_b == '0) begin
       case (op)
         DIV_OP_QUOTIENT_SIGNED, DIV_OP_QUOTIENT_UNSIGNED: return '1;
@@ -63,7 +63,7 @@ module tb_div_execute
     endcase
   endfunction
 
-  task automatic check(input div_op_t op, input integer_data_t src_a, input integer_data_t src_b,
+  task automatic check(input div_op_e op, input integer_data_t src_a, input integer_data_t src_b,
                        input string what);
     integer_data_t expected;
 
@@ -122,7 +122,7 @@ module tb_div_execute
     check(DIV_OP_REMAINDER_UNSIGNED, 32'hffff_ffff, 32'd2, "unsigned remainder");
 
     for (int unsigned op = 0; op < 4; op++) begin
-      check(div_op_t'(op), 32'h89ab_cdef, '0, "division by zero");
+      check(div_op_e'(op), 32'h89ab_cdef, '0, "division by zero");
     end
 
     check(DIV_OP_QUOTIENT_SIGNED, MinSigned, NegOne, "signed quotient overflow");
@@ -133,7 +133,7 @@ module tb_div_execute
 
     void'($urandom(32'h64_69_76_31));
     for (int unsigned i = 0; i < RandomVectors; i++) begin
-      check(div_op_t'($urandom_range(0, 3)), 32'($urandom), 32'($urandom), "random");
+      check(div_op_e'($urandom_range(0, 3)), 32'($urandom), 32'($urandom), "random");
     end
 
     if (_errors == 0) begin

@@ -13,7 +13,7 @@ module tb_redirect_control
   localparam int unsigned TimeoutSteps = 100;
 
   logic        _id_ex_valid;
-  pc_src_t     _id_ex_pc_src;
+  pc_src_e     _id_ex_pc_src;
   logic        _id_ex_clear_pc_lsb;
   word_t       _alu_result;
   redirect_t   _redirect;

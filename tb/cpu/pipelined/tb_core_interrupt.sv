@@ -251,7 +251,7 @@ module tb_core_interrupt
     expect_word(_dut._csr_file._mcause, cause_expected, "trap cause is machine software interrupt");
   endtask
 
-  task automatic expect_interrupt_request(input logic exp_valid, input trap_src_t exp_src,
+  task automatic expect_interrupt_request(input logic exp_valid, input trap_src_e exp_src,
                                           input string what);
     #1;
     expect_bit(_dut._interrupt_trap_req.valid, exp_valid, {what, " valid"});

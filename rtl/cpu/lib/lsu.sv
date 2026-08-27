@@ -23,7 +23,7 @@ module lsu
   input  mem_addr_t       addr,
   /* verilator lint_on UNUSEDSIGNAL */
   input  mem_data_t       write_data,
-  input  mem_size_t       mem_size,
+  input  mem_size_e       mem_size,
   input  logic            mem_unsigned,
   input  mem_data_t       mem_read_data,
   output mem_data_t       mem_write_data,

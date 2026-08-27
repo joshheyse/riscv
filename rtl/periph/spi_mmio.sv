@@ -6,7 +6,7 @@ typedef enum logic [2:0] {
   SPI_SCK_HIGH = 3'b011,
   SPI_SCK_LOW  = 3'b100,
   SPI_DONE     = 3'b101
-} spi_state_t;
+} spi_state_e;
 
 module spi_mmio
   import riscv_pkg::*;
@@ -29,7 +29,7 @@ module spi_mmio
   // acceptance is unconditional. Drive it for real only if that changes.
   assign mem.req_ready = 1'b1;
 
-  spi_state_t       _state;
+  spi_state_e       _state;
   logic             _busy;
   logic             _data_selected;
   logic             _control_selected;

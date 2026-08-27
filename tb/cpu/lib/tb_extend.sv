@@ -26,7 +26,7 @@ module tb_extend
   /* verilator lint_off UNUSEDSIGNAL */
   logic        [31:0] _instr;
   /* verilator lint_on UNUSEDSIGNAL */
-  imm_format_t        _imm_format;
+  imm_format_e        _imm_format;
   word_t              _imm_ext;
 
   int unsigned        errors = 0;
@@ -41,7 +41,7 @@ module tb_extend
 
   // ------------------------------------------------------------- helpers --
 
-  task automatic check(input logic [31:0] encoding, input imm_format_t src, input logic [31:0] exp,
+  task automatic check(input logic [31:0] encoding, input imm_format_e src, input logic [31:0] exp,
                        input string what);
     _instr = encoding;
     _imm_format = src;

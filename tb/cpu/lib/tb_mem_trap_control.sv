@@ -13,7 +13,7 @@ module tb_mem_trap_control
 
   logic        _valid;
   mem_addr_t   _addr;
-  mem_size_t   _mem_size;
+  mem_size_e   _mem_size;
   logic        _mem_write_en;
   trap_req_t   _trap;
 
@@ -44,7 +44,7 @@ module tb_mem_trap_control
     end
   endtask
 
-  task automatic drive(input logic valid, input mem_addr_t addr, input mem_size_t mem_size,
+  task automatic drive(input logic valid, input mem_addr_t addr, input mem_size_e mem_size,
                        input logic mem_write_en);
     _valid        = valid;
     _addr         = addr;
@@ -57,7 +57,7 @@ module tb_mem_trap_control
     expect_bit(_trap.valid, 1'b0, {what, " valid"});
   endtask
 
-  task automatic expect_trap(input trap_src_t src, input tval_t tval, input string what);
+  task automatic expect_trap(input trap_src_e src, input tval_t tval, input string what);
     expect_bit(_trap.valid, 1'b1, {what, " valid"});
     expect_word(32'(_trap.src), 32'(src), {what, " source"});
     expect_word(_trap.tval, tval, {what, " tval"});

@@ -5,8 +5,8 @@
 module mmu_trap_control
   import riscv_pkg::*;
 (
-  input mmu_fault_t  fault,
-  input mmu_access_t access,
+  input mmu_fault_e  fault,
+  input mmu_access_e access,
   input mem_addr_t   virtual_addr,
 
   output trap_req_t trap_req

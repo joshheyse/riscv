@@ -6,7 +6,7 @@ module mem_trap_control
 
   input  logic      valid,
   input  mem_addr_t addr,
-  input  mem_size_t mem_size,
+  input  mem_size_e mem_size,
   input  logic      mem_write_en,
   output trap_req_t trap
 );

@@ -11,7 +11,7 @@ module tb_csr_execute
 
   localparam int unsigned TimeoutNs = 10_000;
 
-  csr_op_t     _csr_op;
+  csr_op_e     _csr_op;
   logic        _csr_use_zimm;
   csr_data_t   _csr_read_data;
   reg_data_t   _rs1_data;
@@ -32,7 +32,7 @@ module tb_csr_execute
     .csr_write_data(_csr_write_data)
   );
 
-  task automatic check(input csr_op_t op, input logic use_zimm, input csr_data_t read_data,
+  task automatic check(input csr_op_e op, input logic use_zimm, input csr_data_t read_data,
                        input reg_data_t rs1_data, input csr_zimm_t zimm,
                        input csr_data_t exp_result, input csr_data_t exp_write_data,
                        input string what);
@@ -81,7 +81,7 @@ module tb_csr_execute
     check(CSR_OP_RC, 1'b1, 32'h0000_101f, 32'hffff_ffff, 5'h0f, 32'h0000_101f, 32'h0000_1010,
           "csrrci zimm");
 
-    check(csr_op_t'(2'b11), 1'b0, 32'h1234_5678, 32'h8765_4321, 5'h1f, 32'h0000_0000, 32'h0000_0000,
+    check(csr_op_e'(2'b11), 1'b0, 32'h1234_5678, 32'h8765_4321, 5'h1f, 32'h0000_0000, 32'h0000_0000,
           "reserved csr op");
 
     if (_errors == 0) begin

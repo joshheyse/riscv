@@ -33,7 +33,7 @@ module tb_lsu
   word_t           _addr;
   word_t           _write_data;
   word_t           _read_data;
-  mem_size_t       _mem_size;
+  mem_size_e       _mem_size;
   logic            _mem_unsigned;
   logic      [3:0] _write_mask;
 
@@ -88,7 +88,7 @@ module tb_lsu
     end
   endtask
 
-  task automatic read_addr(input word_t a, input mem_size_t size, input logic unsgnd,
+  task automatic read_addr(input word_t a, input mem_size_e size, input logic unsgnd,
                            input word_t exp, input string what);
     @(negedge _clk);
     _mem_valid    = 1'b1;
@@ -103,7 +103,7 @@ module tb_lsu
     expect_word(_read_data, exp, what);
   endtask
 
-  task automatic write_addr(input word_t a, input word_t data, input mem_size_t size);
+  task automatic write_addr(input word_t a, input word_t data, input mem_size_e size);
     @(negedge _clk);
     _mem_valid    = 1'b1;
     _addr         = a;

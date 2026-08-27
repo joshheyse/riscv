@@ -20,10 +20,10 @@
 module branch_logic
   import riscv_pkg::*;
 (
-  input  flow_t         flow,
+  input  flow_e         flow,
   input  branch_flags_t flags,
   input  br_funct3_t    funct3,
-  output pc_src_t       pc_src
+  output pc_src_e       pc_src
 );
 
   logic _cmp_flag;

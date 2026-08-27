@@ -12,7 +12,7 @@ module cache_way
   input logic            data_write_en,
   input mem_data_t       write_data,
   input mem_write_mask_t write_mask,
-  input cache_meta_op_t  meta_op,
+  input cache_meta_op_e  meta_op,
   input tag_t            install_tag,
 
   output logic      hit,

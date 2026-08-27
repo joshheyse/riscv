@@ -27,9 +27,9 @@ module mem_order_control
     I_REQUEST,
     I_WAIT,
     COMPLETE
-  } state_t;
+  } state_e;
 
-  state_t _state;
+  state_e _state;
   logic   _fence_i_request;
   pc_t    _fence_pc;
 

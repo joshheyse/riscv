@@ -21,14 +21,14 @@ module l1_cache
     CACHED_ACTIVE,       // accepted by cache; response still outstanding
     UNCACHED_REQUEST,    // latched, presented downstream, not yet accepted
     UNCACHED_WAIT        // accepted downstream, response outstanding
-  } state_t;
+  } state_e;
 
   initial begin
     assert (CacheableEnd >= CacheableBase);
   end
 
   logic   _cacheable;
-  state_t _state;
+  state_e _state;
   mem_if _to_cache (
     clk,
     rst

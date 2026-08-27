@@ -37,9 +37,9 @@ module div_execute
   typedef enum logic {
     IDLE,
     DIVIDE
-  } state_t;
+  } state_e;
 
-  state_t               _state;
+  state_e               _state;
   logic                 _result_valid;
   integer_data_t        _result;
   integer_data_t        _divisor;

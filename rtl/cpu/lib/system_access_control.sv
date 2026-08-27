@@ -4,7 +4,7 @@ module system_access_control
   import riscv_pkg::*;
 (
   input  system_ctrl_t system_ctrl,
-  input  priv_mode_t   priv_mode,
+  input  priv_mode_e   priv_mode,
   input  logic         tsr,
   input  logic         tvm,
   output logic         illegal_system_access

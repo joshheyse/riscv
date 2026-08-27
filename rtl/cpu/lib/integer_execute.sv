@@ -20,7 +20,7 @@ module integer_execute
 
   output integer_data_t alu_result,
   output mem_data_t     store_data,
-  output pc_src_t       pc_src,
+  output pc_src_e       pc_src,
   output logic          execute_wait
 );
 
@@ -28,7 +28,7 @@ module integer_execute
   integer_data_t _src_b;
   branch_flags_t _branch_flags;
   branch_flags_t _branch_flags_result;
-  pc_src_t       _branch_pc_src;
+  pc_src_e       _branch_pc_src;
   logic          _branch_selected;
   logic          _branch_result_valid;
   integer_data_t _alu_result;

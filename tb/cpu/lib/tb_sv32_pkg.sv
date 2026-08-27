@@ -178,7 +178,7 @@ module tb_sv32_pkg;
     expect_access(1'b0, "machine request must bypass leaf permission helper");
 
     _req.ctx.privilege = PRIV_SUPERVISOR;
-    _req.ctx.access = mmu_access_t'(2'b11);
+    _req.ctx.access = mmu_access_e'(2'b11);
     expect_access(1'b0, "reserved access type is rejected");
 
     if (_errors == 0) begin

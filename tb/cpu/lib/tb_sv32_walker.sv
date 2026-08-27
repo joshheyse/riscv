@@ -62,8 +62,8 @@ module tb_sv32_walker;
     end
   endtask
 
-  task automatic begin_translation(input mem_addr_t virtual_addr, input mmu_access_t access,
-                                   input priv_mode_t privilege, input logic sum, input logic mxr);
+  task automatic begin_translation(input mem_addr_t virtual_addr, input mmu_access_e access,
+                                   input priv_mode_e privilege, input logic sum, input logic mxr);
     @(negedge _clk);
     _translation.req = '{
       valid: 1'b1,
@@ -116,7 +116,7 @@ module tb_sv32_walker;
     _memory.rsp = '0;
   endtask
 
-  task automatic expect_response(input mmu_fault_t expected_fault,
+  task automatic expect_response(input mmu_fault_e expected_fault,
                                  input mem_addr_t expected_addr,
                                  input int unsigned stall_cycles, input string what);
     _translation.rsp_ready = 1'b0;

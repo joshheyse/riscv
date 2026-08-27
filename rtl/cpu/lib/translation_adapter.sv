@@ -23,9 +23,9 @@ module translation_adapter
     PHYSICAL_REQUEST,
     PHYSICAL_WAIT,
     RESPOND
-  } state_t;
+  } state_e;
 
-  state_t _state;
+  state_e _state;
   translation_ctx_t _ctx;
   mmu_req_t _mmu_request;
   // verilator lint_off UNUSEDSIGNAL

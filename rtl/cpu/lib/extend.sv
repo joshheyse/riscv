@@ -17,7 +17,7 @@
 module extend
   import riscv_pkg::*;
 (
-  input  imm_format_t        imm_format,
+  input  imm_format_e        imm_format,
   input  logic        [31:7] instr,
   output imm_t               imm_ext
 );

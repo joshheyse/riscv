@@ -13,9 +13,9 @@ module plic_gateway (
     SOURCE_IDLE,
     SOURCE_PENDING,
     SOURCE_CLAIMED
-  } source_state_t;
+  } source_state_e;
 
-  source_state_t _state;
+  source_state_e _state;
 
   always_ff @(posedge clk) begin
     if (rst) begin

@@ -46,10 +46,10 @@ module tb_branch_logic
   localparam funct3_t F3Bltu = 3'b110;
   localparam funct3_t F3Bgeu = 3'b111;
 
-  flow_t         _flow;
+  flow_e         _flow;
   branch_flags_t _flags;
   funct3_t       _funct3;
-  pc_src_t       _pc_src;
+  pc_src_e       _pc_src;
 
   int unsigned   errors = 0;
   int unsigned   checks = 0;
@@ -68,7 +68,7 @@ module tb_branch_logic
   // the first mismatch, hiding every later failure. Count here, $fatal once at
   // the end so `make sim` still exits non-zero.
   task automatic check(input logic br, input logic jmp, input logic f_eq, input logic f_lt,
-                       input funct3_t f3, input pc_src_t exp, input string what);
+                       input funct3_t f3, input pc_src_e exp, input string what);
     _flow     = jmp ? FLOW_JUMP : (br ? FLOW_BRANCH : FLOW_NONE);
     _flags.eq = f_eq;
     _flags.lt = f_lt;
@@ -110,7 +110,7 @@ module tb_branch_logic
     endcase
   endfunction
 
-  function automatic pc_src_t ref_pc_src(input logic br, input logic jmp, input logic f_eq,
+  function automatic pc_src_e ref_pc_src(input logic br, input logic jmp, input logic f_eq,
                                          input logic f_lt, input funct3_t f3);
     return ((br && ref_taken(f_eq, f_lt, f3)) || jmp) ? PC_SRC_IEU_ADR : PC_SRC_INC;
   endfunction

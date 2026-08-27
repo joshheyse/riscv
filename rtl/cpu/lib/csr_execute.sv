@@ -3,7 +3,7 @@
 module csr_execute
   import riscv_pkg::*;
 (
-  input  csr_op_t   csr_op,
+  input  csr_op_e   csr_op,
   input  logic      csr_use_zimm,
   input  csr_data_t csr_read_data,
   input  reg_data_t rs1_data,

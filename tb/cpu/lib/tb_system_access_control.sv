@@ -12,7 +12,7 @@ module tb_system_access_control
   localparam int unsigned TimeoutSteps = 100;
 
   system_ctrl_t _system_ctrl;
-  priv_mode_t   _priv_mode;
+  priv_mode_e   _priv_mode;
   logic         _tsr;
   logic         _tvm;
   logic         _illegal_system_access;
@@ -36,7 +36,7 @@ module tb_system_access_control
     end
   endtask
 
-  task automatic check(input logic en, input system_op_t op, input priv_mode_t priv_mode,
+  task automatic check(input logic en, input system_op_e op, input priv_mode_e priv_mode,
                        input logic tsr, input logic tvm, input logic exp_illegal,
                        input string what);
     _system_ctrl = '{en: en, op: op};

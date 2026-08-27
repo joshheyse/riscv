@@ -78,7 +78,7 @@ module tb_alu_decoder
   // $display rather than $error: Verilator treats $error as $stop and aborts on
   // the first mismatch, hiding every later failure. Count here, $fatal once at
   // the end so `make sim` still exits non-zero.
-  task automatic check(input logic op, input instr_t word, input alu_op_t exp_sel,
+  task automatic check(input logic op, input instr_t word, input alu_op_e exp_sel,
                        input logic exp_sub, input logic exp_illegal, input string what);
     _alu_decode_en = op;
     _instr.raw = word;
@@ -103,13 +103,13 @@ module tb_alu_decoder
 
   // ------------------------------------------------------- reference model --
 
-  // An explicit funct3 -> alu_op_t mapping, written from the ISA table.
-  // The DUT gets this for free by casting, because alu_op_t was numbered to
+  // An explicit funct3 -> alu_op_e mapping, written from the ISA table.
+  // The DUT gets this for free by casting, because alu_op_e was numbered to
   // mirror funct3 -- so the model must NOT cast, or it would agree with the DUT
   // by construction and prove nothing. Spelling the eight rows out is the whole
-  // point: if anyone renumbers alu_op_t, these disagree and this testbench
+  // point: if anyone renumbers alu_op_e, these disagree and this testbench
   // is what tells you.
-  function automatic alu_op_t ref_select(input logic op, input funct3_t f3);
+  function automatic alu_op_e ref_select(input logic op, input funct3_t f3);
     if (!op) return ALU_ADDSUB;  // address / target arithmetic
     case (f3)
       3'b000:  return ALU_ADDSUB;

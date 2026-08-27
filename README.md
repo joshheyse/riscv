@@ -94,6 +94,13 @@ gated by that validity or control state. It reduces unnecessary wide muxes,
 reset/flush fanout, and clock-enable logic, but correctness takes priority when
 a payload remains observable while invalid.
 
+## SystemVerilog Type Naming
+
+Use `_t` for general typedefs such as packed structs, `_e` for enum typedefs,
+and `_u` for union typedefs. Use a leading `_` for module-private internal
+signals and state/register variables; ports, package declarations, and other
+public names do not use the prefix.
+
 ## Near-Term Roadmap
 
 1. Treat the Chapter 7 pipelined baseline as functionally complete.

@@ -19,8 +19,8 @@ module tb_muldiv_decoder
     .muldiv_ctrl(_muldiv_ctrl)
   );
 
-  task automatic check_enabled(input logic [2:0] funct3, input muldiv_unit_t exp_unit,
-                               input mul_op_t exp_mul_op, input div_op_t exp_div_op,
+  task automatic check_enabled(input logic [2:0] funct3, input muldiv_unit_e exp_unit,
+                               input mul_op_e exp_mul_op, input div_op_e exp_div_op,
                                input string what);
     _muldiv_decode_en  = 1'b1;
     _instr             = '0;

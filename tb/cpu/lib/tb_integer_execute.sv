@@ -25,7 +25,7 @@ module tb_integer_execute
   imm_t          _imm;
   integer_data_t _alu_result;
   mem_data_t     _store_data;
-  pc_src_t       _pc_src;
+  pc_src_e       _pc_src;
   logic          _execute_wait;
 
   int unsigned   _checks = 0;
@@ -70,7 +70,7 @@ module tb_integer_execute
     end
   endtask
 
-  task automatic expect_pc_src(input pc_src_t got, input pc_src_t exp, input string what);
+  task automatic expect_pc_src(input pc_src_e got, input pc_src_e exp, input string what);
     _checks++;
     if (got !== exp) begin
       _errors++;
@@ -82,7 +82,29 @@ module tb_integer_execute
     #1;
   endtask
 
-  task automatic check_div(input div_op_t op, input integer_data_t src_a,
+  task automatic check_branch(input integer_data_t src_a, input integer_data_t src_b,
+                              input br_funct3_t funct3, input logic sngd,
+                              input pc_src_e expected, input string what);
+    @(negedge _clk);
+    _ctrl.flow = FLOW_BRANCH;
+    _ctrl.branch_sgnd = sngd;
+    _branch_funct3 = funct3;
+    _rs1_data = src_a;
+    _rs2_data = src_b;
+    _valid = 1'b1;
+
+    @(posedge _clk);
+    @(negedge _clk);
+    expect_pc_src(_pc_src, expected, what);
+
+    _result_ready = 1'b1;
+    @(posedge _clk);
+    @(negedge _clk);
+    _result_ready = 1'b0;
+    _valid = 1'b0;
+  endtask
+
+  task automatic check_div(input div_op_e op, input integer_data_t src_a,
                            input integer_data_t src_b, input integer_data_t expected,
                            input string what);
     @(negedge _clk);
@@ -106,7 +128,7 @@ module tb_integer_execute
     _valid = 1'b0;
   endtask
 
-  task automatic check_mul(input mul_op_t op, input integer_data_t src_a,
+  task automatic check_mul(input mul_op_e op, input integer_data_t src_a,
                            input integer_data_t src_b, input integer_data_t expected,
                            input string what);
     @(negedge _clk);
@@ -168,33 +190,20 @@ module tb_integer_execute
     expect_word(_alu_result, 32'h0000_1020, "pc+imm ALU operands");
 
     _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;
-    _ctrl.flow = FLOW_BRANCH;
-    _branch_funct3 = br_funct3_t'(3'b000);
-    _rs1_data = 32'h0000_0042;
-    _rs2_data = 32'h0000_0042;
-    settle();
-    expect_pc_src(_pc_src, PC_SRC_IEU_ADR, "taken beq redirects");
-
-    _rs2_data = 32'h0000_0043;
-    settle();
-    expect_pc_src(_pc_src, PC_SRC_INC, "untaken beq does not redirect");
+    check_branch(32'h0000_0042, 32'h0000_0042, br_funct3_t'(3'b000), 1'b1,
+                 PC_SRC_IEU_ADR, "taken beq redirects");
+    check_branch(32'h0000_0042, 32'h0000_0043, br_funct3_t'(3'b000), 1'b1, PC_SRC_INC,
+                 "untaken beq does not redirect");
 
     _ctrl.flow = FLOW_JUMP;
     _branch_funct3 = br_funct3_t'(3'b010);
     settle();
     expect_pc_src(_pc_src, PC_SRC_IEU_ADR, "jump redirects regardless of branch funct3");
 
-    _ctrl.flow = FLOW_BRANCH;
-    _ctrl.branch_sgnd = 1'b1;
-    _branch_funct3 = br_funct3_t'(3'b100);
-    _rs1_data = 32'hffff_ffff;
-    _rs2_data = 32'h0000_0001;
-    settle();
-    expect_pc_src(_pc_src, PC_SRC_IEU_ADR, "taken signed blt redirects");
-
-    _ctrl.branch_sgnd = 1'b0;
-    settle();
-    expect_pc_src(_pc_src, PC_SRC_INC, "untaken unsigned bltu does not redirect");
+    check_branch(32'hffff_ffff, 32'h0000_0001, br_funct3_t'(3'b100), 1'b1,
+                 PC_SRC_IEU_ADR, "taken signed blt redirects");
+    check_branch(32'hffff_ffff, 32'h0000_0001, br_funct3_t'(3'b110), 1'b0, PC_SRC_INC,
+                 "untaken unsigned bltu does not redirect");
 
     _ctrl.flow = FLOW_NONE;
     _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;

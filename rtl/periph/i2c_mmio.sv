@@ -6,17 +6,17 @@ typedef enum logic [2:0] {
   I2C_SEND_BYTE = 3'b010,
   I2C_ACK       = 3'b011,
   I2C_STOP      = 3'b100
-} i2c_state_t;
+} i2c_state_e;
 
 typedef enum logic {
   I2C_PHASE_LOW  = 1'b0,
   I2C_PHASE_HIGH = 1'b1
-} i2c_phase_t;
+} i2c_phase_e;
 
 typedef enum logic {
   I2C_BYTE_ADDR = 1'b0,
   I2C_BYTE_DATA = 1'b1
-} i2c_byte_t;
+} i2c_byte_e;
 
 module i2c_mmio
   import riscv_pkg::*;
@@ -41,9 +41,9 @@ module i2c_mmio
   // acceptance is unconditional. Drive it for real only if that changes.
   assign mem.req_ready = 1'b1;
 
-  i2c_state_t       _state;
-  i2c_phase_t       _phase;
-  i2c_byte_t        _byte_type;
+  i2c_state_e       _state;
+  i2c_phase_e       _phase;
+  i2c_byte_e        _byte_type;
   logic             _data_selected;
   logic             _control_selected;
   logic             _status_selected;

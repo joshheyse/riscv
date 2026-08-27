@@ -48,11 +48,11 @@ module tb_ifu
   logic        _accept_en;
   int unsigned _rsp_delay;
   instr_t      _next_instr;
-  mmu_fault_t  _next_fault;
+  mmu_fault_e  _next_fault;
   logic        _slave_accept;
   int unsigned _pending;
   instr_t      _pending_instr;
-  mmu_fault_t  _pending_fault;
+  mmu_fault_e  _pending_fault;
 
   assign _ibus.req_ready = _accept_en;
   assign _slave_accept   = _ibus.req.valid && _ibus.req_ready;

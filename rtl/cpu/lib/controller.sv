@@ -28,10 +28,10 @@ module controller
 
   logic            _main_reg_write_en;
   logic            _csr_reg_write_en;
-  execute_result_t _main_execute_result;
+  execute_result_e _main_execute_result;
   csr_ctrl_t       _csr_ctrl;
   system_ctrl_t    _system_ctrl;
-  mem_order_op_t   _main_mem_order;
+  mem_order_op_e   _main_mem_order;
 
   assign _system_op_illegal = _system_ctrl.op == SYSTEM_OP_ILLEGAL;
 

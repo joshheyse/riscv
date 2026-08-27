@@ -5,7 +5,7 @@
 // The main decoder first decides whether an instruction needs a real ALU
 // operation (`alu_decode_en=1`) or just plain addition for an address/target
 // (`alu_decode_en=0`). When `alu_decode_en=1`, RV32I OP/OP-IMM funct3 maps directly to
-// `alu_op_t`; funct7[5] supplies subtraction/arithmetic-shift selection.
+// `alu_op_e`; funct7[5] supplies subtraction/arithmetic-shift selection.
 //
 //   instruction class       alu_op          sub_arith
 //   -----------------       ------------------  ----------------------------

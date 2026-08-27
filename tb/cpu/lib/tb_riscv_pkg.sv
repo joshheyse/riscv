@@ -22,7 +22,7 @@ module tb_riscv_pkg
   mip_t                    _mip;
   tvec_t                   _mtvec;
   cause_t                  _cause;
-  csr_addr_t               _csr_addr;
+  csr_addr_u               _csr_addr;
   virtual_address_u        _virtual_addr;
   logic             [31:0] _packed;
 
@@ -68,18 +68,18 @@ module tb_riscv_pkg
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");
     expect_int($bits(mhartid_t), 32, "mhartid_t width");
-    expect_int($bits(tvec_mode_t), 2, "tvec_mode_t width");
-    expect_int($bits(cause_code_t), 31, "cause_code_t width");
+    expect_int($bits(tvec_mode_e), 2, "tvec_mode_e width");
+    expect_int($bits(cause_code_e), 31, "cause_code_e width");
     expect_int($bits(csr_addr_raw_t), 12, "csr_addr_raw_t width");
-    expect_int($bits(csr_addr_t), 12, "csr_addr_t width");
+    expect_int($bits(csr_addr_u), 12, "csr_addr_u width");
     expect_int($bits(csr_addr_fields_t), 12, "csr_addr_fields_t width");
     expect_int($bits(csr_addr_e), 12, "csr_addr_e width");
-    expect_int($bits(cbie_t), 2, "cbie_t width");
-    expect_int($bits(ext_status_t), 2, "ext_status_t width");
-    expect_int($bits(mpp_t), 2, "mpp_t width");
-    expect_int($bits(sys_imm_t), 12, "sys_imm_t width");
+    expect_int($bits(cbie_e), 2, "cbie_e width");
+    expect_int($bits(ext_status_e), 2, "ext_status_e width");
+    expect_int($bits(mpp_e), 2, "mpp_e width");
+    expect_int($bits(sys_imm_e), 12, "sys_imm_e width");
     expect_int($bits(imm12_u), 12, "imm12_u width");
-    expect_int($bits(mmu_fault_t), 2, "mmu_fault_t width");
+    expect_int($bits(mmu_fault_e), 2, "mmu_fault_e width");
 
     expect_bits(32'(CBIE_NONE), 32'h0000_0000, "CBIE none encoding");
     expect_bits(32'(CBIE_FLUSH), 32'h0000_0001, "CBIE flush encoding");

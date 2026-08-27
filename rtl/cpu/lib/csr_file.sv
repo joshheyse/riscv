@@ -8,7 +8,7 @@ module csr_file
   input logic      rst,
   input logic      csr_en,
   input logic      csr_write_en,
-  input csr_addr_t csr_addr,
+  input csr_addr_u csr_addr,
   input csr_data_t csr_write_data,
   input logic      trap_valid,
   input trap_t     trap,
@@ -31,7 +31,7 @@ module csr_file
   tval_t      _mtval;
   word_t      _medeleg;
   word_t      _mideleg;
-  priv_mode_t _priv_mode;
+  priv_mode_e _priv_mode;
   mstatus_t   _mstatus_write;
   // Supervisor status aliases only the implemented shared mstatus fields.
   /* verilator lint_off UNUSEDSIGNAL */
@@ -40,7 +40,7 @@ module csr_file
   mie_t       _mie_write;
   mip_t       _mip_write;
   tvec_t      _mtvec_write;
-  csr_addr_t  _csr_addr;
+  csr_addr_u  _csr_addr;
 
   sstatus_t   _sstatus;
   tvec_t      _stvec;
@@ -143,7 +143,7 @@ module csr_file
             _mtval <= trap.tval;
             _mstatus.mpie <= _mstatus.mie;
             _mstatus.mie <= 1'b0;
-            _mstatus.mpp <= mpp_t'(_priv_mode);
+            _mstatus.mpp <= mpp_e'(_priv_mode);
             _priv_mode <= PRIV_MACHINE;
           end
           // slang lint_on case-enum-explicit
@@ -154,7 +154,7 @@ module csr_file
         end
         _mstatus.mie <= _mstatus.mpie;
         _mstatus.mpie <= 1'b1;
-        _priv_mode <= priv_mode_t'(_mstatus.mpp);
+        _priv_mode <= priv_mode_e'(_mstatus.mpp);
         _mstatus.mpp <= MPP_USER;
       end else if (sret_valid) begin
         _mstatus.sie  <= _mstatus.spie;

@@ -22,17 +22,17 @@ module mem_arbiter (
   typedef enum logic {
     IDLE = 1'b0,
     BUSY = 1'b1
-  } state_t;
+  } state_e;
 
   typedef enum logic [1:0] {
     NONE   = 2'b00,
     IFETCH = 2'b01,
     DATA   = 2'b10
-  } target_t;
+  } target_e;
 
-  state_t  _state;
-  target_t _target;
-  target_t _grant;
+  state_e  _state;
+  target_e _target;
+  target_e _grant;
 
   // Data wins a tie. Note that nothing here consults `req_ready`, which is what
   // lets `req_ready` depend combinationally on `req.valid` without closing a

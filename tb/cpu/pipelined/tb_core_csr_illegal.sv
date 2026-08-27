@@ -94,7 +94,7 @@ module tb_core_csr_illegal
   end
 
   function automatic instr_t csr_instr(input logic [11:0] csr, input regaddr_t rs1_or_zimm,
-                                       input sys_funct3_t funct3, input regaddr_t rd);
+                                       input sys_funct3_e funct3, input regaddr_t rd);
     return {csr, rs1_or_zimm, funct3, rd, OP_SYSTEM};
   endfunction
 
@@ -160,7 +160,7 @@ module tb_core_csr_illegal
     expect_word(_dut._csr_file._mtval, csr_bad_instr, {what, " mtval records CSR instruction"});
   endtask
 
-  task automatic check_illegal_csr_from_priv(input priv_mode_t priv_mode,
+  task automatic check_illegal_csr_from_priv(input priv_mode_e priv_mode,
                                              input instr_t csr_bad_instr, input string what);
     load_program(csr_bad_instr);
     reset_core();

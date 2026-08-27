@@ -60,7 +60,7 @@ module core
   if_id_t           _fetched;
   logic             _data_stall;
   logic             _execute_wait;
-  pc_src_t          _ex_pc_src;
+  pc_src_e          _ex_pc_src;
 
   logic             _dbus_wait;
   mem_wb_t          _mem_wb_payload;

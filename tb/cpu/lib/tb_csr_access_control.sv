@@ -13,8 +13,8 @@ module tb_csr_access_control
 
   logic        _csr_en;
   logic        _csr_write_en;
-  csr_addr_t   _csr_addr;
-  priv_mode_t  _priv_mode;
+  csr_addr_u   _csr_addr;
+  priv_mode_e  _priv_mode;
   counteren_t  _mcounteren;
   counteren_t  _scounteren;
   logic        _illegal_csr_access;
@@ -41,7 +41,7 @@ module tb_csr_access_control
   endtask
 
   task automatic check(input logic csr_en, input logic csr_write_en, input csr_addr_raw_t csr_addr,
-                       input priv_mode_t priv_mode, input logic exp_illegal, input string what);
+                       input priv_mode_e priv_mode, input logic exp_illegal, input string what);
     _csr_en       = csr_en;
     _csr_write_en = csr_write_en;
     _csr_addr.raw = csr_addr;

@@ -11,7 +11,7 @@ module redirect_control
   import pipelined_pkg::*;
 (
   input logic      id_ex_valid,
-  input pc_src_t   id_ex_pc_src,
+  input pc_src_e   id_ex_pc_src,
   input logic      id_ex_clear_pc_lsb,
   input integer_data_t alu_result,
 
