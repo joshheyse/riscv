@@ -17,6 +17,7 @@ module translation_adapter
 
   typedef enum logic [2:0] {
     IDLE,
+    BYPASS_WAIT,
     TRANSLATE_REQUEST,
     TRANSLATE_WAIT,
     PHYSICAL_REQUEST,
@@ -43,10 +44,21 @@ module translation_adapter
     downstream.req = _mem_request;
     downstream.rsp_ready = (_state == PHYSICAL_WAIT);
 
-    if (_state == IDLE) begin
-      if (translation_bypassed(satp, ctx)) begin
-        downstream.req = upstream.req;
-      end
+    if ((_state == IDLE) && translation_bypassed(satp, ctx)) begin
+      downstream.req = upstream.req;
+      downstream.rsp_ready = upstream.rsp_ready;
+      upstream.rsp = '{
+          valid: downstream.rsp.valid,
+          fault: MMU_FAULT_NONE,
+          read_data: downstream.rsp.read_data
+      };
+    end else if (_state == BYPASS_WAIT) begin
+      downstream.rsp_ready = upstream.rsp_ready;
+      upstream.rsp = '{
+          valid: downstream.rsp.valid,
+          fault: MMU_FAULT_NONE,
+          read_data: downstream.rsp.read_data
+      };
     end
   end
 
@@ -64,12 +76,19 @@ module translation_adapter
         IDLE: begin
           if (upstream.req.valid && upstream.req_ready) begin
             if (translation_bypassed(satp, ctx)) begin
-              _state <= PHYSICAL_WAIT;
+              if (!(downstream.rsp.valid && upstream.rsp_ready)) begin
+                _state <= BYPASS_WAIT;
+              end
             end else begin
               _ctx <= ctx;
               _vmem_request <= upstream.req;
               _state <= TRANSLATE_REQUEST;
             end
+          end
+        end
+        BYPASS_WAIT: begin
+          if (downstream.rsp.valid && upstream.rsp_ready) begin
+            _state <= IDLE;
           end
         end
         TRANSLATE_REQUEST: begin

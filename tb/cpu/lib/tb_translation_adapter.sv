@@ -192,6 +192,40 @@ module tb_translation_adapter;
     _downstream.rsp = '0;
   endtask
 
+  task automatic return_bypass_response(input mem_data_t read_data,
+                                        input int unsigned delay_cycles,
+                                        input int unsigned stall_cycles,
+                                        input string what);
+    repeat (delay_cycles) @(negedge _clk);
+    _upstream.rsp_ready = 1'b0;
+    _downstream.rsp = '{valid: 1'b1, read_data: read_data};
+    #1ps;
+
+    expect_logic(_upstream.rsp.valid, 1'b1, $sformatf("%s response forwarded", what));
+    expect_logic(_upstream.rsp.fault == MMU_FAULT_NONE, 1'b1,
+                 $sformatf("%s fault", what));
+    expect_logic(_upstream.rsp.read_data == read_data, 1'b1,
+                 $sformatf("%s read data", what));
+    expect_logic(_downstream.rsp_ready, 1'b0,
+                 $sformatf("%s response backpressure propagated", what));
+
+    repeat (stall_cycles) begin
+      @(negedge _clk);
+      expect_logic(_upstream.rsp.valid, 1'b1, $sformatf("%s response held", what));
+      expect_logic(_upstream.rsp.read_data == read_data, 1'b1,
+                   $sformatf("%s data held", what));
+    end
+
+    _upstream.rsp_ready = 1'b1;
+    #1ps;
+    expect_logic(_downstream.rsp_ready, 1'b1,
+                 $sformatf("%s response acceptance propagated", what));
+    @(posedge _clk);
+    @(negedge _clk);
+    _upstream.rsp_ready = 1'b0;
+    _downstream.rsp = '0;
+  endtask
+
   task automatic expect_upstream_response(input mmu_fault_t expected_fault,
                                           input mem_data_t expected_data,
                                           input int unsigned stall_cycles,
@@ -345,8 +379,7 @@ module tb_translation_adapter;
     };
     accept_bypass_request(request, request_ctx, 1);
     expect_logic(_translation.req.valid, 1'b0, "Bare mode issues no translation request");
-    return_physical_response('0, 0);
-    expect_upstream_response(MMU_FAULT_NONE, '0, 0, "Bare-mode store");
+    return_bypass_response('0, 0, 1, "Bare-mode store");
 
     // Machine privilege also bypasses an enabled Sv32 translation.
     _satp.mode = 1'b1;
@@ -366,8 +399,30 @@ module tb_translation_adapter;
     accept_bypass_request(request, request_ctx, 0);
     expect_logic(_translation.req.valid, 1'b0,
                  "Machine privilege issues no translation request");
-    return_physical_response(32'hfeed_face, 0);
-    expect_upstream_response(MMU_FAULT_NONE, 32'hfeed_face, 0, "Machine-mode load");
+    return_bypass_response(32'hfeed_face, 0, 0, "Machine-mode load");
+
+    // A zero-cycle physical slave may respond in the request acceptance cycle.
+    // The complete bypass must forward that response without entering a wait state.
+    @(negedge _clk);
+    _upstream.req = request;
+    _upstream.req.valid = 1'b1;
+    _upstream.rsp_ready = 1'b1;
+    _downstream.req_ready = 1'b1;
+    _downstream.rsp = '{valid: 1'b1, read_data: 32'h1357_9bdf};
+    #1ps;
+    expect_logic(_upstream.req_ready, 1'b1, "same-cycle bypass request ready");
+    expect_logic(_upstream.rsp.valid, 1'b1, "same-cycle bypass response valid");
+    expect_logic(_upstream.rsp.read_data == 32'h1357_9bdf, 1'b1,
+                 "same-cycle bypass response data");
+    expect_logic(_downstream.rsp_ready, 1'b1, "same-cycle bypass response ready");
+    @(posedge _clk);
+    @(negedge _clk);
+    _upstream.req = '0;
+    _upstream.rsp_ready = 1'b0;
+    _downstream.rsp = '0;
+    #1ps;
+    expect_logic(_upstream.req_ready, 1'b1, "adapter remains idle after same-cycle bypass");
+    _downstream.req_ready = 1'b0;
 
     if (_errors == 0) begin
       $display("tb_translation_adapter: PASS (%0d checks)", _checks);
