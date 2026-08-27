@@ -27,35 +27,35 @@ module mul_execute
   output mul_rsp_t rsp
 );
 
-  typedef enum logic [1:0] {
+  typedef enum logic {
     IDLE,
-    MULTIPLY,
-    RESPOND
+    MULTIPLY
   } state_t;
 
-  state_t          _state;
-  logic      [63:0] _accumulator;
-  logic      [63:0] _multiplicand;
-  integer_data_t   _multiplier;
-  logic      [ 5:0] _iteration;
-  logic             _product_negative;
-  logic             _return_high;
-  integer_data_t    _result;
+  state_t               _state;
+  logic          [63:0] _accumulator;
+  logic          [63:0] _multiplicand;
+  integer_data_t        _multiplier;
+  logic          [ 5:0] _iteration;
+  logic                 _product_negative;
+  logic                 _return_high;
+  logic                 _result_valid;
+  integer_data_t        _result;
 
-  logic      [63:0] _next_accumulator;
-  logic      [63:0] _unsigned_product;
-  logic      [63:0] _signed_product;
+  logic          [63:0] _next_accumulator;
+  logic          [63:0] _unsigned_product;
+  logic          [63:0] _signed_product;
 
   always_comb begin
-    req_ready = (_state == IDLE);
-    rsp = '{valid: (_state == RESPOND), result: _result};
+    req_ready = (_state == IDLE) && !_result_valid;
+    rsp = '{valid: _result_valid, result: _result};
 
     _next_accumulator = _accumulator;
     if (_multiplier[0]) begin
       _next_accumulator = _accumulator + _multiplicand;
     end
     _unsigned_product = _next_accumulator;
-    _signed_product = _product_negative ? (~_unsigned_product + 64'd1) : _unsigned_product;
+    _signed_product   = _product_negative ? (~_unsigned_product + 64'd1) : _unsigned_product;
   end
 
   always_ff @(posedge clk) begin
@@ -67,8 +67,14 @@ module mul_execute
       _iteration <= '0;
       _product_negative <= 1'b0;
       _return_high <= 1'b0;
+      _result_valid <= 1'b0;
       _result <= '0;
     end else begin
+      if (_result_valid && rsp_ready) begin
+        _result_valid <= 1'b0;
+        _result       <= '0;
+      end
+
       unique case (_state)
         IDLE: begin
           if (req.valid && req_ready) begin
@@ -78,8 +84,7 @@ module mul_execute
             signed_a = (req.op == MUL_OP_HIGH_SS) || (req.op == MUL_OP_HIGH_SU);
             signed_b = (req.op == MUL_OP_HIGH_SS);
             _multiplicand <= {
-                32'b0,
-                (signed_a && req.src_a[31]) ? (~req.src_a + integer_data_t'(1)) : req.src_a
+              32'b0, (signed_a && req.src_a[31]) ? (~req.src_a + integer_data_t'(1)) : req.src_a
             };
             _multiplier <=
                 (signed_b && req.src_b[31]) ? (~req.src_b + integer_data_t'(1)) : req.src_b;
@@ -92,21 +97,15 @@ module mul_execute
         end
 
         MULTIPLY: begin
-          _accumulator <= _next_accumulator;
+          _accumulator  <= _next_accumulator;
           _multiplicand <= _multiplicand << 1;
-          _multiplier <= _multiplier >> 1;
+          _multiplier   <= _multiplier >> 1;
           if (_iteration == 6'd31) begin
-            _result <= _return_high ? _signed_product[63:32] : _signed_product[31:0];
-            _state <= RESPOND;
+            _result       <= _return_high ? _signed_product[63:32] : _signed_product[31:0];
+            _result_valid <= 1'b1;
+            _state        <= IDLE;
           end else begin
             _iteration <= _iteration + 6'd1;
-          end
-        end
-
-        RESPOND: begin
-          if (rsp.valid && rsp_ready) begin
-            _result <= '0;
-            _state <= IDLE;
           end
         end
       endcase
