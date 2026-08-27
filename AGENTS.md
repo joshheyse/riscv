@@ -1,37 +1,57 @@
 # riscv-soc — working agreement
 
 A learning project. Josh is building a pipelined **RV32I** processor from
-scratch, following Harris & Harris (*RISC-V System-on-Chip Design*).
+scratch, following Harris & Harris (_RISC-V System-on-Chip Design_).
+
+## Request modes in this repository
+
+The optional request prefixes in the global Agent instructions apply here and
+refine the ownership rules below:
+
+- An unprefixed request keeps the default teaching behavior.
+- `Q:` answers directly without editing files. `TEACH:` uses leading questions
+  and progressively narrower hints without implementing learner-owned RTL or
+  software.
+- `REVIEW:` may re-read, lint, simulate, and report, but does not modify files,
+  including testbenches, unless the request explicitly adds implementation.
+- `DO:` and `FIX:` are explicit authorization to make the named in-scope change
+  under `rtl/**` or `sw/**`; do not ask Josh to repeat that authorization.
+  They do not authorize adjacent design work or unrelated cleanup.
+- `DO:` and `FIX:` continue to authorize build-infrastructure and testbench work
+  under the standing ownership rules below.
+- `STATUS:` must name the exact active `make` or `just` target, elapsed time,
+  latest concrete output, and remaining verification. Say whether the current
+  evidence establishes syntax/lint legality or behavioral correctness.
 
 ## Teaching mode — read this before touching any RTL
 
-**Josh writes the RTL by default. Claude writes it when Josh explicitly asks.**
+**Josh writes the RTL by default. Agent writes it when Josh explicitly asks.**
 
 The whole point of this project is for Josh to learn to implement the processor
 himself. Do not proactively implement datapath, control, ISA, or
 microarchitectural behavior for him. Review it, explain the design, and narrow
-hints while he is working through it. If Josh explicitly asks Claude to make,
+hints while he is working through it. If Josh explicitly asks Agent to make,
 fix, or implement a change, that request authorizes the requested RTL work; do
 not make him repeat that it is non-mechanical.
 
 ### Who owns what
 
-| Path | Owner | |
-|---|---|---|
-| `rtl/**` | **Josh** | Don't edit unless Josh explicitly asks Claude to make the change. |
-| `sw/**` | **Josh** | Same. |
-| `tb/**` | Claude | Testbenches are Claude's to write and maintain. |
-| `Makefile`, `justfile`, `flake.nix`, lint config, CI | Claude | Build infrastructure — standing authorization to add and change. |
-| `CLAUDE.md` | Claude | Keep it accurate as conventions evolve. |
-| `README.md` | ask first | |
+| Path                                                 | Owner     |                                                                  |
+| ---------------------------------------------------- | --------- | ---------------------------------------------------------------- |
+| `rtl/**`                                             | **Josh**  | Don't edit unless Josh explicitly asks Agent to make the change. |
+| `sw/**`                                              | **Josh**  | Same.                                                            |
+| `tb/**`                                              | Agent     | Testbenches are Agent's to write and maintain.                   |
+| `Makefile`, `justfile`, `flake.nix`, lint config, CI | Agent     | Build infrastructure — standing authorization to add and change. |
+| `AGENTS.md`                                          | Agent     | Keep it accurate as conventions evolve.                          |
+| `README.md`                                          | ask first |                                                                  |
 
 The line is about **the RTL being his to learn**, not about caution generally.
 Don't ask permission to improve the build or add a testbench; do ask before
-touching anything he's writing unless his request already directs Claude to
+touching anything he's writing unless his request already directs Agent to
 change it. Explicit authorization may cover mechanical edits or behavioral RTL,
 but remains scoped to the requested change.
 
-### In scope for Claude
+### In scope for Agent
 
 - **Specifications** — module interfaces, port lists, expected behavior, ISA
   encoding tables, control-signal tables.
@@ -46,20 +66,20 @@ but remains scoped to the requested change.
 - **Testbenches** — see below. Write them proactively when they'd help.
 - **Boilerplate** — empty module skeletons with ports and TODOs, on request.
 - **Explicit implementation requests** — implement or fix RTL when Josh asks
-  Claude to do so, staying within the requested scope.
+  Agent to do so, staying within the requested scope.
 
 ### Out of scope
 
 - Writing or completing RTL behavior without an explicit request from Josh.
 - "Fixing" a module during review when Josh only asked what is wrong.
-- Filling in a module body he left as a TODO unless he asks Claude to do it.
+- Filling in a module body he left as a TODO unless he asks Agent to do it.
 - Editing anything under `rtl/` or `sw/` without explicit permission, including
   "just to show what I mean." Put design examples in the chat, not in his file.
 
-If he's stuck and has not asked Claude to implement it, **narrow the hint**;
+If he's stuck and has not asked Agent to implement it, **narrow the hint**;
 don't supply the code. A good escalation
 ladder: name the category of problem → point at the line → state the rule being
-violated → give a generic example of the correct idiom. If he then asks Claude
+violated → give a generic example of the correct idiom. If he then asks Agent
 to make the change, implement it directly.
 
 ## Review conventions
@@ -71,11 +91,11 @@ to make the change, implement it directly.
 - **Lint before opining.** `make lint TOP=<module>` gives real evidence. Report
   what the tool actually said, not what it probably says.
 - **Sort findings by kind**, because the fixes are different in nature:
-  1. *Won't compile* — syntax and language rules.
-  2. *Wrong by the ISA* — the spec decides, not taste (e.g. `x0` reads as zero).
-  3. *Wrong by the microarchitecture* — e.g. one read port when single-cycle
+  1. _Won't compile_ — syntax and language rules.
+  2. _Wrong by the ISA_ — the spec decides, not taste (e.g. `x0` reads as zero).
+  3. _Wrong by the microarchitecture_ — e.g. one read port when single-cycle
      execution needs two.
-  4. *Judgment call* — give a recommendation and the reasoning, then let him
+  4. _Judgment call_ — give a recommendation and the reasoning, then let him
      choose (e.g. whether to reset the register file).
 - **Say what lint cannot catch.** A clean lint means "this is legal
   SystemVerilog," never "this is a correct RISC-V register file." Naming that
@@ -83,7 +103,7 @@ to make the change, implement it directly.
 
 ## Testbenches
 
-Claude's to write, proactively. They're the safety net that lets Josh iterate on
+Agent's to write, proactively. They're the safety net that lets Josh iterate on
 RTL without guessing whether he's made things better or worse — a new module
 generally wants a testbench without him having to ask for one.
 
@@ -111,7 +131,7 @@ rtl/cpu/lib/reg_file.sv   →   tb/cpu/lib/tb_reg_file.sv
   Randomized/constrained tests only once the directed set passes.
 
 **A testbench must be able to fail.** When a bug is found in review, the good
-move is to write the test that catches it *before* he fixes it, so it goes red
+move is to write the test that catches it _before_ he fixes it, so it goes red
 and then green. A test suite that has never failed proves nothing.
 
 ## Build
@@ -134,18 +154,18 @@ design. `DESIGN` selects the `rtl/<design>` + `tb/<design>` pair and defaults to
 - **RV32I, not RV64I** — chosen deliberately. RV64I is a different ISA (adds
   `*W` instructions, 6-bit shift amounts, different sign-extension), not a wider
   RV32I, so a global `XLEN` parameter would advertise portability it can't
-  deliver. Note that register *count* (32), register *width* (XLEN), and
-  *instruction* width (always 32, even on RV64) are three independent constants
+  deliver. Note that register _count_ (32), register _width_ (XLEN), and
+  _instruction_ width (always 32, even on RV64) are three independent constants
   that merely coincide here.
 - `sw/smoke` builds `-march=rv64i` and is a **toolchain sanity check only** — it
   does not target this core. Software for this core needs `-march=rv32i
-  -mabi=ilp32`.
+-mabi=ilp32`.
 - FPGA-specific concerns (pins, board clock, reset polarity, LEDs, UART) stay in
   `fpga_top.sv`. Everything below it is portable RTL.
 
 ## Environment note
 
 `.bashrc`, `.zshrc`, `.gitconfig`, `.gitmodules` and similar in the repo root
-are `/dev/null` bind mounts created by Claude's sandbox, not real files. They
+are `/dev/null` bind mounts created by Agent's sandbox, not real files. They
 show as untracked in `git status` and cannot be staged. Ignore them — but be
 aware `.gitmodules` is shadowed if this repo ever gains submodules.

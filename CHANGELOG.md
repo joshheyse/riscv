@@ -182,20 +182,21 @@ The earlier UART-based CPI snapshot remains useful as a historical record, but
 is not directly comparable: UART polling changes the dynamic instruction count
 when memory-system latency changes.
 
-| Architecture | Milestone                                     | Commit    | Cycles | Instret |  CPI | Routed Fmax | Est. MIPS |    LUTs |     FFs |   BRAMs | Multipliers |
-| ------------ | --------------------------------------------- | --------- | -----: | ------: | ---: | ----------: | --------: | ------: | ------: | ------: | ----------: |
-| Single-stage | Final working core                            | `1644a56` |  5,373 |   1,699 | 3.16 |   59.86 MHz |     18.93 |   4,765 |     597 |       2 |           0 |
-| Pipelined    | Bare supervisor privilege and delegated traps | `70243df` |  3,963 |   1,699 | 2.33 |   ~68.8 MHz |    ~29.50 |   5,989 |   1,766 |       2 |           0 |
-| Pipelined    | Unified memory baseline                       | `eeb8923` |  6,362 |   1,699 | 3.74 |   66.89 MHz |     17.86 |   7,339 |   1,658 |       2 |           0 |
-| Pipelined    | Cache associativity benchmark support         | `4059c4c` |  5,989 |   1,699 | 3.53 |   65.46 MHz |     18.57 |  10,503 |   2,581 |      10 |           0 |
-| Pipelined    | Four-way cache replacement                    | `5920533` |  5,989 |   1,699 | 3.53 |   61.39 MHz |     17.42 |   8,648 |   2,025 |       7 |           0 |
-| Pipelined    | RV32M execution                               | `47436c0` |  5,989 |   1,699 | 3.53 |    ~7.9 MHz |     ~2.24 |  19,205 |   2,026 |       7 |          10 |
-| Pipelined    | Sv32 integration and request bypass           | `55219fc` |  7,832 |   1,699 | 4.61 |    8.03 MHz |      1.74 |  17,544 |   2,759 |       7 |          10 |
-| Pipelined    | Multicycle RV32M multiply and divide          | `f026e60` |  7,832 |   1,699 | 4.61 |   45.92 MHz |      9.96 |  11,087 |   3,101 |       7 |           0 |
-| Pipelined    | Registered physical-memory boundary           | `750d373` |  7,993 |   1,699 | 4.70 |   56.39 MHz |     11.99 |  10,673 |   3,208 |       7 |           0 |
-| Pipelined    | Decoupled multiplier result slot              | `bbf6b6e` |  7,993 |   1,699 | 4.70 |   60.81 MHz |     12.93 |  11,354 |   3,207 |       7 |           0 |
-| Pipelined    | Divider result slot and pipeline clock enables | `8749a1b` |  7,993 |   1,699 | 4.70 |   54.89 MHz |     11.67 |  11,463 |   3,206 |       7 |           0 |
-| Pipelined    | Registered branch decision and valid-only payload control | this commit |  7,993 |   1,699 | 4.70 |   70.34 MHz |     14.97 |  10,933 |   3,208 |       7 |           0 |
+| Architecture | Milestone                                                 | Commit      | Cycles | Instret |  CPI | Routed Fmax | Est. MIPS |   LUTs |   FFs | BRAMs | Multipliers |
+| ------------ | --------------------------------------------------------- | ----------- | -----: | ------: | ---: | ----------: | --------: | -----: | ----: | ----: | ----------: |
+| Single-stage | Final working core                                        | `1644a56`   |  5,373 |   1,699 | 3.16 |   59.86 MHz |     18.93 |  4,765 |   597 |     2 |           0 |
+| Pipelined    | Bare supervisor privilege and delegated traps             | `70243df`   |  3,963 |   1,699 | 2.33 |   ~68.8 MHz |    ~29.50 |  5,989 | 1,766 |     2 |           0 |
+| Pipelined    | Unified memory baseline                                   | `eeb8923`   |  6,362 |   1,699 | 3.74 |   66.89 MHz |     17.86 |  7,339 | 1,658 |     2 |           0 |
+| Pipelined    | Cache associativity benchmark support                     | `4059c4c`   |  5,989 |   1,699 | 3.53 |   65.46 MHz |     18.57 | 10,503 | 2,581 |    10 |           0 |
+| Pipelined    | Four-way cache replacement                                | `5920533`   |  5,989 |   1,699 | 3.53 |   61.39 MHz |     17.42 |  8,648 | 2,025 |     7 |           0 |
+| Pipelined    | RV32M execution                                           | `47436c0`   |  5,989 |   1,699 | 3.53 |    ~7.9 MHz |     ~2.24 | 19,205 | 2,026 |     7 |          10 |
+| Pipelined    | Sv32 integration and request bypass                       | `55219fc`   |  7,832 |   1,699 | 4.61 |    8.03 MHz |      1.74 | 17,544 | 2,759 |     7 |          10 |
+| Pipelined    | Multicycle RV32M multiply and divide                      | `f026e60`   |  7,832 |   1,699 | 4.61 |   45.92 MHz |      9.96 | 11,087 | 3,101 |     7 |           0 |
+| Pipelined    | Registered physical-memory boundary                       | `750d373`   |  7,993 |   1,699 | 4.70 |   56.39 MHz |     11.99 | 10,673 | 3,208 |     7 |           0 |
+| Pipelined    | Decoupled multiplier result slot                          | `bbf6b6e`   |  7,993 |   1,699 | 4.70 |   60.81 MHz |     12.93 | 11,354 | 3,207 |     7 |           0 |
+| Pipelined    | Divider result slot and pipeline clock enables            | `8749a1b`   |  7,993 |   1,699 | 4.70 |   54.89 MHz |     11.67 | 11,463 | 3,206 |     7 |           0 |
+| Pipelined    | Registered branch decision and valid-only payload control | `d821c55`   |  7,993 |   1,699 | 4.70 |   70.34 MHz |     14.97 | 10,933 | 3,208 |     7 |           0 |
+| Pipelined    | Combinational Bare/M-mode translation bypass              | `e33d436`   |  6,292 |   1,699 | 3.70 |   66.40 MHz |     17.95 | 10,768 | 3,210 |     7 |           0 |
 
 For architectural comparisons, also report estimated instruction throughput:
 
