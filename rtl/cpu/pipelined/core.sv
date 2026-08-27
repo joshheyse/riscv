@@ -37,83 +37,104 @@ module core
 );
 
 
-  if_id_t         _if_id;
-  id_ex_t         _id_ex;
-  ex_mem_t        _ex_mem;
-  mem_wb_t        _mem_wb;
+  if_id_t           _if_id;
+  id_ex_t           _id_ex;
+  ex_mem_t          _ex_mem;
+  mem_wb_t          _mem_wb;
 
-  if_id_t         _if_id_next;
-  id_ex_t         _id_ex_next;
-  ex_mem_t        _ex_mem_next;
-  mem_wb_t        _mem_wb_next;
+  if_id_t           _if_id_next;
+  id_ex_t           _id_ex_next;
+  ex_mem_t          _ex_mem_next;
+  mem_wb_t          _mem_wb_next;
 
-  branch_flags_t  _id_branch_flags;
-  control_t       _ctrl;
+  branch_flags_t    _id_branch_flags;
+  control_t         _ctrl;
 
-  reg_data_t      _rf_rs1_read;
-  reg_data_t      _rf_rs2_read;
-  reg_data_t      _id_rs1_operand;
-  reg_data_t      _id_rs2_operand;
+  reg_data_t        _rf_rs1_read;
+  reg_data_t        _rf_rs2_read;
+  reg_data_t        _id_rs1_operand;
+  reg_data_t        _id_rs2_operand;
 
-  imm_t           _id_imm;
-  integer_data_t  _alu_result;
-  reg_data_t      _ex_rs1_operand;
-  reg_data_t      _ex_rs2_operand;
-  mem_data_t      _store_data;
-  reg_data_t      _ex_result;
-  if_id_t         _fetched;
-  logic           _data_stall;
-  pc_src_t        _ex_pc_src;
+  imm_t             _id_imm;
+  integer_data_t    _alu_result;
+  reg_data_t        _ex_rs1_operand;
+  reg_data_t        _ex_rs2_operand;
+  mem_data_t        _store_data;
+  reg_data_t        _ex_result;
+  if_id_t           _fetched;
+  logic             _data_stall;
+  pc_src_t          _ex_pc_src;
 
-  logic           _dbus_wait;
-  mem_wb_t        _mem_wb_payload;
+  logic             _dbus_wait;
+  mem_wb_t          _mem_wb_payload;
 
-  redirect_t      _execute_redirect;
-  redirect_t      _mem_order_redirect;
-  trap_stage_t    _id_trap;
-  trap_stage_t    _csr_trap;
-  trap_stage_t    _system_trap;
-  trap_stage_t    _redirect_trap;
-  trap_stage_t    _ex_trap;
-  trap_stage_t    _trap;
-  flow_ctrl_t     _flow;
+  redirect_t        _execute_redirect;
+  redirect_t        _mem_order_redirect;
+  trap_stage_t      _id_trap;
+  trap_stage_t      _csr_trap;
+  trap_stage_t      _system_trap;
+  trap_stage_t      _redirect_trap;
+  trap_stage_t      _ex_trap;
+  trap_stage_t      _trap;
+  flow_ctrl_t       _flow;
 
-  trap_req_t      _csr_illegal_trap_req;
-  trap_req_t      _interrupt_trap_req;
-  trap_req_t      _id_trap_req;
-  trap_req_t      _system_illegal_trap_req;
-  trap_req_t      _redirect_trap_req;
-  logic           _csr_access_illegal;
-  logic           _system_access_illegal;
-  logic           _csr_illegal;
+  trap_req_t        _csr_illegal_trap_req;
+  trap_req_t        _interrupt_trap_req;
+  trap_req_t        _id_trap_req;
+  trap_req_t        _system_illegal_trap_req;
+  trap_req_t        _redirect_trap_req;
+  logic             _csr_access_illegal;
+  logic             _system_access_illegal;
+  logic             _csr_illegal;
 
   /* verilator lint_off UNUSEDSIGNAL */
-  csr_pipe_t      _csr;
-  csr_status_t    _csr_status;
+  csr_pipe_t        _csr;
+  csr_status_t      _csr_status;
   /* verilator lint_on UNUSEDSIGNAL */
 
-  pipeline_ctrl_t _pipe_ctrl;
-  logic           _trap_in_flight;
-  logic           _trap_from_id;
+  pipeline_ctrl_t   _pipe_ctrl;
+  logic             _trap_in_flight;
+  logic             _trap_from_id;
   // Retained as an observable for the trap_orchestrator testbench; the
   // pipeline decision now uses `_trap_from_id` instead.
   /* verilator lint_off UNUSEDSIGNAL */
-  logic           _trap_held;
+  logic             _trap_held;
   /* verilator lint_on UNUSEDSIGNAL */
-  retire_ctrl_t   _retire;
-  logic           _trap_from_if_id;
-  logic           _ex_mret_valid;
-  logic           _ex_sret_valid;
+  retire_ctrl_t     _retire;
+  logic             _trap_from_if_id;
+  logic             _ex_mret_valid;
+  logic             _ex_sret_valid;
 
-  logic           _mem_order_busy;
-  logic           _mem_order_start;
+  logic             _mem_order_busy;
+  logic             _mem_order_start;
 
+  translation_ctx_t _ifetch_translation_ctx;
+  translation_ctx_t _data_translation_ctx;
+
+  vmem_if _ifetch_ifu_adapter (
+    clk,
+    rst
+  );
+  vmem_if _data_lsu_adapter (
+    clk,
+    rst
+  );
+  mmu_if _ifetch_translation ();
+  mmu_if _data_translation ();
 
   mem_if _data_cache_arb (
     clk,
     rst
   );
   mem_if _data_lsu_cache (
+    clk,
+    rst
+  );
+  mem_if _data_adapter_arb (
+    clk,
+    rst
+  );
+  mem_if _data_walker_arb (
     clk,
     rst
   );
@@ -125,11 +146,32 @@ module core
     clk,
     rst
   );
+  mem_if _ifetch_adapter_arb (
+    clk,
+    rst
+  );
+  mem_if _ifetch_walker_arb (
+    clk,
+    rst
+  );
 
   cache_command_if _dcache_command ();
   cache_command_if _icache_command ();
 
   assign _id_branch_flags = '0;
+
+  assign _ifetch_translation_ctx = '{
+          access : MMU_ACCESS_FETCH,
+          privilege: _csr_status.priv_mode,
+          sum: _csr_status.mstatus.sum,
+          mxr: _csr_status.mstatus.mxr
+      };
+  assign _data_translation_ctx = '{
+          access : _data_lsu_adapter.req.write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD,
+          privilege: _csr_status.priv_mode,
+          sum: _csr_status.mstatus.sum,
+          mxr: _csr_status.mstatus.mxr
+      };
 
   assign _csr.addr.raw = _id_ex.slot.instr.i.imm.raw;  // bits [31:20]
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
@@ -217,7 +259,7 @@ module core
   end
 
   always_comb begin
-    _id_trap_req = _ctrl.trap;
+    _id_trap_req = _if_id.trap_req.valid ? _if_id.trap_req : _ctrl.trap;
     if (_if_id.valid && !_id_trap_req.valid) begin
       _id_trap_req = _interrupt_trap_req;
     end
@@ -382,6 +424,32 @@ module core
     .mem(mem)
   );
 
+  mem_arbiter _ifetch_translation_arbiter (
+    .clk(clk),
+    .rst(rst),
+    .ifetch(_ifetch_walker_arb.slave),
+    .data(_ifetch_adapter_arb.slave),
+    .mem(_ifetch_ifu_cache.master)
+  );
+
+  translation_adapter _ifetch_translation_adapter (
+    .clk(clk),
+    .rst(rst),
+    .ctx(_ifetch_translation_ctx),
+    .satp(_csr_status.satp),
+    .upstream(_ifetch_ifu_adapter.slave),
+    .translation(_ifetch_translation.requester),
+    .downstream(_ifetch_adapter_arb.master)
+  );
+
+  sv32_walker _ifetch_walker (
+    .clk(clk),
+    .rst(rst),
+    .satp(_csr_status.satp),
+    .translation(_ifetch_translation.responder),
+    .memory(_ifetch_walker_arb.master)
+  );
+
   l1_cache #(
     .CacheableBase(CacheableBase),
     .CacheableEnd (CacheableEnd)
@@ -400,7 +468,7 @@ module core
     .redirect(_flow.redirect),
     .pc(pc),
     .fetched(_fetched),
-    .ibus(_ifetch_ifu_cache.master)
+    .ibus(_ifetch_ifu_adapter.master)
   );
 
   // Decode
@@ -548,6 +616,32 @@ module core
     .cache_command(_dcache_command)
   );
 
+  mem_arbiter _data_translation_arbiter (
+    .clk(clk),
+    .rst(rst),
+    .ifetch(_data_walker_arb.slave),
+    .data(_data_adapter_arb.slave),
+    .mem(_data_lsu_cache.master)
+  );
+
+  translation_adapter _data_translation_adapter (
+    .clk(clk),
+    .rst(rst),
+    .ctx(_data_translation_ctx),
+    .satp(_csr_status.satp),
+    .upstream(_data_lsu_adapter.slave),
+    .translation(_data_translation.requester),
+    .downstream(_data_adapter_arb.master)
+  );
+
+  sv32_walker _data_walker (
+    .clk(clk),
+    .rst(rst),
+    .satp(_csr_status.satp),
+    .translation(_data_translation.responder),
+    .memory(_data_walker_arb.master)
+  );
+
   mem_stage _mem_stage (
     .clk(clk),
     .rst(rst),
@@ -555,7 +649,7 @@ module core
     .csr_status(_csr_status),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
-    .dbus(_data_lsu_cache.master)
+    .dbus(_data_lsu_adapter.master)
   );
 
   // Writeback and hazards

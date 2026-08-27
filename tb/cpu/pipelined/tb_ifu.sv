@@ -31,7 +31,7 @@ module tb_ifu
   if_id_t    _fetched;
 
   /* verilator lint_off UNUSEDSIGNAL */
-  mem_if _ibus (
+  vmem_if _ibus (
     _clk,
     _rst
   );
@@ -48,9 +48,11 @@ module tb_ifu
   logic        _accept_en;
   int unsigned _rsp_delay;
   instr_t      _next_instr;
+  mmu_fault_t  _next_fault;
   logic        _slave_accept;
   int unsigned _pending;
   instr_t      _pending_instr;
+  mmu_fault_t  _pending_fault;
 
   assign _ibus.req_ready = _accept_en;
   assign _slave_accept   = _ibus.req.valid && _ibus.req_ready;
@@ -66,14 +68,17 @@ module tb_ifu
         if (_pending == 1) begin
           _ibus.rsp.valid     <= 1'b1;
           _ibus.rsp.read_data <= _pending_instr;
+          _ibus.rsp.fault     <= _pending_fault;
         end
       end else if (_slave_accept) begin
         if (_rsp_delay == 0) begin
           _ibus.rsp.valid     <= 1'b1;
           _ibus.rsp.read_data <= _next_instr;
+          _ibus.rsp.fault     <= _next_fault;
         end else begin
           _pending       <= _rsp_delay;
           _pending_instr <= _next_instr;
+          _pending_fault <= _next_fault;
         end
       end
     end
@@ -141,6 +146,7 @@ module tb_ifu
     _accept_en = 1'b0;
     _rsp_delay = 1;
     _next_instr = AddiX1;
+    _next_fault = MMU_FAULT_NONE;
     _fetch_en = 1'b1;
     _redirect = '0;
     _rst = 1'b1;
@@ -236,6 +242,23 @@ module tb_ifu
 
     step_to_fetch(32'h0000_0044, "zero-latency fetch");
     expect_word(_fetched.slot.instr.raw, 32'h0010_0093, "zero-latency fetch records instruction");
+
+    // ---- translation failures travel atomically with the faulting fetch --
+    @(negedge _clk);
+    _next_fault = MMU_FAULT_PAGE;
+    step_to_fetch(32'h0000_0048, "instruction page fault");
+    expect_bit(_fetched.trap_req.valid, 1'b1, "page fault marks fetch trap valid");
+    expect_word(word_t'(_fetched.trap_req.src), word_t'(TRAP_SRC_INSTR_PAGE_FAULT),
+                "page fault source");
+    expect_word(_fetched.trap_req.tval, 32'h0000_0048, "page fault virtual address");
+
+    @(negedge _clk);
+    _next_fault = MMU_FAULT_ACCESS;
+    step_to_fetch(32'h0000_004c, "instruction access fault");
+    expect_bit(_fetched.trap_req.valid, 1'b1, "access fault marks fetch trap valid");
+    expect_word(word_t'(_fetched.trap_req.src), word_t'(TRAP_SRC_INSTR_ACCESS_FAULT),
+                "access fault source");
+    expect_word(_fetched.trap_req.tval, 32'h0000_004c, "access fault virtual address");
 
     if (_errors == 0) begin
       $display("tb_ifu: PASS (%0d checks)", _checks);

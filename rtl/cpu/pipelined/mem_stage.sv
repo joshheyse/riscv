@@ -15,7 +15,7 @@ module mem_stage
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
 
-  mem_if.master dbus
+  vmem_if.master dbus
 );
 
 
@@ -27,6 +27,8 @@ module mem_stage
   reg_data_t   _mem_result_data;
   logic        _mem_instr;
   logic        _mem_access;
+  trap_req_t   _addr_trap_req;
+  trap_req_t   _mmu_trap_req;
   trap_req_t   _mem_trap_req;
   trap_stage_t _mem_trap;
   trap_stage_t _trap;
@@ -39,7 +41,7 @@ module mem_stage
   logic        _response_here;
 
   assign _mem_instr = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
-  assign _mem_access = _mem_instr && !_mem_trap_req.valid;
+  assign _mem_access = _mem_instr && !_addr_trap_req.valid;
   assign _accept = dbus.req.valid && dbus.req_ready;
   assign _response_here = dbus.rsp.valid && (_accepted || _accept);
   assign mem_wait = _mem_access && !_response_here;
@@ -58,12 +60,26 @@ module mem_stage
   assign dbus.req.addr = ex_mem.alu_result;
   assign _trap = ex_mem.trap.valid ? ex_mem.trap : _mem_trap;
 
+  always_comb begin
+    _mem_trap_req = _addr_trap_req;
+    if (!_mem_trap_req.valid && _response_here) begin
+      _mem_trap_req = _mmu_trap_req;
+    end
+  end
+
   mem_trap_control _mem_trap_control (
     .valid(_mem_instr),
     .addr(ex_mem.alu_result),
     .mem_size(ex_mem.ctrl.mem_size),
     .mem_write_en(ex_mem.ctrl.mem_write_en),
-    .trap(_mem_trap_req)
+    .trap(_addr_trap_req)
+  );
+
+  mmu_trap_control _mmu_trap_control (
+    .fault(dbus.rsp.fault),
+    .access(ex_mem.ctrl.mem_write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD),
+    .virtual_addr(ex_mem.alu_result),
+    .trap_req(_mmu_trap_req)
   );
 
   trap_control _trap_control (

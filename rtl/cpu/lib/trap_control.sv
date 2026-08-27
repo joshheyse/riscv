@@ -102,6 +102,24 @@ module trap_control
       TRAP_SRC_STORE_ADDR_MISALIGNED: begin
         trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_STORE_ADDR_MISALIGNED};
       end
+      TRAP_SRC_INSTR_ACCESS_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_INSTR_ACCESS_FAULT};
+      end
+      TRAP_SRC_LOAD_ACCESS_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_LOAD_ACCESS_FAULT};
+      end
+      TRAP_SRC_STORE_ACCESS_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_STORE_ACCESS_FAULT};
+      end
+      TRAP_SRC_INSTR_PAGE_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_INSTR_PAGE_FAULT};
+      end
+      TRAP_SRC_LOAD_PAGE_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_LOAD_PAGE_FAULT};
+      end
+      TRAP_SRC_STORE_PAGE_FAULT: begin
+        trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_STORE_PAGE_FAULT};
+      end
       default: begin
       end
     endcase

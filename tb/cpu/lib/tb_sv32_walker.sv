@@ -68,10 +68,7 @@ module tb_sv32_walker;
     _translation.req = '{
       valid: 1'b1,
       virtual_addr: virtual_address_u'(virtual_addr),
-      access: access,
-      privilege: privilege,
-      sum: sum,
-      mxr: mxr
+      ctx: '{access: access, privilege: privilege, sum: sum, mxr: mxr}
     };
 
     while (!_translation.req_ready) begin

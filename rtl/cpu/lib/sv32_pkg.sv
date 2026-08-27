@@ -7,6 +7,11 @@ package sv32_pkg;
   // packed PTE and request arguments.
   /* verilator lint_off UNUSEDSIGNAL */
 
+  function automatic logic translation_bypassed(input satp_t satp,
+                                                 input translation_ctx_t ctx);
+    return !satp.mode || (ctx.privilege == PRIV_MACHINE);
+  endfunction
+
   function automatic logic pte_is_invalid(input sv32_pte_t pte);
     return !pte.valid || (!pte.read && pte.write);
   endfunction
@@ -31,12 +36,12 @@ package sv32_pkg;
     logic access_allowed;
     logic privilege_allowed;
 
-    case (req.access)
+    case (req.ctx.access)
       MMU_ACCESS_FETCH: begin
         access_allowed = pte.execute;
       end
       MMU_ACCESS_LOAD: begin
-        access_allowed = pte.read || (req.mxr && pte.execute);
+        access_allowed = pte.read || (req.ctx.mxr && pte.execute);
       end
       MMU_ACCESS_STORE: begin
         access_allowed = pte.write;
@@ -46,7 +51,7 @@ package sv32_pkg;
       end
     endcase
 
-    case (req.privilege)
+    case (req.ctx.privilege)
       PRIV_USER: begin
         privilege_allowed = pte.user;
       end
@@ -55,7 +60,7 @@ package sv32_pkg;
         if (!pte.user) begin
           privilege_allowed = 1'b1;
         end else begin
-          privilege_allowed = (req.access != MMU_ACCESS_FETCH) && req.sum;
+          privilege_allowed = (req.ctx.access != MMU_ACCESS_FETCH) && req.ctx.sum;
         end
       end
 
@@ -68,7 +73,7 @@ package sv32_pkg;
     return access_allowed &&
            privilege_allowed &&
            pte.accessed &&
-           ((req.access != MMU_ACCESS_STORE) || pte.dirty);
+           ((req.ctx.access != MMU_ACCESS_STORE) || pte.dirty);
   endfunction
 
   /* verilator lint_on UNUSEDSIGNAL */

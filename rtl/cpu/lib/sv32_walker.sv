@@ -6,7 +6,9 @@ module sv32_walker
 (
   input logic  clk,
   input logic  rst,
+  /* verilator lint_off UNUSEDSIGNAL */
   input satp_t satp,
+  /* verilator lint_on UNUSEDSIGNAL */
 
   mmu_if.responder translation,
   mem_if.master    memory
@@ -43,7 +45,7 @@ module sv32_walker
       case (_state)
         IDLE: begin
           if (translation.req.valid && translation.req_ready) begin
-            if (satp.mode == 1'b0 || (translation.req.privilege == PRIV_MACHINE)) begin
+            if (translation_bypassed(satp, translation.req.ctx)) begin
               _response <= '{
                   valid: 1'b1,
                   fault: MMU_FAULT_NONE,

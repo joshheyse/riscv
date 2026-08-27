@@ -317,7 +317,7 @@ package riscv_pkg;
     FLOW_JUMP
   } flow_t;
 
-  typedef enum logic [3:0] {
+  typedef enum logic [4:0] {
     TRAP_SRC_NONE,
     TRAP_SRC_INSTR_ADDR_MISALIGNED,
     TRAP_SRC_ILLEGAL_INSTR,
@@ -331,7 +331,13 @@ package riscv_pkg;
     TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
     TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
     TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT,
-    TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT
+    TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
+    TRAP_SRC_INSTR_ACCESS_FAULT,
+    TRAP_SRC_LOAD_ACCESS_FAULT,
+    TRAP_SRC_STORE_ACCESS_FAULT,
+    TRAP_SRC_INSTR_PAGE_FAULT,
+    TRAP_SRC_LOAD_PAGE_FAULT,
+    TRAP_SRC_STORE_PAGE_FAULT
   } trap_src_t;
 
   typedef struct packed {
@@ -627,9 +633,9 @@ package riscv_pkg;
   } mmu_access_t;
 
   typedef enum logic [1:0] {
-    MMU_FAULT_NONE,    // Translation completed successfully.
-    MMU_FAULT_PAGE,    // Page-table contents or permissions rejected the access.
-    MMU_FAULT_ACCESS   // Translation required an unsupported physical access.
+    MMU_FAULT_NONE,   // Translation completed successfully.
+    MMU_FAULT_PAGE,   // Page-table contents or permissions rejected the access.
+    MMU_FAULT_ACCESS  // Translation required an unsupported physical access.
   } mmu_fault_t;
 
   typedef struct packed {
@@ -658,12 +664,16 @@ package riscv_pkg;
   } virtual_address_u;
 
   typedef struct packed {
-    logic                valid;
-    virtual_address_u    virtual_addr;
     mmu_access_t access;
-    priv_mode_t          privilege;
-    logic                sum;
-    logic                mxr;
+    priv_mode_t  privilege;
+    logic        sum;
+    logic        mxr;
+  } translation_ctx_t;
+
+  typedef struct packed {
+    logic             valid;
+    virtual_address_u virtual_addr;
+    translation_ctx_t ctx;
   } mmu_req_t;
 
   typedef struct packed {
@@ -672,5 +682,18 @@ package riscv_pkg;
     mem_addr_t  physical_addr;
   } mmu_rsp_t;
 
+  typedef struct packed {
+    logic            valid;       // request valid; one request at a time
+    logic            write_en;    // 1 = write/store transaction, 0 = read/load
+    mem_addr_t       addr;        // target byte address
+    mem_data_t       write_data;  // write payload
+    mem_write_mask_t write_mask;  // active byte lanes for writes
+  } vmem_req_t;
+
+  typedef struct packed {
+    logic       valid;      // response data is on the bus this cycle
+    mem_data_t  read_data;  // read payload when valid=1 and write_en=0
+    mmu_fault_t fault;
+  } vmem_rsp_t;
 
 endpackage

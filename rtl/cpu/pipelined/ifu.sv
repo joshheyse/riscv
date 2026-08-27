@@ -5,8 +5,8 @@
 //
 // Contract:
 // - `pc` is the next byte address to request.
-// - Once issued, `ibus.req.valid` and `ibus.req.addr` remain stable until the
-//   instruction-side memory port returns `ibus.rsp.valid`.
+// - Once issued, `ibus.req.valid` and its payload remain stable until the
+//   instruction-side memory port accepts the request with `req_ready`.
 // - The instruction-side memory port may return the response later with
 //   `ibus.rsp.valid`.
 // - `fetched` is a one-entry output buffer, not a one-cycle pulse. It stays
@@ -29,106 +29,131 @@ module ifu
   output pc_t    pc,
   output if_id_t fetched,
 
-  mem_if.master ibus
+  vmem_if.master ibus
 );
 
+  typedef enum logic [2:0] {
+    IDLE,
+    REQUEST,
+    WAIT,
+    DROP_REQUEST,
+    DROP_WAIT
+  } state_t;
 
-  // This master has somewhere to put every response it asked for, so it takes
-  // them unconditionally. Drive it for real if that ever stops being true.
-  assign ibus.rsp_ready = 1'b1;
+  state_t _state;
+  pc_t    _request_pc;
+  logic   _request_transfer;
+  logic   _response_transfer;
+  trap_req_t _fetch_trap_req;
 
-  // A fetch is in flight from the cycle it is presented until its response
-  // arrives, but the request itself comes off the bus as soon as the slave
-  // accepts it -- holding it any longer would be offering a transaction that
-  // has already been taken.
-  logic _request_valid;  // presented, not yet accepted
-  logic _awaiting_rsp;  // accepted, response outstanding
-  logic _drop_response;
-  pc_t  _request_pc;
-  logic _request_issued;
-  logic _request_accepted;
-  logic _in_flight;
-  logic _response_here;
+  always_comb begin
+    ibus.req = '0;
+    ibus.req.valid = (_state == REQUEST) || (_state == DROP_REQUEST);
+    ibus.req.addr = _request_pc;
 
-  assign _request_accepted = _request_valid && ibus.req_ready;
-  assign _in_flight = _request_valid || _awaiting_rsp;
-  assign _response_here = ibus.rsp.valid && (_awaiting_rsp || _request_accepted);
+    // This master always has room for the one response it requested.
+    ibus.rsp_ready = 1'b1;
 
-  // Issue at most one fetch at a time. `fetched.valid` does not block issue
-  // because a high `fetch_en` also means the core is consuming that entry.
-  // Never issue a new request on the same cycle as a redirected or stale
-  // response is being drained.
-  //
-  // Issuing must also wait for the cycle *after* a response, not the same one.
-  // `fetched` is a single entry: the next request is only allowed once
-  // `fetch_en` has been seen high with that entry present, which is what
-  // guarantees the core consumed it. Issuing a cycle earlier lets the following
-  // response overwrite an unconsumed entry and silently drop an instruction.
-  assign _request_issued = !rst && fetch_en && !redirect.valid && !_drop_response && !_in_flight;
-  assign ibus.req.valid = _request_valid;
-  assign ibus.req.write_en = 1'b0;
-  assign ibus.req.addr = _request_pc;
-  assign ibus.req.write_data = '0;
-  assign ibus.req.write_mask = '0;
+    _request_transfer = ibus.req.valid && ibus.req_ready;
+    _response_transfer = ibus.rsp.valid && ibus.rsp_ready;
+  end
+
+  mmu_trap_control _mmu_trap_control (
+    .fault(ibus.rsp.fault),
+    .access(MMU_ACCESS_FETCH),
+    .virtual_addr(_request_pc),
+    .trap_req(_fetch_trap_req)
+  );
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      pc <= '0;
-      fetched <= '0;
-      _request_valid <= '0;
-      _awaiting_rsp <= 1'b0;
-      _drop_response <= 1'b0;
+      _state      <= IDLE;
+      pc          <= '0;
+      fetched     <= '0;
       _request_pc <= '0;
     end else begin
-      if (redirect.valid) begin
-        pc <= redirect.pc;
-        // Keep an in-flight request asserted until it completes, but discard
-        // its wrong-path response before issuing the redirected fetch.
-        fetched <= '0;
-        // A response may arrive in the same cycle as the redirect. Consume it
-        // here so the completed request is not presented to the arbiter again.
-        if (_response_here) begin
-          _request_valid <= 1'b0;
-          _awaiting_rsp  <= 1'b0;
-          _drop_response <= 1'b0;
-        end else if (_in_flight) begin
-          _drop_response <= 1'b1;
-          if (_request_accepted) begin
-            _request_valid <= 1'b0;
-            _awaiting_rsp  <= 1'b1;
+      case (_state)
+        IDLE: begin
+          if (redirect.valid) begin
+            pc      <= redirect.pc;
+            fetched <= '0;
+          end else begin
+            if (fetch_en && fetched.valid) begin
+              fetched <= '0;
+            end
+            if (fetch_en) begin
+              _request_pc <= pc;
+              pc          <= pc + pc_t'(4);
+              _state      <= REQUEST;
+            end
           end
         end
-      end else begin
-        // A held fetch is consumed when the front of the pipeline advances.
-        if (fetch_en && fetched.valid) begin
-          fetched <= '0;
-        end
 
-        // Tag each returned instruction with the PC from the request cycle,
-        // not the current next-request PC.
-        if (_response_here) begin
-          if (!_drop_response) begin
-            fetched <= '{valid: 1'b1, slot: '{instr: ibus.rsp.read_data, pc: _request_pc}};
+        REQUEST: begin
+          if (redirect.valid) begin
+            pc      <= redirect.pc;
+            fetched <= '0;
+            if (_request_transfer && _response_transfer) begin
+              _state <= IDLE;
+            end else if (_request_transfer) begin
+              _state <= DROP_WAIT;
+            end else begin
+              _state <= DROP_REQUEST;
+            end
+          end else if (_request_transfer && _response_transfer) begin
+            fetched <= '{
+              valid: 1'b1,
+              slot: '{instr: ibus.rsp.read_data, pc: _request_pc},
+              trap_req: _fetch_trap_req
+            };
+            _state <= IDLE;
+          end else if (_request_transfer) begin
+            _state <= WAIT;
           end
-          _request_valid <= 1'b0;
-          _awaiting_rsp  <= 1'b0;
-          _drop_response <= 1'b0;
-        end else if (_request_accepted) begin
-          _request_valid <= 1'b0;
-          _awaiting_rsp  <= 1'b1;
         end
 
-        // Advance `pc` when the request is issued. The response is matched
-        // later using `_request_pc`.
-        if (_request_issued) begin
-          _request_valid <= 1'b1;
-          _request_pc <= pc;
-          pc <= pc + pc_t'(4);
+        WAIT: begin
+          if (redirect.valid) begin
+            pc      <= redirect.pc;
+            fetched <= '0;
+            _state  <= _response_transfer ? IDLE : DROP_WAIT;
+          end else if (_response_transfer) begin
+            fetched <= '{
+              valid: 1'b1,
+              slot: '{instr: ibus.rsp.read_data, pc: _request_pc},
+              trap_req: _fetch_trap_req
+            };
+            _state <= IDLE;
+          end
         end
-      end
 
+        DROP_REQUEST: begin
+          if (redirect.valid) begin
+            pc      <= redirect.pc;
+            fetched <= '0;
+          end
+          if (_request_transfer && _response_transfer) begin
+            _state <= IDLE;
+          end else if (_request_transfer) begin
+            _state <= DROP_WAIT;
+          end
+        end
+
+        DROP_WAIT: begin
+          if (redirect.valid) begin
+            pc      <= redirect.pc;
+            fetched <= '0;
+          end
+          if (_response_transfer) begin
+            _state <= IDLE;
+          end
+        end
+
+        default: begin
+          _state <= IDLE;
+        end
+      endcase
     end
-
   end
 
 endmodule

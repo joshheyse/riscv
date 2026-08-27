@@ -11,7 +11,7 @@
 #   make DESIGN=multicycle ...
 
 DESIGN ?= pipelined
-TOP    ?= soc
+TOP    ?= core
 CACHE_WAYS ?= 4
 
 ifeq ($(filter $(CACHE_WAYS),2 4),)
@@ -290,12 +290,12 @@ cache-synth: $(CACHE_SYNTH_JSON)
 
 ## cache-test: lint, simulate, and synthesize both supported cache geometries
 cache-test:
-	$(MAKE) lint TOP=soc CACHE_WAYS=2
+	$(MAKE) lint TOP=core CACHE_WAYS=2
 	$(MAKE) sim TB=set_associative_cache CACHE_WAYS=2
 	$(MAKE) sim TB=l1_cache CACHE_WAYS=2
 	$(MAKE) sim TB=core CACHE_WAYS=2
 	$(MAKE) cache-synth CACHE_WAYS=2
-	$(MAKE) lint TOP=soc CACHE_WAYS=4
+	$(MAKE) lint TOP=core CACHE_WAYS=4
 	$(MAKE) sim TB=lru_4_way CACHE_WAYS=4
 	$(MAKE) sim TB=set_associative_cache CACHE_WAYS=4
 	$(MAKE) sim TB=l1_cache CACHE_WAYS=4

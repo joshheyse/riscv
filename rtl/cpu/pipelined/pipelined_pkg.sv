@@ -13,8 +13,9 @@ package pipelined_pkg;
   import riscv_pkg::*;
 
   typedef struct packed {
-    logic        valid;  // slot contains an instruction
-    instr_slot_t slot;   // fetched instruction and PC
+    logic        valid;     // slot contains an instruction or fetch trap
+    instr_slot_t slot;      // fetched instruction and PC
+    trap_req_t   trap_req;  // synchronous fault detected during fetch
   } if_id_t;
 
   typedef struct packed {

@@ -16,6 +16,7 @@ module tb_sv32_pkg;
 
   sv32_pte_t _pte;
   mmu_req_t  _req;
+  satp_t     _satp;
 
   task automatic expect_logic(input logic got, input logic expected, input string what);
     _checks++;
@@ -36,6 +37,25 @@ module tb_sv32_pkg;
     end
 
     _pte = '0;
+    _req = '0;
+    _satp = '0;
+
+    _req.ctx.privilege = PRIV_USER;
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,
+                 "Bare mode bypasses user translation");
+    _req.ctx.privilege = PRIV_SUPERVISOR;
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,
+                 "Bare mode bypasses supervisor translation");
+    _satp.mode = 1'b1;
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b0,
+                 "Sv32 translates supervisor accesses");
+    _req.ctx.privilege = PRIV_USER;
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b0,
+                 "Sv32 translates user accesses");
+    _req.ctx.privilege = PRIV_MACHINE;
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,
+                 "Machine privilege bypasses enabled Sv32");
+
     expect_logic(pte_is_invalid(_pte), 1'b1, "clear PTE is invalid");
 
     _pte.valid = 1'b1;
@@ -88,25 +108,25 @@ module tb_sv32_pkg;
 
     _req = '0;
     _req.valid = 1'b1;
-    _req.privilege = PRIV_USER;
+    _req.ctx.privilege = PRIV_USER;
 
-    _req.access = MMU_ACCESS_FETCH;
+    _req.ctx.access = MMU_ACCESS_FETCH;
     expect_access(1'b1, "user fetch from executable user page");
     _pte.execute = 1'b0;
     expect_access(1'b0, "user fetch requires execute permission");
     _pte.execute = 1'b1;
 
-    _req.access = MMU_ACCESS_LOAD;
+    _req.ctx.access = MMU_ACCESS_LOAD;
     expect_access(1'b1, "user load from readable user page");
     _pte.read = 1'b0;
-    _req.mxr = 1'b0;
+    _req.ctx.mxr = 1'b0;
     expect_access(1'b0, "execute-only page is not readable without MXR");
-    _req.mxr = 1'b1;
+    _req.ctx.mxr = 1'b1;
     expect_access(1'b1, "MXR permits load from execute-only page");
     _pte.read = 1'b1;
-    _req.mxr = 1'b0;
+    _req.ctx.mxr = 1'b0;
 
-    _req.access = MMU_ACCESS_STORE;
+    _req.ctx.access = MMU_ACCESS_STORE;
     expect_access(1'b1, "user store to writable user page");
     _pte.write = 1'b0;
     expect_access(1'b0, "user store requires write permission");
@@ -116,49 +136,49 @@ module tb_sv32_pkg;
     expect_access(1'b0, "user cannot access supervisor page");
     _pte.user = 1'b1;
 
-    _req.privilege = PRIV_SUPERVISOR;
-    _req.access = MMU_ACCESS_FETCH;
-    _req.sum = 1'b1;
+    _req.ctx.privilege = PRIV_SUPERVISOR;
+    _req.ctx.access = MMU_ACCESS_FETCH;
+    _req.ctx.sum = 1'b1;
     expect_access(1'b0, "SUM never permits supervisor fetch from user page");
 
-    _req.access = MMU_ACCESS_LOAD;
-    _req.sum = 1'b0;
+    _req.ctx.access = MMU_ACCESS_LOAD;
+    _req.ctx.sum = 1'b0;
     expect_access(1'b0, "supervisor load from user page requires SUM");
-    _req.sum = 1'b1;
+    _req.ctx.sum = 1'b1;
     expect_access(1'b1, "SUM permits supervisor load from user page");
 
-    _req.access = MMU_ACCESS_STORE;
-    _req.sum = 1'b0;
+    _req.ctx.access = MMU_ACCESS_STORE;
+    _req.ctx.sum = 1'b0;
     expect_access(1'b0, "supervisor store to user page requires SUM");
-    _req.sum = 1'b1;
+    _req.ctx.sum = 1'b1;
     expect_access(1'b1, "SUM permits supervisor store to user page");
 
     _pte.user = 1'b0;
-    _req.sum = 1'b0;
-    _req.access = MMU_ACCESS_FETCH;
+    _req.ctx.sum = 1'b0;
+    _req.ctx.access = MMU_ACCESS_FETCH;
     expect_access(1'b1, "supervisor fetch from supervisor page");
-    _req.access = MMU_ACCESS_LOAD;
+    _req.ctx.access = MMU_ACCESS_LOAD;
     expect_access(1'b1, "supervisor load from supervisor page");
-    _req.access = MMU_ACCESS_STORE;
+    _req.ctx.access = MMU_ACCESS_STORE;
     expect_access(1'b1, "supervisor store to supervisor page");
 
     _pte.accessed = 1'b0;
-    _req.access = MMU_ACCESS_LOAD;
+    _req.ctx.access = MMU_ACCESS_LOAD;
     expect_access(1'b0, "clear accessed bit rejects leaf access");
     _pte.accessed = 1'b1;
 
     _pte.dirty = 1'b0;
-    _req.access = MMU_ACCESS_LOAD;
+    _req.ctx.access = MMU_ACCESS_LOAD;
     expect_access(1'b1, "load does not require dirty bit");
-    _req.access = MMU_ACCESS_STORE;
+    _req.ctx.access = MMU_ACCESS_STORE;
     expect_access(1'b0, "store requires dirty bit");
     _pte.dirty = 1'b1;
 
-    _req.privilege = PRIV_MACHINE;
+    _req.ctx.privilege = PRIV_MACHINE;
     expect_access(1'b0, "machine request must bypass leaf permission helper");
 
-    _req.privilege = PRIV_SUPERVISOR;
-    _req.access = mmu_access_t'(2'b11);
+    _req.ctx.privilege = PRIV_SUPERVISOR;
+    _req.ctx.access = mmu_access_t'(2'b11);
     expect_access(1'b0, "reserved access type is rejected");
 
     if (_errors == 0) begin

@@ -2,6 +2,7 @@
 
 module top_sim
   import riscv_pkg::*;
+  import pipelined_pkg::*;
 #(
   parameter string MemInitFile = "",
   parameter int unsigned MemDepthWords = 1024,
@@ -48,7 +49,10 @@ module top_sim
   assign _sim_halt_fire = !_rst && _core_mem.req.valid && _core_mem.req.write_en
                           && _sim_halt_selected;
 
-  assign _retire = _core._ex_mem.valid && !_core._dbus_wait;
+  // Count a valid MEM/WB entry once, on the edge where it leaves the stage.
+  // A held entry remains valid across cycles but has not retired again.
+  assign _retire = _core._mem_wb.valid && (_core._pipe_ctrl.mem_wb != STAGE_HOLD) &&
+                   !_core._mem_wb.trap.valid;
 
   assign _core_mem.rsp.read_data = _sim_halt_selected ? '0 : _board_mem.rsp.read_data;
   assign _core_mem.rsp.valid = _sim_halt_selected ? _core_mem.req.valid : _board_mem.rsp.valid;
@@ -287,8 +291,8 @@ module top_sim
         _cycle, _pc, _halted, _core_mem.req.valid, _core_mem.req.write_en, _core_mem.req.addr,
         _core_mem.req.write_data, _core_mem.rsp.valid);
     $display(
-        "top_sim: pipeline ifu_request_valid=%b ifu_request_pc=0x%08h ifu_drop_response=%b fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
-        _core._ifu._request_valid, _core._ifu._request_pc, _core._ifu._drop_response,
+        "top_sim: pipeline ifu_state=%0d ifu_request_pc=0x%08h fetched_valid=%b if_id_valid=%b id_ex_valid=%b ex_mem_valid=%b mem_wb_valid=%b fetch_ctrl=%0d data_stall=%b dbus_wait=%b flow_action=%0d",
+        _core._ifu._state, _core._ifu._request_pc,
         _core._fetched.valid, _core._if_id.valid, _core._id_ex.valid, _core._ex_mem.valid,
         _core._mem_wb.valid, _core._pipe_ctrl.fetch, _core._data_stall, _core._dbus_wait,
         _core._flow.action);

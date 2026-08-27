@@ -62,6 +62,8 @@ module tb_riscv_pkg
     expect_int($bits(satp_t), 32, "satp_t width");
     expect_int($bits(virtual_address_fields_t), 32, "virtual address fields width");
     expect_int($bits(virtual_address_u), 32, "virtual address width");
+    expect_int($bits(translation_ctx_t), 6, "translation context width");
+    expect_int($bits(mmu_req_t), 39, "MMU request width");
     expect_int($bits(mvendorid_t), 32, "mvendorid_t width");
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");

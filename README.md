@@ -108,7 +108,6 @@ a design or turn on tracing:
 make lint TOP=core
 make sim TB=rv32i
 make sim TB=core TRACE=1
-make lint TOP=soc
 make board-app-test BOARD=sim BOARD_SIM=top_sim
 ```
 

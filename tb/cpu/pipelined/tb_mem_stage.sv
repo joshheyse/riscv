@@ -19,7 +19,7 @@ module tb_mem_stage
   logic        _mem_wait;
   mem_wb_t     _mem_wb_payload;
 
-  mem_if _dbus (
+  vmem_if _dbus (
     _clk,
     _rst
   );
@@ -187,6 +187,59 @@ module tb_mem_stage
     expect_word(_mem_wb_payload.result, 32'h1234_5678, "load result reaches writeback");
     @(posedge _clk);
     #1;
+
+    // MMU failures complete the request but replace its normal result with a
+    // precisely attributed load/store trap carrying the virtual address.
+    clear_inputs();
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_0080;
+    _ex_mem.ctrl.writeback_result = WB_RESULT_MEM;
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h8123_4000;
+    _dbus.req_ready = 1'b1;
+    _dbus.rsp.fault = MMU_FAULT_PAGE;
+    #1;
+    expect_bit(_mem_wait, 1'b0, "load page fault completes memory wait");
+    expect_bit(_mem_wb_payload.trap.valid, 1'b1, "load page fault produces trap");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd13, "load page fault cause");
+    expect_word(_mem_wb_payload.trap.payload.tval, 32'h8123_4000,
+                "load page fault virtual address");
+
+    clear_inputs();
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_0084;
+    _ex_mem.ctrl.mem_write_en = 1'b1;
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h9234_5000;
+    _dbus.req_ready = 1'b1;
+    _dbus.rsp.fault = MMU_FAULT_PAGE;
+    #1;
+    expect_bit(_mem_wb_payload.trap.valid, 1'b1, "store page fault produces trap");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd15, "store page fault cause");
+    expect_word(_mem_wb_payload.trap.payload.tval, 32'h9234_5000,
+                "store page fault virtual address");
+
+    clear_inputs();
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_0088;
+    _ex_mem.ctrl.writeback_result = WB_RESULT_MEM;
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'ha345_6000;
+    _dbus.req_ready = 1'b1;
+    _dbus.rsp.fault = MMU_FAULT_ACCESS;
+    #1;
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd5, "load access fault cause");
+
+    clear_inputs();
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_008c;
+    _ex_mem.ctrl.mem_write_en = 1'b1;
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'hb456_7000;
+    _dbus.req_ready = 1'b1;
+    _dbus.rsp.fault = MMU_FAULT_ACCESS;
+    #1;
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd7, "store access fault cause");
 
     if (_errors == 0) begin
       $display("tb_mem_stage: PASS (%0d checks)", _checks);
