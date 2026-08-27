@@ -96,8 +96,8 @@ module top_sim
       _plic_uart_tx_seen <= 1'b0;
     end else if (!_sim_done) begin
       _cycle <= _cycle + 1;
-      if (_retire) begin
-        _instret <= _instret + 1;
+      if (_retire || _sim_halt_fire) begin
+        _instret <= _instret + int'(_retire) + int'(_sim_halt_fire);
       end
       if (_sim_halt_fire) begin
         _sim_done <= 1'b1;

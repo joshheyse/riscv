@@ -114,3 +114,70 @@ Key commits: `19943b6`, `afdac51`, `4967a92`, `c914e27`, `b365925`,
   pointer-masking, and FIOM behavior it controls is not implemented.
 
 Key commits: `a8b9e2f`, `a6be1a3`, `70243df`.
+
+### 8. Set-Associative L1 Caches
+
+- Added separate instruction and data L1 caches and inferred block RAM for
+  cache storage.
+- Added cache maintenance and `FENCE.I` ordering.
+- Refactored cache storage into reusable ways, then expanded the caches from
+  direct-mapped to two-way and four-way set associativity.
+- Added two-way LRU and four-way pseudo-LRU replacement policies.
+
+Key commits: `a8b034c`, `77c7e48`, `5546980`, `b70da17`, `1c85dd8`,
+`5920533`, `7db4c06`.
+
+### 9. RV32M Integer Multiply and Divide
+
+- Added RV32M decode and execution support for multiply, divide, and remainder
+  instructions.
+- Initially implemented division as a combinational datapath. FPGA timing
+  measurements identified this as the major clock-frequency regression and
+  motivate a future iterative multi-cycle divider.
+
+Key commit: `47436c0`.
+
+### 10. Initial Sv32 Translation
+
+- Added legalized `satp` state, page-fault causes, `SFENCE.VMA`, and the
+  supervisor permission fields needed for translation.
+- Added an Sv32 page-table walker and permission checks.
+- Inserted virtual-memory adapters ahead of the instruction and data caches.
+- Added a combinational Bare/M-mode request bypass while keeping translated
+  accesses on the page-table-walker path.
+
+Key commits: `2043be5`, `60ac66d`, `4578f56`, `7b74dc2`, `af1e042`,
+`55219fc`.
+
+## Performance History
+
+Keep this table current when a major architectural feature changes CPI, FPGA
+timing, or resource use. Measure routed timing on the
+`lfe5um5g_85f_evn` speed-grade-8 target with the same nextpnr settings. Measure
+CPI with a fixed-work benchmark that does not poll UART, timers, or another
+real-time peripheral. The current benchmark is `perf_fixed_halt`, which retires
+1,699 instructions in every measured architecture. A valid pipelined
+retirement event is a non-faulting MEM/WB entry leaving the stage; a held entry
+must not be counted repeatedly. The terminal simulation-halt store is counted
+when its memory transaction completes because simulation stops before it can
+reach MEM/WB.
+
+The earlier UART-based CPI snapshot remains useful as a historical record, but
+is not directly comparable: UART polling changes the dynamic instruction count
+when memory-system latency changes.
+
+| Architecture | Milestone                                     | Commit    |  Cycles | Instret |     CPI |  Routed Fmax | Est. MIPS |    LUTs |     FFs |   BRAMs | Multipliers |
+| ------------ | --------------------------------------------- | --------- | ------: | ------: | ------: | -----------: | --------: | ------: | ------: | ------: | ----------: |
+| Single-stage | Final working core                            | `1644a56` |   5,373 |   1,699 |    3.16 |   59.86 MHz |     18.93 | pending |     597 |       2 |           0 |
+| Pipelined    | Bare supervisor privilege and delegated traps | `70243df` |   3,963 |   1,699 |    2.33 |   ~68.8 MHz |    ~29.50 | pending | pending | pending |           0 |
+| Pipelined    | Unified memory baseline                       | `eeb8923` |   6,362 |   1,699 |    3.74 |   66.89 MHz |     17.86 | pending | pending | pending |           0 |
+| Pipelined    | Cache associativity benchmark support         | `4059c4c` |   5,989 |   1,699 |    3.53 |   65.46 MHz |     18.57 | pending | pending | pending |           0 |
+| Pipelined    | Four-way cache replacement                    | `5920533` |   5,989 |   1,699 |    3.53 |   61.39 MHz |     17.42 |   8,648 |   2,025 |       7 |           0 |
+| Pipelined    | RV32M execution                               | `47436c0` |   5,989 |   1,699 |    3.53 |    ~7.9 MHz |     ~2.24 | pending | pending |       7 |          10 |
+| Pipelined    | Sv32 integration and request bypass           | `55219fc` |   7,832 |   1,699 |    4.61 |    8.03 MHz |      1.74 |  17,956 |   2,759 |       7 |          10 |
+
+For architectural comparisons, also report estimated instruction throughput:
+
+```text
+instructions/second = routed Fmax / CPI
+```
