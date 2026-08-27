@@ -5,7 +5,7 @@ module tb_core_m
 ();
 
   localparam realtime ClkPeriod = 10ns;
-  localparam int unsigned TimeoutCycles = 800;
+  localparam int unsigned TimeoutCycles = 1_200;
 
   logic _clk;
   logic _rst;
@@ -114,7 +114,7 @@ module tb_core_m
     @(negedge _clk);
     _rst = 1'b0;
 
-    repeat (140) @(posedge _clk);
+    repeat (900) @(posedge _clk);
     #1;
 
     expect_word(_dut._reg_file._regs[0], 32'h0000_0000, "MUL write to x0 is suppressed");

@@ -380,6 +380,18 @@ package riscv_pkg;
   } muldiv_ctrl_t;
 
   typedef struct packed {
+    logic          valid;
+    integer_data_t src_a;
+    integer_data_t src_b;
+    mul_op_t       op;
+  } mul_req_t;
+
+  typedef struct packed {
+    logic          valid;
+    integer_data_t result;
+  } mul_rsp_t;
+
+  typedef struct packed {
     alu_op_t op;         // ALU function selected by decode
     logic    sub_arith;  // use SUB/SRA variant for shared ALU op
   } alu_ctrl_t;
@@ -665,9 +677,9 @@ package riscv_pkg;
 
   typedef struct packed {
     mmu_access_t access;
-    priv_mode_t  privilege;
-    logic        sum;
-    logic        mxr;
+    priv_mode_t          privilege;
+    logic                sum;
+    logic                mxr;
   } translation_ctx_t;
 
   typedef struct packed {
@@ -695,5 +707,17 @@ package riscv_pkg;
     mem_data_t  read_data;  // read payload when valid=1 and write_en=0
     mmu_fault_t fault;
   } vmem_rsp_t;
+
+  typedef struct packed {
+    logic          valid;
+    integer_data_t src_a;
+    integer_data_t src_b;
+    div_op_t       op;
+  } div_req_t;
+
+  typedef struct packed {
+    logic          valid;
+    integer_data_t result;
+  } div_rsp_t;
 
 endpackage

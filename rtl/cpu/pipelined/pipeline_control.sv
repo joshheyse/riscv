@@ -21,6 +21,7 @@ module pipeline_control
   /* verilator lint_on UNUSEDSIGNAL */
   input  logic           mem_order_start,
   input  logic           mem_order_busy,
+  input  logic           execute_wait,
   output pipeline_ctrl_t pipe_ctrl
 );
 
@@ -64,15 +65,31 @@ module pipeline_control
           ex_mem: STAGE_FLUSH,
           mem_wb: STAGE_FLUSH
       };
-    end else if (flow.action == FLOW_ACTION_TRAP) begin
+    end else if ((flow.action == FLOW_ACTION_TRAP) && !trap_from_if_id) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,
-          id_ex: trap_from_if_id ? STAGE_ADVANCE : STAGE_FLUSH,
+          id_ex: STAGE_FLUSH,
           ex_mem: STAGE_ADVANCE,
           mem_wb: STAGE_ADVANCE
       };
     end else if (trap_in_flight) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_FLUSH,
+          id_ex: STAGE_ADVANCE,
+          ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
+      };
+    end else if (execute_wait) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_HOLD,
+          id_ex: STAGE_HOLD,
+          ex_mem: STAGE_FLUSH,
+          mem_wb: STAGE_ADVANCE
+      };
+    end else if (flow.action == FLOW_ACTION_TRAP) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,

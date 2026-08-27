@@ -63,6 +63,7 @@ module core
   reg_data_t        _ex_result;
   if_id_t           _fetched;
   logic             _data_stall;
+  logic             _execute_wait;
   pc_src_t          _ex_pc_src;
 
   logic             _dbus_wait;
@@ -392,6 +393,7 @@ module core
     .flow(_flow),
     .mem_order_start(_mem_order_start),
     .mem_order_busy(_mem_order_busy),
+    .execute_wait(_execute_wait),
     .pipe_ctrl(_pipe_ctrl)
   );
 
@@ -543,6 +545,11 @@ module core
   end
 
   integer_execute _integer_execute (
+    .clk(clk),
+    .rst(rst),
+    .valid(_id_ex.valid),
+    .cancel(_pipe_ctrl.id_ex == STAGE_FLUSH),
+    .result_ready(_pipe_ctrl.id_ex == STAGE_ADVANCE),
     .ctrl(_id_ex.ctrl),
     .branch_funct3(_id_ex.slot.instr.r.funct3.br),
     .pc(_id_ex.slot.pc),
@@ -551,7 +558,8 @@ module core
     .imm(_id_ex.imm),
     .alu_result(_alu_result),
     .store_data(_store_data),
-    .pc_src(_ex_pc_src)
+    .pc_src(_ex_pc_src),
+    .execute_wait(_execute_wait)
   );
 
   csr_execute _csr_execute (

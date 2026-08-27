@@ -4,22 +4,34 @@ module tb_mul_execute
   import riscv_pkg::*;
 ();
 
-  localparam int unsigned TimeoutNs = 10_000;
+  localparam int unsigned ClockPeriodNs = 10;
+  localparam int unsigned TimeoutCycles = 100_000;
   localparam int unsigned RandomVectors = 2_000;
 
-  integer_data_t _src_a;
-  integer_data_t _src_b;
-  mul_op_t       _mul_op;
-  integer_data_t _mul_result;
+  logic     _clk;
+  logic     _rst;
+  logic     _cancel;
+  mul_req_t _req;
+  logic     _req_ready;
+  mul_rsp_t _rsp;
+  logic     _rsp_ready;
 
   int unsigned _checks = 0;
   int unsigned _errors = 0;
 
+  initial begin
+    _clk = 1'b0;
+    forever #(ClockPeriodNs / 2) _clk = ~_clk;
+  end
+
   mul_execute _dut (
-    .src_a(_src_a),
-    .src_b(_src_b),
-    .mul_op(_mul_op),
-    .mul_result(_mul_result)
+    .clk(_clk),
+    .rst(_rst),
+    .cancel(_cancel),
+    .req(_req),
+    .rsp_ready(_rsp_ready),
+    .req_ready(_req_ready),
+    .rsp(_rsp)
   );
 
   function automatic integer_data_t reference(input integer_data_t src_a,
@@ -41,17 +53,37 @@ module tb_mul_execute
                        input integer_data_t src_b, input string what);
     integer_data_t expected;
 
-    _mul_op = op;
-    _src_a  = src_a;
-    _src_b  = src_b;
     expected = reference(src_a, src_b, op);
-    #1;
+    @(negedge _clk);
+    _req = '{valid: 1'b1, src_a: src_a, src_b: src_b, op: op};
+    while (!_req_ready) begin
+      @(negedge _clk);
+    end
+    @(posedge _clk);
+    @(negedge _clk);
+    _req.valid = 1'b0;
+
+    while (!_rsp.valid) begin
+      @(negedge _clk);
+    end
+
     _checks++;
-    if (_mul_result !== expected) begin
+    if (_rsp.result !== expected) begin
       _errors++;
       $display("  FAIL %s: op=%s a=%08h b=%08h got=%08h expected=%08h", what, op.name(),
-               src_a, src_b, _mul_result, expected);
+               src_a, src_b, _rsp.result, expected);
     end
+
+    @(negedge _clk);
+    if (!_rsp.valid || (_rsp.result !== expected)) begin
+      _errors++;
+      $display("  FAIL %s: response changed while stalled", what);
+    end
+
+    _rsp_ready = 1'b1;
+    @(posedge _clk);
+    @(negedge _clk);
+    _rsp_ready = 1'b0;
   endtask
 
   initial begin
@@ -59,6 +91,14 @@ module tb_mul_execute
       $dumpfile("tb_mul_execute.vcd");
       $dumpvars(0, tb_mul_execute);
     end
+
+    _rst = 1'b1;
+    _cancel = 1'b0;
+    _req = '0;
+    _rsp_ready = 1'b0;
+    repeat (3) @(posedge _clk);
+    @(negedge _clk);
+    _rst = 1'b0;
 
     check(MUL_OP_LOW, 32'hffff_ffff, 32'hffff_ffff, "low word ignores signedness");
     check(MUL_OP_HIGH_SS, 32'hffff_ffff, 32'h0000_0002, "signed negative times positive");
@@ -81,8 +121,8 @@ module tb_mul_execute
   end
 
   initial begin
-    #(TimeoutNs);
-    $fatal(1, "tb_mul_execute: TIMEOUT after %0d ns", TimeoutNs);
+    repeat (TimeoutCycles) @(posedge _clk);
+    $fatal(1, "tb_mul_execute: TIMEOUT after %0d cycles", TimeoutCycles);
   end
 
 endmodule
