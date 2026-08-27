@@ -162,19 +162,24 @@ must not be counted repeatedly. The terminal simulation-halt store is counted
 when its memory transaction completes because simulation stops before it can
 reach MEM/WB.
 
+Resource counts come from the synthesized ECP5 netlist. LUTs include ordinary
+`LUT4` cells plus the LUT equivalents consumed by carry and distributed-RAM
+cells; FFs, BRAMs, and multipliers count `TRELLIS_FF`, `DP16KD`, and
+`MULT18X18D` cells respectively.
+
 The earlier UART-based CPI snapshot remains useful as a historical record, but
 is not directly comparable: UART polling changes the dynamic instruction count
 when memory-system latency changes.
 
-| Architecture | Milestone                                     | Commit    |  Cycles | Instret |     CPI |  Routed Fmax | Est. MIPS |    LUTs |     FFs |   BRAMs | Multipliers |
-| ------------ | --------------------------------------------- | --------- | ------: | ------: | ------: | -----------: | --------: | ------: | ------: | ------: | ----------: |
-| Single-stage | Final working core                            | `1644a56` |   5,373 |   1,699 |    3.16 |   59.86 MHz |     18.93 | pending |     597 |       2 |           0 |
-| Pipelined    | Bare supervisor privilege and delegated traps | `70243df` |   3,963 |   1,699 |    2.33 |   ~68.8 MHz |    ~29.50 | pending | pending | pending |           0 |
-| Pipelined    | Unified memory baseline                       | `eeb8923` |   6,362 |   1,699 |    3.74 |   66.89 MHz |     17.86 | pending | pending | pending |           0 |
-| Pipelined    | Cache associativity benchmark support         | `4059c4c` |   5,989 |   1,699 |    3.53 |   65.46 MHz |     18.57 | pending | pending | pending |           0 |
-| Pipelined    | Four-way cache replacement                    | `5920533` |   5,989 |   1,699 |    3.53 |   61.39 MHz |     17.42 |   8,648 |   2,025 |       7 |           0 |
-| Pipelined    | RV32M execution                               | `47436c0` |   5,989 |   1,699 |    3.53 |    ~7.9 MHz |     ~2.24 | pending | pending |       7 |          10 |
-| Pipelined    | Sv32 integration and request bypass           | `55219fc` |   7,832 |   1,699 |    4.61 |    8.03 MHz |      1.74 |  17,956 |   2,759 |       7 |          10 |
+| Architecture | Milestone                                     | Commit    | Cycles | Instret |  CPI | Routed Fmax | Est. MIPS |    LUTs |     FFs |   BRAMs | Multipliers |
+| ------------ | --------------------------------------------- | --------- | -----: | ------: | ---: | ----------: | --------: | ------: | ------: | ------: | ----------: |
+| Single-stage | Final working core                            | `1644a56` |  5,373 |   1,699 | 3.16 |   59.86 MHz |     18.93 |   4,765 |     597 |       2 |           0 |
+| Pipelined    | Bare supervisor privilege and delegated traps | `70243df` |  3,963 |   1,699 | 2.33 |   ~68.8 MHz |    ~29.50 |   5,989 |   1,766 |       2 |           0 |
+| Pipelined    | Unified memory baseline                       | `eeb8923` |  6,362 |   1,699 | 3.74 |   66.89 MHz |     17.86 |   7,339 |   1,658 |       2 |           0 |
+| Pipelined    | Cache associativity benchmark support         | `4059c4c` |  5,989 |   1,699 | 3.53 |   65.46 MHz |     18.57 |  10,503 |   2,581 |      10 |           0 |
+| Pipelined    | Four-way cache replacement                    | `5920533` |  5,989 |   1,699 | 3.53 |   61.39 MHz |     17.42 |   8,648 |   2,025 |       7 |           0 |
+| Pipelined    | RV32M execution                               | `47436c0` |  5,989 |   1,699 | 3.53 |    ~7.9 MHz |     ~2.24 |  19,205 |   2,026 |       7 |          10 |
+| Pipelined    | Sv32 integration and request bypass           | `55219fc` |  7,832 |   1,699 | 4.61 |    8.03 MHz |      1.74 |  17,544 |   2,759 |       7 |          10 |
 
 For architectural comparisons, also report estimated instruction throughput:
 
