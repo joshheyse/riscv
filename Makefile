@@ -88,8 +88,12 @@ BOARD_SIM_SRC    := $(BOARD_SIM_SRC_DIR)/$(BOARD_SIM_TOP).sv
 BOARD_SIM_HARNESS_SRCS := $(BOARD_SRCS) $(BOARD_SIM_SRC)
 BOARD_LPF       := $(BOARD_RTL_DIR)/pins.lpf
 BOARD_JSON      := $(BOARD_BUILD_DIR)/$(BOARD_TOP).json
-BOARD_CONFIG    := $(BOARD_BUILD_DIR)/$(BOARD_TOP).config
-BOARD_BIT       := $(BOARD_BUILD_DIR)/$(BOARD_TOP).bit
+BOARD_CONFIG    = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz.config
+BOARD_ANALYSIS_CONFIG = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz-analysis.config
+BOARD_BIT       = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz.bit
+BOARD_TIMING_REPORT = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz-timing.json
+BOARD_PLACED_SVG = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz-placed.svg
+BOARD_ROUTED_SVG = $(BOARD_BUILD_DIR)/$(BOARD_TOP)-$(ECP5_FREQ)mhz-routed.svg
 BOARD_PROGRAM   ?= led_skip
 BOARD_PROGRAM_SRC := $(BOARD_RTL_DIR)/programs/$(BOARD_PROGRAM).S
 
@@ -203,7 +207,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-timing board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -392,12 +396,30 @@ $(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G MemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
 	tools/check_bram.py $@ --minimum $(MIN_DP16KD)
 
-$(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF)
+$(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF) tools/summarize_timing.py Makefile
 	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \
 		--freq $(ECP5_FREQ) \
 		--json $< \
 		--lpf $(BOARD_LPF) \
+		--report $(BOARD_TIMING_REPORT) \
+		--detailed-timing-report \
+		--placed-svg $(BOARD_PLACED_SVG) \
+		--routed-svg $(BOARD_ROUTED_SVG) \
 		--textcfg $@
+	tools/summarize_timing.py $(BOARD_TIMING_REPORT)
+
+$(BOARD_ANALYSIS_CONFIG): $(BOARD_JSON) $(BOARD_LPF) tools/summarize_timing.py Makefile
+	nextpnr-ecp5 $(ECP5_DEVICE) --package $(ECP5_PACKAGE) --speed $(ECP5_SPEED) \
+		--freq $(ECP5_FREQ) \
+		--json $< \
+		--lpf $(BOARD_LPF) \
+		--report $(BOARD_TIMING_REPORT) \
+		--detailed-timing-report \
+		--placed-svg $(BOARD_PLACED_SVG) \
+		--routed-svg $(BOARD_ROUTED_SVG) \
+		--timing-allow-fail \
+		--textcfg $@
+	tools/summarize_timing.py $(BOARD_TIMING_REPORT)
 
 $(BOARD_BIT): $(BOARD_CONFIG)
 	ecppack --compress $< $@
@@ -408,6 +430,9 @@ board-synth: $(BOARD_JSON)
 
 ## board-pnr: place and route the selected ECP5 board design
 board-pnr: $(BOARD_CONFIG)
+
+## board-timing: place and route while preserving reports even when timing fails
+board-timing: $(BOARD_ANALYSIS_CONFIG)
 
 ## board-build: build a bitstream for the selected board
 board-build: $(BOARD_BIT)

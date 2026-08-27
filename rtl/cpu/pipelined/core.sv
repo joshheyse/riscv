@@ -139,6 +139,10 @@ module core
     clk,
     rst
   );
+  mem_if _physical_mem (
+    clk,
+    rst
+  );
   mem_if _ifetch_cache_arb (
     clk,
     rst
@@ -423,7 +427,14 @@ module core
     .rst(rst),
     .ifetch(_ifetch_cache_arb.slave),
     .data(_data_cache_arb.slave),
-    .mem(mem)
+    .mem(_physical_mem.master)
+  );
+
+  physical_memory_port _physical_memory_port (
+    .clk(clk),
+    .rst(rst),
+    .upstream(_physical_mem.slave),
+    .downstream(mem)
   );
 
   mem_arbiter _ifetch_translation_arbiter (

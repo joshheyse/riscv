@@ -3,7 +3,6 @@
 
 LOCATE COMP "clk_12mhz" SITE "A10";
 IOBUF PORT "clk_12mhz" IO_TYPE=LVCMOS33;
-FREQUENCY PORT "clk_12mhz" 12 MHz;
 
 # SW4 / BUTTON_1 is active-low.
 LOCATE COMP "rst_n" SITE "P4";
