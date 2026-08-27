@@ -22,6 +22,7 @@ module clint
   input logic rst,
 
   output logic         selected,
+  output dword_t       time_value,
   output irq_if.source irq,
 
   mem_if.slave mem
@@ -48,6 +49,8 @@ module clint
   logic   _msip;
   dword_t _mtime;
   dword_t _mtimecmp;
+
+  assign time_value = _mtime;
 
   assign selected         = mem.req.valid &&
                             (mem.req.addr == MsipAddr ||

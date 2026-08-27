@@ -28,6 +28,7 @@ module core
 ) (
   input clk,
   input rst,
+  input dword_t time_value,
 
   output logic halted,
   output pc_t  pc,
@@ -300,6 +301,8 @@ module core
     .trap(_mem_wb.trap.payload),
     .mret_valid(_retire.mret),
     .sret_valid(_retire.sret),
+    .time_value(time_value),
+    .retire(_mem_wb.valid && (_pipe_ctrl.mem_wb != STAGE_HOLD) && !_mem_wb.trap.valid),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
     .status(_csr_status)
@@ -310,6 +313,8 @@ module core
     .csr_write_en(_csr.write_en),
     .csr_addr(_csr.addr),
     .priv_mode(_csr_status.priv_mode),
+    .mcounteren(_csr_status.mcounteren),
+    .scounteren(_csr_status.scounteren),
     .illegal_csr_access(_csr_access_illegal)
   );
 
@@ -598,9 +603,9 @@ module core
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      halted  <= 1'b0;
-      _if_id.valid  <= 1'b0;
-      _id_ex.valid  <= 1'b0;
+      halted <= 1'b0;
+      _if_id.valid <= 1'b0;
+      _id_ex.valid <= 1'b0;
       _ex_mem.valid <= 1'b0;
       _mem_wb.valid <= 1'b0;
     end else begin
@@ -663,7 +668,7 @@ module core
       unique case (_pipe_ctrl.mem_wb)
         STAGE_HOLD: begin
         end
-        STAGE_FLUSH: _mem_wb.valid <= 1'b0;
+        STAGE_FLUSH:   _mem_wb.valid <= 1'b0;
         STAGE_ADVANCE: _mem_wb <= _mem_wb_payload;
       endcase
     end

@@ -23,6 +23,7 @@ module top_sim
   logic        [7:0] _led_prev;
   logic              _sim_halt_selected;
   logic              _halted;
+  dword_t            _time_value;
   logic              _uart_rx;
   logic              _retire;
   logic              _sim_halt_fire;
@@ -135,6 +136,7 @@ module top_sim
   ) _core (
     .clk(_clk),
     .rst(_rst),
+    .time_value(_time_value),
     .pc(_pc),
     .halted(_halted),
     .mem(_core_mem),
@@ -147,6 +149,7 @@ module top_sim
   ) _board_bus (
     .clk(_clk),
     .rst(_rst),
+    .time_value(_time_value),
     .led(_led),
     .uart(_uart),
     .irq(_irq),

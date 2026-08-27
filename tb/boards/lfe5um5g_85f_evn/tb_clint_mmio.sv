@@ -38,6 +38,7 @@ module tb_clint_mmio
   int unsigned _checks = 0;
   word_t       _mtime_before;
   word_t       _mtime_after;
+  dword_t      _time_value;
 
   clint #(
     .MsipAddr(ClintMsipAddr),
@@ -48,6 +49,7 @@ module tb_clint_mmio
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .time_value(_time_value),
     .mem(_mem),
     .selected(_selected),
     .irq(_irq)
@@ -179,6 +181,8 @@ module tb_clint_mmio
 
     repeat (2) @(posedge _clk);
     #1;
+    expect_word(_time_value[31:0], 32'h0000_0000, "exported mtime low resets to zero");
+    expect_word(_time_value[63:32], 32'h0000_0000, "exported mtime high resets to zero");
 
     // Unmapped access should not be selected and should not present ready.
     mem_read(32'h1000_3000, 1'b0, 1'b0, '0, "unmapped read");

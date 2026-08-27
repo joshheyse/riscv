@@ -33,17 +33,17 @@ package riscv_pkg;
   } priv_mode_t;
 
   typedef enum csr_addr_raw_t {
-    CSR_SSTATUS  = 12'h100,
-    CSR_SIE      = 12'h104,
-    CSR_STVEC    = 12'h105,
-    CSR_SENVCFG  = 12'h10a,
-    CSR_SSCRATCH = 12'h140,
-    CSR_SEPC     = 12'h141,
-    CSR_SCAUSE   = 12'h142,
-    CSR_STVAL    = 12'h143,
-    CSR_SIP      = 12'h144,
-    CSR_SATP     = 12'h180,
-
+    CSR_SSTATUS    = 12'h100,
+    CSR_SIE        = 12'h104,
+    CSR_STVEC      = 12'h105,
+    CSR_SCOUNTEREN = 12'h106,
+    CSR_SENVCFG    = 12'h10a,
+    CSR_SSCRATCH   = 12'h140,
+    CSR_SEPC       = 12'h141,
+    CSR_SCAUSE     = 12'h142,
+    CSR_STVAL      = 12'h143,
+    CSR_SIP        = 12'h144,
+    CSR_SATP       = 12'h180,
     CSR_MSTATUS    = 12'h300,
     CSR_MISA       = 12'h301,
     CSR_MEDELEG    = 12'h302,
@@ -52,20 +52,27 @@ package riscv_pkg;
     CSR_MTVEC      = 12'h305,
     CSR_MCOUNTEREN = 12'h306,
     CSR_MENVCFG    = 12'h30a,
-
-    CSR_MSTATUSH = 12'h310,
-    CSR_MENVCFGH = 12'h31a,
-
-    CSR_MSCRATCH = 12'h340,
-    CSR_MEPC     = 12'h341,
-    CSR_MCAUSE   = 12'h342,
-    CSR_MTVAL    = 12'h343,
-    CSR_MIP      = 12'h344,
-
-    CSR_MVENDORID = 12'hf11,
-    CSR_MARCHID   = 12'hf12,
-    CSR_MIMPID    = 12'hf13,
-    CSR_MHARTID   = 12'hf14
+    CSR_MSTATUSH   = 12'h310,
+    CSR_MENVCFGH   = 12'h31a,
+    CSR_MSCRATCH   = 12'h340,
+    CSR_MEPC       = 12'h341,
+    CSR_MCAUSE     = 12'h342,
+    CSR_MTVAL      = 12'h343,
+    CSR_MIP        = 12'h344,
+    CSR_MCYCLE     = 12'hb00,
+    CSR_MINSTRET   = 12'hb02,
+    CSR_MCYCLEH    = 12'hb80,
+    CSR_MINSTRETH  = 12'hb82,
+    CSR_CYCLE      = 12'hc00,
+    CSR_TIME       = 12'hc01,
+    CSR_INSTRET    = 12'hc02,
+    CSR_CYCLEH     = 12'hc80,
+    CSR_TIMEH      = 12'hc81,
+    CSR_INSTRETH   = 12'hc82,
+    CSR_MVENDORID  = 12'hf11,
+    CSR_MARCHID    = 12'hf12,
+    CSR_MIMPID     = 12'hf13,
+    CSR_MHARTID    = 12'hf14
   } csr_addr_e;
 
   typedef struct packed {
@@ -586,6 +593,13 @@ package riscv_pkg;
   } satp_t;
 
   typedef struct packed {
+    logic [28:0] hpm;
+    logic        ir;
+    logic        tm;
+    logic        cy;
+  } counteren_t;
+
+  typedef struct packed {
     tvec_t      mtvec;
     tvec_t      stvec;
     mstatus_t   mstatus;
@@ -597,6 +611,8 @@ package riscv_pkg;
     word_t      mideleg;
     priv_mode_t priv_mode;
     satp_t      satp;
+    counteren_t mcounteren;
+    counteren_t scounteren;
   } csr_status_t;
 
   typedef struct packed {

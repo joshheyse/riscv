@@ -15,6 +15,7 @@ module board_bus
   input  logic                        clk,
   input  logic                        rst,
   output logic          [NumLeds-1:0] led,
+  output dword_t                      time_value,
          uart_if.source               uart,
 
   mem_if.slave  mem,
@@ -195,6 +196,7 @@ module board_bus
   ) _clint (
     .clk(clk),
     .rst(rst),
+    .time_value(time_value),
     .mem(_mmio_mem[ClintIdx]),
     .selected(_clint_selected),
     .irq(_clint_irq)

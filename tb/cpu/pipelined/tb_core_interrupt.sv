@@ -72,13 +72,20 @@ module tb_core_interrupt
     _clk,
     _rst
   );
+  mem_if _clint_mem (
+    _clk,
+    _rst
+  );
   irq_if _irq ();
+  irq_if _clint_irq ();
+  logic  _clint_selected;
+  dword_t _time_value;
 
   always_comb begin
     _irq.pending.platform = 16'h0000;
     _irq.pending.meip = 1'b0;
     _irq.pending.seip = 1'b0;
-    _irq.pending.mtip = 1'b0;
+    _irq.pending.mtip = _clint_irq.pending.mtip;
     _irq.pending.stip = 1'b0;
     _irq.pending.msip = 1'b0;
     _irq.pending.ssip = 1'b0;
@@ -101,11 +108,29 @@ module tb_core_interrupt
   ) _dut (
     .clk(_clk),
     .rst(_rst),
+    .time_value(_time_value),
     .halted(_halted),
     .pc(_pc),
     .mem(_mem),
     .irq(_irq)
   );
+
+  clint #(
+    .MsipAddr(32'h1000_2008),
+    .MtimecmpLoAddr(32'h1000_2010),
+    .MtimecmpHiAddr(32'h1000_2014),
+    .MtimeLoAddr(32'h1000_2018),
+    .MtimeHiAddr(32'h1000_201c)
+  ) _clint (
+    .clk(_clk),
+    .rst(_rst),
+    .selected(_clint_selected),
+    .time_value(_time_value),
+    .irq(_clint_irq),
+    .mem(_clint_mem)
+  );
+
+  assign _clint_mem.rsp_ready = 1'b1;
 
   // `core` has one memory port and the L1 caches are bypass at its default
   // (empty) cacheable range, so one backing model serves fetch and data alike.
@@ -141,6 +166,19 @@ module tb_core_interrupt
       _errors++;
       $display("  FAIL [%0t] %s: got 0x%08h, expected 0x%08h", $time, what, got, exp);
     end
+  endtask
+
+  task automatic clint_write(input mem_addr_t addr, input mem_data_t data);
+    @(negedge _clk);
+    _clint_mem.req = '{
+        valid: 1'b1, write_en: 1'b1, addr: addr, write_data: data, write_mask: 4'hf
+    };
+    @(posedge _clk);
+    #1;
+    expect_bit(_clint_mem.req_ready, 1'b1, "CLINT accepts timer write");
+    expect_bit(_clint_selected, 1'b1, "CLINT selects timer write");
+    @(negedge _clk);
+    _clint_mem.req = '0;
   endtask
 
   task automatic load_program(input instr_t word0, input instr_t word1, input instr_t word2,
@@ -189,7 +227,9 @@ module tb_core_interrupt
 
     if (_dut._dbus_wait) begin
       @(negedge _clk);
-      _dut._if_id = '{valid: 1'b1, slot: '{instr: ADD_X3_X2, pc: DependentPc}};
+      _dut._if_id = '{
+          valid: 1'b1, slot: '{instr: ADD_X3_X2, pc: DependentPc}, trap_req: '0
+      };
       #1;
       if (_dut._data_stall) begin
         seen_overlap = 1'b1;
@@ -236,8 +276,77 @@ module tb_core_interrupt
 
     _rst = 1'b1;
     _mmio_wait = 0;
+    _clint_mem.req = '0;
     load_program(NOP, NOP, NOP, NOP, NOP, PARK);
     reset_core();
+
+    // Exercise the complete physical timer path: mtimecmp raises MTIP, the
+    // core takes a machine timer interrupt, and moving the compare into the
+    // future clears the level-sensitive source.
+    clear_interrupt_state();
+    _dut._csr_file._mtvec.base = 30'h0000_0010;
+    _dut._csr_file._priv_mode = PRIV_MACHINE;
+    _dut._csr_file._mstatus.mie = 1'b1;
+    _dut._csr_file._mie.mtip = 1'b1;
+    clint_write(32'h1000_2014, 32'h0000_0000);
+    clint_write(32'h1000_2010, _time_value[31:0] + 32'd8);
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while ((_dut._csr_file._mcause != 32'h8000_0007) && (waits < 200)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < 200, 1'b1, "CLINT MTIP reaches machine trap handling");
+    end
+    expect_word(_dut._csr_file._mcause, 32'h8000_0007, "machine timer interrupt mcause");
+    expect_word(_dut._csr_file._mtval, 32'h0000_0000, "machine timer interrupt mtval");
+
+    clint_write(32'h1000_2014, 32'hffff_ffff);
+    clint_write(32'h1000_2010, 32'hffff_ffff);
+    #1;
+    expect_bit(_clint_irq.pending.mtip, 1'b0, "future mtimecmp clears MTIP");
+
+    // A firmware-injected STIP follows the delegated supervisor path. This is
+    // the hardware half of SBI timer delivery; the SBI handler will eventually
+    // perform the mip.STIP write exercised here.
+    load_program(NOP, NOP, NOP, NOP, SRET, PARK);
+    reset_core();
+    _dut._csr_file._stvec.base = 30'h0000_0010;
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0020;
+    _dut._csr_file._mie.stip = 1'b1;
+    _dut._csr_file._mip.stip = 1'b1;
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while ((_dut._csr_file._scause != 32'h8000_0005) && (waits < 120)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < 120, 1'b1, "firmware STIP reaches supervisor trap handling");
+    end
+    expect_word(_dut._csr_file._scause, 32'h8000_0005, "supervisor timer interrupt scause");
+    expect_word(_dut._csr_file._stval, 32'h0000_0000, "supervisor timer interrupt stval");
+    _dut._csr_file._mip.stip = 1'b0;
+
+    begin
+      int unsigned waits;
+      waits = 0;
+      while (((_dut._csr_file._priv_mode != PRIV_SUPERVISOR) ||
+              !(_dut._ifetch_ifu_cache.req.valid &&
+                (_dut._ifetch_ifu_cache.req.addr == 32'h0000_0000))) && (waits < 300)) begin
+        waits++;
+        @(posedge _clk);
+        #1;
+      end
+      expect_bit(waits < 300, 1'b1, "timer sret resumes interrupted supervisor instruction");
+    end
 
     // Supervisor interrupt sources follow the existing external, timer,
     // software arbitration pattern and respect supervisor global enable.

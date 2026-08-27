@@ -60,6 +60,13 @@ module tb_csr_legalize_pkg;
     expect_bits(build_legal_satp(32'hffff_ffff), 32'h803f_ffff,
                 "satp clears all ASID bits");
 
+    expect_bits(build_legal_counteren(32'h0000_0000), 32'h0000_0000,
+                "zero counteren");
+    expect_bits(build_legal_counteren(32'hffff_ffff), 32'h0000_0007,
+                "counteren retains only CY TM and IR");
+    expect_bits(build_legal_counteren(32'h0000_0005), 32'h0000_0005,
+                "counteren independently retains CY and IR");
+
     if (_errors == 0) begin
       $display("tb_csr_legalize_pkg: PASS (%0d checks)", _checks);
       $finish;

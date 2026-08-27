@@ -20,6 +20,11 @@ class AppTest:
 
 APP_TESTS = (
     AppTest(
+        name="sbi_timer_halt",
+        app="examples/apps/sbi_timer_halt",
+        expected=("top_sim: halt code 0x00000000",),
+    ),
+    AppTest(
         name="uart_halt_c",
         app="examples/apps/uart_halt_c",
         expected=(

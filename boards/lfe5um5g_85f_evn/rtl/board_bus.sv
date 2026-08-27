@@ -14,6 +14,7 @@ module board_bus
   input  logic                               clk,
   input  logic                               rst,
   output logic          [       NumLeds-1:0] led,
+  output dword_t                             time_value,
   input  logic          [NumDipSwitches-1:0] dip_switch,
   input  logic          [NumPushButtons-1:0] push_button,
          uart_if.source                      uart,
@@ -310,6 +311,7 @@ module board_bus
   ) _clint (
     .clk(clk),
     .rst(rst),
+    .time_value(time_value),
     .mem(_mmio_mem[ClintIdx]),
     .selected(_periph_selected[ClintIdx]),
     .irq(_clint_irq)

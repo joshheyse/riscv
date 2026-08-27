@@ -22,6 +22,8 @@ module tb_csr_file
   trap_t       _trap;
   logic        _mret_valid;
   logic        _sret_valid;
+  dword_t      _time_value;
+  logic        _retire;
   csr_data_t   _csr_read_data;
   logic        _illegal_csr;
   /* verilator lint_off UNUSEDSIGNAL */
@@ -42,6 +44,8 @@ module tb_csr_file
     .trap(_trap),
     .mret_valid(_mret_valid),
     .sret_valid(_sret_valid),
+    .time_value(_time_value),
+    .retire(_retire),
     .csr_read_data(_csr_read_data),
     .illegal_csr(_illegal_csr),
     .status(_status)
@@ -82,6 +86,7 @@ module tb_csr_file
     _trap = '0;
     _mret_valid = 1'b0;
     _sret_valid = 1'b0;
+    _retire = 1'b0;
   endtask
 
   task automatic retire_sret();
@@ -149,6 +154,18 @@ module tb_csr_file
     _csr_write_data = '0;
   endtask
 
+  task automatic expect_csr_now(input csr_addr_raw_t addr, input csr_data_t exp,
+                                input string what);
+    _csr_en = 1'b1;
+    _csr_write_en = 1'b0;
+    _csr_addr.raw = addr;
+    #1;
+    expect_bool(_illegal_csr, 1'b0, {what, " legal read"});
+    expect_bits(_csr_read_data, exp, what);
+    _csr_en = 1'b0;
+    _csr_addr = '0;
+  endtask
+
   task automatic take_target_trap(input epc_t epc, input cause_t cause, input tval_t tval,
                                   input priv_mode_t target_priv);
     @(negedge _clk);
@@ -177,6 +194,7 @@ module tb_csr_file
     end
 
     drive_idle();
+    _time_value = '0;
     _rst = 1'b1;
     repeat (2) @(negedge _clk);
     _rst = 1'b0;
@@ -191,10 +209,16 @@ module tb_csr_file
     read_csr(CSR_MIP, 32'h0000_0000, "reset mip");
     read_csr(CSR_SSCRATCH, 32'h0000_0000, "reset sscratch");
     read_csr(CSR_SATP, 32'h0000_0000, "reset satp is Bare");
+    read_csr(CSR_MCOUNTEREN, 32'h0000_0000, "reset mcounteren");
+    read_csr(CSR_SCOUNTEREN, 32'h0000_0000, "reset scounteren");
     read_csr(CSR_MVENDORID, 32'h0000_0000, "read mvendorid");
     read_csr(CSR_MARCHID, 32'h0000_0000, "read marchid");
     read_csr(CSR_MIMPID, 32'h0000_0000, "read mimpid");
     read_csr(CSR_MHARTID, 32'h0000_0000, "read mhartid");
+
+    _time_value = 64'h0123_4567_89ab_cdef;
+    read_csr(CSR_TIME, 32'h89ab_cdef, "read time low half");
+    read_csr(CSR_TIMEH, 32'h0123_4567, "read time high half");
     expect_bits(32'(_status.priv_mode), 32'(PRIV_MACHINE), "reset privilege mode");
 
     // Idle cycles should not report illegal access even if the address is not
@@ -320,10 +344,59 @@ module tb_csr_file
     read_csr(CSR_SATP, 32'h803f_ffff, "mode and PPN retained while ASID is cleared");
     expect_bits(word_t'(_status.satp), 32'h803f_ffff, "status exposes legalized satp fields");
 
+    write_csr(CSR_MCOUNTEREN, 32'hffff_ffff, "write mcounteren");
+    write_csr(CSR_SCOUNTEREN, 32'h0000_0002, "write scounteren TM");
+    read_csr(CSR_MCOUNTEREN, 32'h0000_0007, "read legalized mcounteren");
+    read_csr(CSR_SCOUNTEREN, 32'h0000_0002, "read scounteren");
+    expect_bits(word_t'(_status.mcounteren), 32'h0000_0007,
+                "status exposes mcounteren");
+    expect_bits(word_t'(_status.scounteren), 32'h0000_0002,
+                "status exposes scounteren");
+
+    // Machine counters are writable; their user-level aliases are read-only
+    // views of the same 64-bit values.
+    write_csr(CSR_MCYCLEH, 32'h0123_4567, "write mcycle high half");
+    write_csr(CSR_MCYCLE, 32'h89ab_cdef, "write mcycle low half");
+    expect_csr_now(CSR_MCYCLE, 32'h89ab_cdef, "mcycle low after write");
+    expect_csr_now(CSR_CYCLE, 32'h89ab_cdef, "cycle aliases mcycle low");
+    expect_csr_now(CSR_MCYCLEH, 32'h0123_4567, "mcycle high after write");
+    expect_csr_now(CSR_CYCLEH, 32'h0123_4567, "cycleh aliases mcycle high");
+
+    write_csr(CSR_MINSTRETH, 32'h7654_3210, "write minstret high half");
+    write_csr(CSR_MINSTRET, 32'h0000_0010, "write minstret low half");
+    expect_csr_now(CSR_INSTRET, 32'h0000_0010, "instret aliases minstret low");
+    expect_csr_now(CSR_INSTRETH, 32'h7654_3210, "instreth aliases minstret high");
+    @(negedge _clk);
+    _retire = 1'b1;
+    @(posedge _clk);
+    #1;
+    expect_bits(_dut._minstret[31:0], 32'h0000_0011,
+                "minstret increments on retirement");
+    @(negedge _clk);
+    _retire = 1'b0;
+    @(posedge _clk);
+    #1;
+    expect_bits(_dut._minstret[31:0], 32'h0000_0011,
+                "minstret holds without retirement");
+
+    // Exercise carry from the RV32 low half into the high half.
+    write_csr(CSR_MCYCLEH, 32'h0000_0000, "seed mcycle rollover high");
+    write_csr(CSR_MCYCLE, 32'hffff_fffe, "seed mcycle rollover low");
+    repeat (2) @(posedge _clk);
+    #1;
+    expect_bits(_dut._mcycle[63:32], 32'h0000_0001, "mcycle low rollover increments high");
+    expect_bits(_dut._mcycle[31:0], 32'h0000_0000, "mcycle low rolls over");
+
     // Unknown CSRs and read-only ID writes should be illegal.
     expect_illegal_read(12'hfff, "unknown CSR read illegal");
     expect_illegal_write(12'hfff, 32'h1234_5678, "unknown CSR write illegal");
     expect_illegal_write(CSR_MVENDORID, 32'hffff_ffff, "mvendorid write illegal");
+    expect_illegal_write(CSR_TIME, 32'hffff_ffff, "time write illegal");
+    expect_illegal_write(CSR_TIMEH, 32'hffff_ffff, "timeh write illegal");
+    expect_illegal_write(CSR_CYCLE, 32'hffff_ffff, "cycle write illegal");
+    expect_illegal_write(CSR_CYCLEH, 32'hffff_ffff, "cycleh write illegal");
+    expect_illegal_write(CSR_INSTRET, 32'hffff_ffff, "instret write illegal");
+    expect_illegal_write(CSR_INSTRETH, 32'hffff_ffff, "instreth write illegal");
     read_csr(CSR_MVENDORID, 32'h0000_0000, "mvendorid unchanged after write");
 
     // Trap entry updates trap CSRs.

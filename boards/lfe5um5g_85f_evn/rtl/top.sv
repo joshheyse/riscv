@@ -40,6 +40,7 @@ module top
   logic                        _rst;
   logic                        _power_on_rst;
   logic                        _halted;
+  dword_t                      _time_value;
   /* verilator lint_off UNUSEDSIGNAL */
   pc_t                         _pc;
   /* verilator lint_on UNUSEDSIGNAL */
@@ -107,6 +108,7 @@ module top
   ) _board_bus (
     .clk(clk_12mhz),
     .rst(_rst),
+    .time_value(_time_value),
     .led(_led),
     .dip_switch(_dip_switch),
     .push_button(_push_button),
@@ -126,6 +128,7 @@ module top
   ) _core (
     .clk(clk_12mhz),
     .rst(_rst),
+    .time_value(_time_value),
     .pc(_pc),
     .halted(_halted),
     .mem(_mem),

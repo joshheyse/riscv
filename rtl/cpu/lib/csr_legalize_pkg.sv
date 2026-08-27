@@ -76,6 +76,18 @@ package csr_legalize_pkg;
     return result;
   endfunction
 
+  function automatic counteren_t build_legal_counteren(input csr_data_t csr_write_data);
+    counteren_t requested;
+    counteren_t result;
+
+    requested = counteren_t'(csr_write_data);
+    result = '0;
+    result.cy = requested.cy;
+    result.tm = requested.tm;
+    result.ir = requested.ir;
+    return result;
+  endfunction
+
   /* verilator lint_on UNUSEDSIGNAL */
 
 endpackage

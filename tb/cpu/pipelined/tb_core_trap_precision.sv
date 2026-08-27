@@ -53,6 +53,7 @@ module tb_core_trap_precision
   core _dut (
     .clk(_clk),
     .rst(_rst),
+    .time_value('0),
     .halted(_halted),
     .pc(_pc),
     .mem(_mem),

@@ -54,6 +54,7 @@ module tb_core_csr_illegal
   core _dut (
     .clk(_clk),
     .rst(_rst),
+    .time_value('0),
     .halted(_halted),
     .pc(_pc),
     .mem(_mem),
