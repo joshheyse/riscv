@@ -59,16 +59,12 @@ module mul_execute
   end
 
   always_ff @(posedge clk) begin
-    if (rst || cancel) begin
+    if (rst) begin
       _state <= IDLE;
-      _accumulator <= '0;
-      _multiplicand <= '0;
-      _multiplier <= '0;
-      _iteration <= '0;
-      _product_negative <= 1'b0;
-      _return_high <= 1'b0;
       _result_valid <= 1'b0;
-      _result <= '0;
+    end else if (cancel) begin
+      _state        <= IDLE;
+      _result_valid <= 1'b0;
     end else begin
       if (_result_valid && rsp_ready) begin
         _result_valid <= 1'b0;
@@ -77,37 +73,45 @@ module mul_execute
       unique case (_state)
         IDLE: begin
           if (req.valid && req_ready) begin
-            logic signed_a;
-            logic signed_b;
-
-            signed_a = (req.op == MUL_OP_HIGH_SS) || (req.op == MUL_OP_HIGH_SU);
-            signed_b = (req.op == MUL_OP_HIGH_SS);
-            _multiplicand <= {
-              32'b0, (signed_a && req.src_a[31]) ? (~req.src_a + integer_data_t'(1)) : req.src_a
-            };
-            _multiplier <=
-                (signed_b && req.src_b[31]) ? (~req.src_b + integer_data_t'(1)) : req.src_b;
-            _product_negative <= (signed_a && req.src_a[31]) ^ (signed_b && req.src_b[31]);
-            _return_high <= (req.op != MUL_OP_LOW);
-            _accumulator <= '0;
-            _iteration <= '0;
             _state <= MULTIPLY;
           end
         end
 
         MULTIPLY: begin
-          _accumulator  <= _next_accumulator;
-          _multiplicand <= _multiplicand << 1;
-          _multiplier   <= _multiplier >> 1;
           if (_iteration == 6'd31) begin
-            _result       <= _return_high ? _signed_product[63:32] : _signed_product[31:0];
             _result_valid <= 1'b1;
             _state        <= IDLE;
-          end else begin
-            _iteration <= _iteration + 6'd1;
           end
         end
       endcase
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if ((_state == IDLE) && req.valid && req_ready) begin
+      logic signed_a;
+      logic signed_b;
+
+      signed_a = (req.op == MUL_OP_HIGH_SS) || (req.op == MUL_OP_HIGH_SU);
+      signed_b = (req.op == MUL_OP_HIGH_SS);
+      _multiplicand <= {
+        32'b0, (signed_a && req.src_a[31]) ? (~req.src_a + integer_data_t'(1)) : req.src_a
+      };
+      _multiplier <=
+          (signed_b && req.src_b[31]) ? (~req.src_b + integer_data_t'(1)) : req.src_b;
+      _product_negative <= (signed_a && req.src_a[31]) ^ (signed_b && req.src_b[31]);
+      _return_high <= (req.op != MUL_OP_LOW);
+      _accumulator <= '0;
+      _iteration <= '0;
+    end else if (_state == MULTIPLY) begin
+      _accumulator  <= _next_accumulator;
+      _multiplicand <= _multiplicand << 1;
+      _multiplier   <= _multiplier >> 1;
+      if (_iteration == 6'd31) begin
+        _result <= _return_high ? _signed_product[63:32] : _signed_product[31:0];
+      end else begin
+        _iteration <= _iteration + 6'd1;
+      end
     end
   end
 

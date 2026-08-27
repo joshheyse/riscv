@@ -27,6 +27,10 @@ module integer_execute
   integer_data_t _src_a;
   integer_data_t _src_b;
   branch_flags_t _branch_flags;
+  branch_flags_t _branch_flags_result;
+  pc_src_t       _branch_pc_src;
+  logic          _branch_selected;
+  logic          _branch_result_valid;
   integer_data_t _alu_result;
   logic          _mul_selected;
   mul_req_t      _mul_req;
@@ -80,17 +84,20 @@ module integer_execute
 
   branch_logic _execute_branch_logic (
     .flow  (ctrl.flow),
-    .flags (_branch_flags),
+    .flags (_branch_flags_result),
     .funct3(branch_funct3),
-    .pc_src(pc_src)
+    .pc_src(_branch_pc_src)
   );
 
   always_comb begin
+    _branch_selected = valid && (ctrl.flow == FLOW_BRANCH);
     _mul_selected = valid && ctrl.muldiv.en && (ctrl.muldiv.unit == MULDIV_MUL);
     _div_selected = valid && ctrl.muldiv.en && (ctrl.muldiv.unit == MULDIV_DIV);
     _mul_req = '{valid: _mul_selected, src_a: _src_a, src_b: _src_b, op: ctrl.muldiv.mul_op};
     _div_req = '{valid: _div_selected, src_a: _src_a, src_b: _src_b, op: ctrl.muldiv.div_op};
-    execute_wait = (_mul_selected && !_mul_rsp.valid) || (_div_selected && !_div_rsp.valid);
+    execute_wait = (_branch_selected && !_branch_result_valid) ||
+                   (_mul_selected && !_mul_rsp.valid) || (_div_selected && !_div_rsp.valid);
+    pc_src = (_branch_selected && !_branch_result_valid) ? PC_SRC_INC : _branch_pc_src;
 
     alu_result = '0;
     if (ctrl.muldiv.en) begin
@@ -101,6 +108,27 @@ module integer_execute
       end
     end else begin
       alu_result = _alu_result;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      _branch_result_valid <= 1'b0;
+    end else if (cancel) begin
+      _branch_result_valid <= 1'b0;
+    end else begin
+      if (_branch_selected && !_branch_result_valid) begin
+        _branch_result_valid <= 1'b1;
+      end else if (_branch_result_valid && result_ready) begin
+        _branch_result_valid <= 1'b0;
+      end
+    end
+  end
+
+
+  always_ff @(posedge clk) begin
+    if (_branch_selected && !_branch_result_valid) begin
+      _branch_flags_result <= _branch_flags;
     end
   end
 

@@ -73,7 +73,7 @@ module div_execute
   end
 
   always_ff @(posedge clk) begin
-    if (rst || cancel) begin
+    if (rst) begin
       _state <= IDLE;
       _result_valid <= 1'b0;
       _result <= '0;
@@ -83,6 +83,9 @@ module div_execute
       _iteration <= '0;
       _result_negative <= 1'b0;
       _return_remainder <= 1'b0;
+    end else if (cancel) begin
+      _state        <= IDLE;
+      _result_valid <= 1'b0;
     end else begin
       if (_result_valid && rsp_ready) begin
         _result_valid <= 1'b0;

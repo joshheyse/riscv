@@ -194,7 +194,8 @@ when memory-system latency changes.
 | Pipelined    | Multicycle RV32M multiply and divide          | `f026e60` |  7,832 |   1,699 | 4.61 |   45.92 MHz |      9.96 |  11,087 |   3,101 |       7 |           0 |
 | Pipelined    | Registered physical-memory boundary           | `750d373` |  7,993 |   1,699 | 4.70 |   56.39 MHz |     11.99 |  10,673 |   3,208 |       7 |           0 |
 | Pipelined    | Decoupled multiplier result slot              | `bbf6b6e` |  7,993 |   1,699 | 4.70 |   60.81 MHz |     12.93 |  11,354 |   3,207 |       7 |           0 |
-| Pipelined    | Divider result slot and pipeline clock enables | this commit |  7,993 |   1,699 | 4.70 |   54.89 MHz |     11.67 |  11,463 |   3,206 |       7 |           0 |
+| Pipelined    | Divider result slot and pipeline clock enables | `8749a1b` |  7,993 |   1,699 | 4.70 |   54.89 MHz |     11.67 |  11,463 |   3,206 |       7 |           0 |
+| Pipelined    | Registered branch decision and valid-only payload control | this commit |  7,993 |   1,699 | 4.70 |   70.34 MHz |     14.97 |  10,933 |   3,208 |       7 |           0 |
 
 For architectural comparisons, also report estimated instruction throughput:
 

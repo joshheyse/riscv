@@ -42,11 +42,6 @@ module core
   ex_mem_t          _ex_mem;
   mem_wb_t          _mem_wb;
 
-  if_id_t           _if_id_next;
-  id_ex_t           _id_ex_next;
-  ex_mem_t          _ex_mem_next;
-  mem_wb_t          _mem_wb_next;
-
   branch_flags_t    _id_branch_flags;
   control_t         _ctrl;
 
@@ -402,13 +397,6 @@ module core
   );
 
   // Fetch
-  always_comb begin
-    _if_id_next = '0;
-    if (_fetched.valid) begin
-      _if_id_next = _fetched;
-    end
-  end
-
   mem_arbiter _mem_arbiter (
     .clk(clk),
     .rst(rst),
@@ -472,21 +460,6 @@ module core
   );
 
   // Decode
-  always_comb begin
-    _id_ex_next = '0;
-    if (_if_id.valid) begin
-      _id_ex_next = '{
-          valid: 1'b1,
-          slot: _if_id.slot,
-          ctrl: _ctrl,
-          rs1_operand: _id_rs1_operand,
-          rs2_operand: _id_rs2_operand,
-          imm: _id_imm,
-          trap: _id_trap
-      };
-    end
-  end
-
   controller _controller (
     .instr(_if_id.slot.instr),
     .branch_flags(_id_branch_flags),
@@ -500,22 +473,6 @@ module core
   );
 
   // Execute
-  always_comb begin
-    _ex_mem_next = '0;
-    if (_id_ex.valid) begin
-      _ex_mem_next = '{
-          valid: 1'b1,
-          pc: _id_ex.slot.pc,
-          ctrl: _id_ex.ctrl,
-          alu_result: _alu_result,
-          execute_result: _ex_result,
-          write_data: _store_data,
-          rd: _id_ex.slot.instr.r.rd,
-          trap: _ex_trap
-      };
-    end
-  end
-
   integer_execute _integer_execute (
     .clk(clk),
     .rst(rst),
@@ -554,10 +511,6 @@ module core
   );
 
   // Memory
-  always_comb begin
-    _mem_wb_next = _mem_wb_payload;
-  end
-
   mem_order_control _mem_order_control (
     .clk(clk),
     .rst(rst),
@@ -646,34 +599,72 @@ module core
   always_ff @(posedge clk) begin
     if (rst) begin
       halted  <= 1'b0;
-      _if_id  <= '0;
-      _id_ex  <= '0;
-      _ex_mem <= '0;
-      _mem_wb <= '0;
+      _if_id.valid  <= 1'b0;
+      _id_ex.valid  <= 1'b0;
+      _ex_mem.valid <= 1'b0;
+      _mem_wb.valid <= 1'b0;
     end else begin
       unique case (_pipe_ctrl.if_id)
         STAGE_HOLD: begin
         end
-        STAGE_FLUSH:   _if_id <= '0;
-        STAGE_ADVANCE: _if_id <= _if_id_next;
+        STAGE_FLUSH: _if_id.valid <= 1'b0;
+        STAGE_ADVANCE: begin
+          if (_fetched.valid) begin
+            _if_id <= _fetched;
+          end else begin
+            _if_id.valid <= 1'b0;
+          end
+        end
       endcase
+
       unique case (_pipe_ctrl.id_ex)
         STAGE_HOLD: begin
         end
-        STAGE_FLUSH:   _id_ex <= '0;
-        STAGE_ADVANCE: _id_ex <= _id_ex_next;
+        STAGE_FLUSH: _id_ex.valid <= 1'b0;
+        STAGE_ADVANCE: begin
+          if (_if_id.valid) begin
+            _id_ex <= '{
+                valid: 1'b1,
+                slot: _if_id.slot,
+                ctrl: _ctrl,
+                rs1_operand: _id_rs1_operand,
+                rs2_operand: _id_rs2_operand,
+                imm: _id_imm,
+                trap: _id_trap
+            };
+          end else begin
+            _id_ex.valid <= 1'b0;
+          end
+        end
       endcase
+
       unique case (_pipe_ctrl.ex_mem)
         STAGE_HOLD: begin
         end
-        STAGE_FLUSH:   _ex_mem <= '0;
-        STAGE_ADVANCE: _ex_mem <= _ex_mem_next;
+        STAGE_FLUSH: _ex_mem.valid <= 1'b0;
+        STAGE_ADVANCE: begin
+          if (_id_ex.valid) begin
+            _ex_mem <= '{
+                valid: 1'b1,
+                pc: _id_ex.slot.pc,
+                ctrl: _id_ex.ctrl,
+                alu_result: _alu_result,
+                execute_result: _ex_result,
+                write_data: _store_data,
+                rd: _id_ex.slot.instr.r.rd,
+                trap: _ex_trap
+            };
+          end else begin
+            _ex_mem.valid <= 1'b0;
+          end
+        end
       endcase
+
       unique case (_pipe_ctrl.mem_wb)
         STAGE_HOLD: begin
         end
-        STAGE_FLUSH:   _mem_wb <= '0;
-        STAGE_ADVANCE: _mem_wb <= _mem_wb_next;
+        STAGE_FLUSH: _mem_wb.valid <= 1'b0;
+        STAGE_ADVANCE: _mem_wb <= _mem_wb_payload;
       endcase
     end
   end

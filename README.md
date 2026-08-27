@@ -81,6 +81,19 @@ targets.
   testbench conventions, and SystemVerilog style.
 - `CHANGELOG.md` tracks project milestones and notable commit history.
 
+## RTL Timing Guideline
+
+For registered interfaces and pipeline stages, treat the validity or enable bit
+as the authority for a payload. Write a wide payload only when accepting or
+producing a new value; on consume, cancel, flush, or reset, clear the validity
+or control state instead of rewriting the payload with zeros. The stale payload
+is a don't-care while invalid.
+
+This rule applies only when every consumer and architectural side effect is
+gated by that validity or control state. It reduces unnecessary wide muxes,
+reset/flush fanout, and clock-enable logic, but correctness takes priority when
+a payload remains observable while invalid.
+
 ## Near-Term Roadmap
 
 1. Treat the Chapter 7 pipelined baseline as functionally complete.
