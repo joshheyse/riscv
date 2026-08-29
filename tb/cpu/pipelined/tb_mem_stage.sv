@@ -16,6 +16,7 @@ module tb_mem_stage
   logic        _rst;
   ex_mem_t     _ex_mem;
   csr_status_t _csr_status;
+  logic        _core_reservation_clear;
   logic        _mem_wait;
   mem_wb_t     _mem_wb_payload;
 
@@ -37,6 +38,7 @@ module tb_mem_stage
     .rst(_rst),
     .ex_mem(_ex_mem),
     .csr_status(_csr_status),
+    .core_reservation_clear(_core_reservation_clear),
     .mem_wait(_mem_wait),
     .mem_wb_payload(_mem_wb_payload),
     .dbus(_dbus)
@@ -61,6 +63,7 @@ module tb_mem_stage
   task automatic clear_inputs();
     _ex_mem = '0;
     _csr_status = '0;
+    _core_reservation_clear = 1'b0;
     _csr_status.mtvec = '{base: 30'h0000_0080, mode: TVEC_MODE_DIRECT};
     _csr_status.priv_mode = PRIV_MACHINE;
     _dbus.rsp = '0;
@@ -240,6 +243,86 @@ module tb_mem_stage
     _dbus.rsp.fault = MMU_FAULT_ACCESS;
     #1;
     expect_word(_mem_wb_payload.trap.payload.cause, 32'd7, "store access fault cause");
+
+    // An AMO owns dbus for its complete read-modify-write sequence. The stage
+    // remains stalled until amo_execute has consumed both memory responses.
+    clear_inputs();
+    _dbus.rsp = '0;
+    _ex_mem.valid = 1'b1;
+    _ex_mem.ctrl.amo = '{en: 1'b1, op: AMO_OP_ADD, aq: 1'b1, rl: 1'b1};
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h6000_0040;
+    _ex_mem.write_data = 32'h0000_0007;
+    #1;
+    expect_bit(_mem_wait, 1'b1, "AMO stalls while executor accepts request");
+    expect_bit(_dbus.req.valid, 1'b0, "AMO does not leak ordinary LSU request");
+
+    @(posedge _clk);
+    #1;
+    expect_bit(_dbus.req.valid, 1'b1, "AMO presents read request");
+    expect_bit(_dbus.req.write_en, 1'b0, "AMO first transaction is read");
+    expect_word(_dbus.req.addr, 32'h6000_0040, "AMO read address");
+
+    _dbus.req_ready = 1'b1;
+    @(posedge _clk);
+    #1;
+    _dbus.req_ready = 1'b0;
+    _dbus.rsp = '{
+        valid: 1'b1,
+        read_data: 32'h0000_0010,
+        fault: MMU_FAULT_NONE,
+        physical_addr: 32'h2000_0040
+    };
+    @(posedge _clk);
+    #1;
+    _dbus.rsp = '0;
+    expect_bit(_dbus.req.valid, 1'b1, "AMO presents write request");
+    expect_bit(_dbus.req.write_en, 1'b1, "AMO second transaction is write");
+    expect_word(_dbus.req.addr, 32'h6000_0040, "AMO write address");
+    expect_word(_dbus.req.write_data, 32'h0000_0017, "AMO writes modified value");
+    expect_bit(_mem_wait, 1'b1, "AMO remains stalled through write");
+
+    _dbus.req_ready = 1'b1;
+    @(posedge _clk);
+    #1;
+    _dbus.req_ready = 1'b0;
+    _dbus.rsp = '{
+        valid: 1'b1,
+        read_data: '0,
+        fault: MMU_FAULT_NONE,
+        physical_addr: 32'h2000_0040
+    };
+    @(posedge _clk);
+    #1;
+    _dbus.rsp = '0;
+    expect_bit(_mem_wait, 1'b0, "AMO response releases pipeline stall");
+    expect_word(_mem_wb_payload.result, 32'h0000_0010, "AMO old value reaches MEM/WB");
+    expect_bit(_mem_wb_payload.trap.valid, 1'b0, "successful AMO has no trap");
+
+    // LR is load-like for alignment traps; SC and other AMOs are store-like.
+    clear_inputs();
+    _dbus.rsp = '0;
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_0100;
+    _ex_mem.ctrl.amo = '{en: 1'b1, op: AMO_OP_LR, aq: 1'b0, rl: 1'b0};
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h7000_0002;
+    #1;
+    expect_bit(_dbus.req.valid, 1'b0, "misaligned LR does not request dbus");
+    expect_bit(_mem_wait, 1'b0, "misaligned LR does not stall");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd4, "misaligned LR load cause");
+
+    clear_inputs();
+    _dbus.rsp = '0;
+    _ex_mem.valid = 1'b1;
+    _ex_mem.pc = 32'h0000_0104;
+    _ex_mem.ctrl.amo = '{en: 1'b1, op: AMO_OP_SC, aq: 1'b0, rl: 1'b0};
+    _ex_mem.ctrl.mem_size = MEM_SIZE_WORD;
+    _ex_mem.alu_result = 32'h7000_0002;
+    #1;
+    expect_bit(_dbus.req.valid, 1'b0, "misaligned SC does not request dbus");
+    expect_bit(_mem_wait, 1'b0, "misaligned SC does not stall");
+    expect_word(_mem_wb_payload.trap.payload.cause, 32'd6, "misaligned SC store cause");
 
     if (_errors == 0) begin
       $display("tb_mem_stage: PASS (%0d checks)", _checks);

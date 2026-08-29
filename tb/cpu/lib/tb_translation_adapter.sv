@@ -193,6 +193,7 @@ module tb_translation_adapter;
   endtask
 
   task automatic return_bypass_response(input mem_data_t read_data,
+                                        input mem_addr_t expected_physical_addr,
                                         input int unsigned delay_cycles,
                                         input int unsigned stall_cycles,
                                         input string what);
@@ -206,6 +207,8 @@ module tb_translation_adapter;
                  $sformatf("%s fault", what));
     expect_logic(_upstream.rsp.read_data == read_data, 1'b1,
                  $sformatf("%s read data", what));
+    expect_addr(_upstream.rsp.physical_addr, expected_physical_addr,
+                $sformatf("%s physical address", what));
     expect_logic(_downstream.rsp_ready, 1'b0,
                  $sformatf("%s response backpressure propagated", what));
 
@@ -228,6 +231,7 @@ module tb_translation_adapter;
 
   task automatic expect_upstream_response(input mmu_fault_e expected_fault,
                                           input mem_data_t expected_data,
+                                          input mem_addr_t expected_physical_addr,
                                           input int unsigned stall_cycles,
                                           input string what);
     _upstream.rsp_ready = 1'b0;
@@ -240,6 +244,8 @@ module tb_translation_adapter;
                  $sformatf("%s fault", what));
     expect_logic(_upstream.rsp.read_data == expected_data, 1'b1,
                  $sformatf("%s read data", what));
+    expect_addr(_upstream.rsp.physical_addr, expected_physical_addr,
+                $sformatf("%s physical address", what));
 
     repeat (stall_cycles) begin
       @(negedge _clk);
@@ -311,7 +317,8 @@ module tb_translation_adapter;
     accept_physical_request(32'h0123_4567, request.write_en, request.write_data,
                             request.write_mask, 2);
     return_physical_response(32'hdead_beef, 2);
-    expect_upstream_response(MMU_FAULT_NONE, 32'hdead_beef, 2, "successful load");
+    expect_upstream_response(MMU_FAULT_NONE, 32'hdead_beef, 32'h0123_4567, 2,
+                             "successful load");
 
     // Successful store preserves the write payload and mask.
     request = '{
@@ -333,7 +340,7 @@ module tb_translation_adapter;
     accept_physical_request(32'h0000_1102, request.write_en, request.write_data,
                             request.write_mask, 0);
     return_physical_response('0, 0);
-    expect_upstream_response(MMU_FAULT_NONE, '0, 0, "successful store");
+    expect_upstream_response(MMU_FAULT_NONE, '0, 32'h0000_1102, 0, "successful store");
 
     // Translation faults complete upstream without issuing a physical request.
     request = '{
@@ -353,13 +360,13 @@ module tb_translation_adapter;
     accept_translation(request.addr, request_ctx, 1);
     return_translation(MMU_FAULT_PAGE, '0, 1);
     expect_logic(_downstream.req.valid, 1'b0, "page fault bypasses physical memory");
-    expect_upstream_response(MMU_FAULT_PAGE, '0, 1, "page fault");
+    expect_upstream_response(MMU_FAULT_PAGE, '0, '0, 1, "page fault");
 
     begin_request(request, request_ctx);
     accept_translation(request.addr, request_ctx, 0);
     return_translation(MMU_FAULT_ACCESS, '0, 0);
     expect_logic(_downstream.req.valid, 1'b0, "access fault bypasses physical memory");
-    expect_upstream_response(MMU_FAULT_ACCESS, '0, 0, "access fault");
+    expect_upstream_response(MMU_FAULT_ACCESS, '0, '0, 0, "access fault");
 
     // Bare mode skips the translation channel while preserving the complete
     // request payload on the physical channel.
@@ -379,7 +386,7 @@ module tb_translation_adapter;
     };
     accept_bypass_request(request, request_ctx, 1);
     expect_logic(_translation.req.valid, 1'b0, "Bare mode issues no translation request");
-    return_bypass_response('0, 0, 1, "Bare-mode store");
+    return_bypass_response('0, request.addr, 0, 1, "Bare-mode store");
 
     // Machine privilege also bypasses an enabled Sv32 translation.
     _satp.mode = 1'b1;
@@ -399,7 +406,7 @@ module tb_translation_adapter;
     accept_bypass_request(request, request_ctx, 0);
     expect_logic(_translation.req.valid, 1'b0,
                  "Machine privilege issues no translation request");
-    return_bypass_response(32'hfeed_face, 0, 0, "Machine-mode load");
+    return_bypass_response(32'hfeed_face, request.addr, 0, 0, "Machine-mode load");
 
     // A zero-cycle physical slave may respond in the request acceptance cycle.
     // The complete bypass must forward that response without entering a wait state.
@@ -414,6 +421,8 @@ module tb_translation_adapter;
     expect_logic(_upstream.rsp.valid, 1'b1, "same-cycle bypass response valid");
     expect_logic(_upstream.rsp.read_data == 32'h1357_9bdf, 1'b1,
                  "same-cycle bypass response data");
+    expect_addr(_upstream.rsp.physical_addr, request.addr,
+                "same-cycle bypass physical address");
     expect_logic(_downstream.rsp_ready, 1'b1, "same-cycle bypass response ready");
     @(posedge _clk);
     @(negedge _clk);

@@ -16,9 +16,16 @@ class AppTest:
     app: str
     expected: tuple[str, ...]
     run_args: tuple[str, ...] = ()
+    make_args: tuple[str, ...] = ()
 
 
 APP_TESTS = (
+    AppTest(
+        name="amo_satp_reservation_halt",
+        app="examples/apps/amo_satp_reservation_halt",
+        expected=("top_sim: halt code 0x00000000",),
+        make_args=("RISCV_ARCH=rv32ima_zicsr",),
+    ),
     AppTest(
         name="sbi_timer_halt",
         app="examples/apps/sbi_timer_halt",
@@ -118,6 +125,7 @@ def run_test(repo: Path, design: str, board: str, sim: str, test: AppTest) -> bo
         f"BOARD_SIM={sim}",
         f"APP={test.app}",
         f"RUN_ARGS={'+uart-bytes ' + ' '.join(test.run_args)}",
+        *test.make_args,
     ]
 
     result = subprocess.run(

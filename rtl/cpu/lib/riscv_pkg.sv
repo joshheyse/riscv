@@ -119,7 +119,8 @@ package riscv_pkg;
   //   1100111  JALR
   //   0110111  LUI
   //   0010111  AUIPC
-  //   1110011  SYSTEM  currently inert
+  //   1110011  SYSTEM
+  //   0101111  AMO
   typedef enum logic [6:0] {
     OP_R        = 7'b0110011,
     OP_I_ALU    = 7'b0010011,
@@ -131,7 +132,8 @@ package riscv_pkg;
     OP_LUI      = 7'b0110111,
     OP_AUIPC    = 7'b0010111,
     OP_SYSTEM   = 7'b1110011,
-    OP_MISC_MEM = 7'b0001111
+    OP_MISC_MEM = 7'b0001111,
+    OP_AMO      = 7'b0101111
   } opcode_e;
 
   // ------------------------------------------------------------- funct3 --
@@ -187,6 +189,24 @@ package riscv_pkg;
     SYS_F3_RCI  = 3'b111   // csrrci
   } sys_funct3_e;
 
+  typedef enum logic [2:0] {AMO_F3_WORD = 3'b010} amo_funct3_e;
+
+  // Atomic-memory operation selected by an OP-AMO instruction. These are the
+  // ISA-defined funct5 encodings in instruction bits [31:27].
+  typedef enum logic [4:0] {
+    AMO_OP_ADD  = 5'b00000,
+    AMO_OP_SWAP = 5'b00001,
+    AMO_OP_LR   = 5'b00010,
+    AMO_OP_SC   = 5'b00011,
+    AMO_OP_XOR  = 5'b00100,
+    AMO_OP_OR   = 5'b01000,
+    AMO_OP_AND  = 5'b01100,
+    AMO_OP_MIN  = 5'b10000,
+    AMO_OP_MAX  = 5'b10100,
+    AMO_OP_MINU = 5'b11000,
+    AMO_OP_MAXU = 5'b11100
+  } amo_op_e;
+
   typedef enum logic [11:0] {
     SYS_IMM_ECALL  = 12'h000,
     SYS_IMM_EBREAK = 12'h001,
@@ -220,6 +240,17 @@ package riscv_pkg;
   } r_type_t;
 
   typedef struct packed {
+    amo_op_e     op;      // [31:27]
+    logic        aq;      // [26]
+    logic        rl;      // [25]
+    logic [4:0]  rs2;     // [24:20], x0 for LR.W
+    logic [4:0]  rs1;     // [19:15], address register
+    amo_funct3_e funct3;  // [14:12], AMO_F3_WORD for RV32A
+    logic [4:0]  rd;      // [11:7]
+    opcode_e     opcode;  // [6:0], OP_AMO
+  } amo_type_t;
+
+  typedef struct packed {
     imm12_u     imm;     // [31:20]
     logic [4:0] rs1;     // [19:15]
     funct3_u    funct3;  // [14:12]
@@ -228,9 +259,10 @@ package riscv_pkg;
   } i_type_t;
 
   typedef union packed {
-    instr_t  raw;
+    instr_t raw;
     r_type_t r;
     i_type_t i;
+    amo_type_t amo;
   } instr_u;
 
   typedef struct packed {
@@ -379,23 +411,6 @@ package riscv_pkg;
     DIV_OP_REMAINDER_UNSIGNED
   } div_op_e;
 
-  // Atomic-memory operation selected by an OP-AMO instruction. These values
-  // are the ISA-defined funct5 encodings, so decode may use the instruction
-  // field directly after validating that it names a supported operation.
-  typedef enum logic [4:0] {
-    AMO_OP_ADD  = 5'b00000,
-    AMO_OP_SWAP = 5'b00001,
-    AMO_OP_LR   = 5'b00010,
-    AMO_OP_SC   = 5'b00011,
-    AMO_OP_XOR  = 5'b00100,
-    AMO_OP_OR   = 5'b01000,
-    AMO_OP_AND  = 5'b01100,
-    AMO_OP_MIN  = 5'b10000,
-    AMO_OP_MAX  = 5'b10100,
-    AMO_OP_MINU = 5'b11000,
-    AMO_OP_MAXU = 5'b11100
-  } amo_op_e;
-
   typedef struct packed {
     logic en;
     muldiv_unit_e unit;
@@ -421,6 +436,13 @@ package riscv_pkg;
   } alu_ctrl_t;
 
   typedef struct packed {
+    logic    en;
+    amo_op_e op;
+    logic    aq;
+    logic    rl;
+  } amo_ctrl_t;
+
+  typedef struct packed {
     logic                  reg_write_en;          // commit a value to integer register rd
     logic                  mem_write_en;          // issue a store on the data bus
     imm_format_e           imm_format;            // instruction immediate encoding
@@ -439,6 +461,7 @@ package riscv_pkg;
     csr_ctrl_t             csr;                   // CSR read/write/set/clear control
     system_ctrl_t          system;                // privileged SYSTEM instruction control
     mem_order_op_e         mem_order;             // fence and related controls
+    amo_ctrl_t             amo;
   } control_t;
 
   typedef enum logic [1:0] {
@@ -736,9 +759,10 @@ package riscv_pkg;
   } vmem_req_t;
 
   typedef struct packed {
-    logic       valid;      // response data is on the bus this cycle
-    mem_data_t  read_data;  // read payload when valid=1 and write_en=0
+    logic       valid;          // response data is on the bus this cycle
+    mem_data_t  read_data;      // read payload when valid=1 and write_en=0
     mmu_fault_e fault;
+    mem_addr_t  physical_addr;  // translated address, or zero when translation faults
   } vmem_rsp_t;
 
   typedef struct packed {
@@ -754,10 +778,17 @@ package riscv_pkg;
   } div_rsp_t;
 
   typedef struct packed {
-    logic    en;
-    amo_op_e op;
-    logic    acquire;
-    logic    release_order;
-  } amo_ctrl_t;
+    logic             valid;
+    amo_ctrl_t        ctrl;
+    virtual_address_u address;
+    reg_data_t        operand;  // rs2
+    translation_ctx_t ctx;
+  } amo_req_t;
+
+  typedef struct packed {
+    logic       valid;
+    reg_data_t  result;  // old value for LR/AMO, 0/1 for SC
+    mmu_fault_e fault;
+  } amo_rsp_t;
 
 endpackage

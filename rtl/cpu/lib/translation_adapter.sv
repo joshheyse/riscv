@@ -50,14 +50,16 @@ module translation_adapter
       upstream.rsp = '{
           valid: downstream.rsp.valid,
           fault: MMU_FAULT_NONE,
-          read_data: downstream.rsp.read_data
+          read_data: downstream.rsp.read_data,
+          physical_addr: upstream.req.addr
       };
     end else if (_state == BYPASS_WAIT) begin
       downstream.rsp_ready = upstream.rsp_ready;
       upstream.rsp = '{
           valid: downstream.rsp.valid,
           fault: MMU_FAULT_NONE,
-          read_data: downstream.rsp.read_data
+          read_data: downstream.rsp.read_data,
+          physical_addr: _physical_addr
       };
     end
   end
@@ -76,6 +78,7 @@ module translation_adapter
         IDLE: begin
           if (upstream.req.valid && upstream.req_ready) begin
             if (translation_bypassed(satp, ctx)) begin
+              _physical_addr <= upstream.req.addr;
               if (!(downstream.rsp.valid && upstream.rsp_ready)) begin
                 _state <= BYPASS_WAIT;
               end
@@ -101,7 +104,12 @@ module translation_adapter
         TRANSLATE_WAIT: begin
           if (translation.rsp.valid) begin
             if (translation.rsp.fault != MMU_FAULT_NONE) begin
-              _vmem_response <= '{valid: 1'b1, fault: translation.rsp.fault, read_data: '0};
+              _vmem_response <= '{
+                  valid: 1'b1,
+                  fault: translation.rsp.fault,
+                  read_data: '0,
+                  physical_addr: '0
+              };
               _state <= RESPOND;
             end else begin
               _physical_addr <= translation.rsp.physical_addr;
@@ -127,7 +135,8 @@ module translation_adapter
             _vmem_response <= '{
                 valid: 1'b1,
                 fault: MMU_FAULT_NONE,
-                read_data: downstream.rsp.read_data
+                read_data: downstream.rsp.read_data,
+                physical_addr: _physical_addr
             };
             _state <= RESPOND;
           end

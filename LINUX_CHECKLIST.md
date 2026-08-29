@@ -20,15 +20,15 @@ required for the earliest boot milestone.
 
 ## 2. Complete the A extension
 
-- [ ] Decode and execute `LR.W` and `SC.W`.
-- [ ] Decode and execute `AMOSWAP.W` and `AMOADD.W`.
-- [ ] Decode and execute `AMOXOR.W`, `AMOAND.W`, and `AMOOR.W`.
-- [ ] Decode and execute signed `AMOMIN.W` and `AMOMAX.W`.
-- [ ] Decode and execute unsigned `AMOMINU.W` and `AMOMAXU.W`.
-- [ ] Track the load-reservation address.
-- [ ] Invalidate reservations on conflicting stores and relevant traps/events.
-- [ ] Implement correct `.aq` and `.rl` ordering semantics.
-- [ ] Add directed and architectural tests for reservation and AMO behavior.
+- [x] Decode and execute `LR.W` and `SC.W`.
+- [x] Decode and execute `AMOSWAP.W` and `AMOADD.W`.
+- [x] Decode and execute `AMOXOR.W`, `AMOAND.W`, and `AMOOR.W`.
+- [x] Decode and execute signed `AMOMIN.W` and `AMOMAX.W`.
+- [x] Decode and execute unsigned `AMOMINU.W` and `AMOMAXU.W`.
+- [x] Track the load-reservation address.
+- [x] Invalidate reservations on conflicting stores and relevant traps/events.
+- [x] Implement correct `.aq` and `.rl` ordering semantics.
+- [x] Add directed and architectural tests for reservation and AMO behavior.
 
 Linux relies on atomic operations. A conservative implementation is acceptable
 for the initial single-hart core.

@@ -29,7 +29,6 @@ module trap_control
     trap.payload.epc = pc;
 
     // Compute cause/tval from trap request source.
-    // slang lint_off case-enum-explicit
     case (trap_req.src)
       TRAP_SRC_INSTR_ADDR_MISALIGNED: begin
         trap.payload.cause = '{is_interrupt: 1'b0, code: CAUSE_INSTR_ADDR_MISALIGNED};
@@ -123,7 +122,6 @@ module trap_control
       default: begin
       end
     endcase
-    // slang lint_on case-enum-explicit
 
     trap.payload.target_priv = PRIV_MACHINE;
     if (int'(trap.payload.cause.code) < 32) begin

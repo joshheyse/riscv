@@ -7,10 +7,10 @@ module mem_stage
   input logic clk,
   input logic rst,
 
-  /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t     ex_mem,
-  /* verilator lint_on UNUSEDSIGNAL */
   input csr_status_t csr_status,
+
+  input logic core_reservation_clear,
 
   output logic    mem_wait,
   output mem_wb_t mem_wb_payload,
@@ -18,66 +18,143 @@ module mem_stage
   vmem_if.master dbus
 );
 
+  mem_data_t       _mem_read_data;
+  reg_data_t       _normal_result_data;
+  reg_data_t       _mem_result_data;
+  logic            _normal_selected;
+  logic            _normal_access;
+  logic            _normal_wait;
+  logic            _amo_selected;
+  logic            _amo_access;
+  logic            _memory_response_here;
+  trap_req_t       _addr_trap_req;
+  trap_req_t       _mmu_trap_req;
+  trap_req_t       _mem_trap_req;
+  trap_stage_t     _mem_trap;
+  trap_stage_t     _trap;
 
-  // This master has somewhere to put every response it asked for, so it takes
-  // them unconditionally. Drive it for real if that ever stops being true.
-  assign dbus.rsp_ready = 1'b1;
+  logic            _normal_accepted;
+  logic            _normal_accept;
+  logic            _normal_response_here;
+  vmem_req_t       _normal_req;
+  logic            _normal_req_ready;
+  mem_data_t       _normal_write_data;
+  mem_write_mask_t _normal_write_mask;
+  /* verilator lint_off UNUSEDSIGNAL */
+  vmem_rsp_t       _normal_rsp;
+  /* verilator lint_on UNUSEDSIGNAL */
+  logic            _normal_rsp_ready;
 
-  mem_data_t   _mem_read_data;
-  reg_data_t   _mem_result_data;
-  logic        _mem_instr;
-  logic        _mem_access;
-  trap_req_t   _addr_trap_req;
-  trap_req_t   _mmu_trap_req;
-  trap_req_t   _mem_trap_req;
-  trap_stage_t _mem_trap;
-  trap_stage_t _trap;
+  amo_req_t        _amo_req;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic            _amo_req_ready;
+  /* verilator lint_on UNUSEDSIGNAL */
+  amo_rsp_t        _amo_rsp;
+  logic            _amo_rsp_ready;
+  logic            _ordinary_store_event;
+  logic            _amo_reservation_clear;
 
-  // The access is presented until the bus accepts it, then held off the bus
-  // while its response is outstanding. `ex_mem` is stable across both, because
-  // `mem_wait` stalls the pipeline for the whole transaction.
-  logic        _accepted;
-  logic        _accept;
-  logic        _response_here;
+  vmem_if _amo_memory (
+    .clk(clk),
+    .rst(rst)
+  );
 
-  assign _mem_instr = ex_mem.valid && !ex_mem.trap.valid && (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
-  assign _mem_access = _mem_instr && !_addr_trap_req.valid;
-  assign _accept = dbus.req.valid && dbus.req_ready;
-  assign _response_here = dbus.rsp.valid && (_accepted || _accept);
-  assign mem_wait = _mem_access && !_response_here;
-  assign dbus.req.valid = _mem_access && !_accepted;
 
-  always_ff @(posedge clk) begin
-    if (rst) begin
-      _accepted <= 1'b0;
-    end else if (_response_here) begin
-      _accepted <= 1'b0;
-    end else if (_accept) begin
-      _accepted <= 1'b1;
-    end
+  always_comb begin
+    _amo_selected = ex_mem.valid && !ex_mem.trap.valid && ex_mem.ctrl.amo.en;
+    _normal_selected = ex_mem.valid && !ex_mem.trap.valid && !_amo_selected &&
+      (ex_mem.ctrl.mem_write_en || ex_mem.ctrl.writeback_result == WB_RESULT_MEM);
+    _normal_access = _normal_selected && !_addr_trap_req.valid;
+    _amo_access = _amo_selected && !_addr_trap_req.valid;
+
+    _normal_req = '0;
+    _normal_req.valid = _normal_access && !_normal_accepted;
+    _normal_req.write_en = _normal_access && ex_mem.ctrl.mem_write_en;
+    _normal_req.addr = ex_mem.alu_result;
+    _normal_req.write_data = _normal_write_data;
+    _normal_req.write_mask = _normal_write_mask;
+
+    _normal_accept = _normal_req.valid && _normal_req_ready;
+    _normal_response_here = _normal_rsp.valid && (_normal_accepted || _normal_accept);
+    _normal_wait = _normal_access && !_normal_response_here;
+    _memory_response_here = _amo_selected ? _amo_rsp.valid : _normal_response_here;
+    mem_wait = _normal_wait || (_amo_access && !_amo_rsp.valid);
+    _normal_rsp_ready = 1'b1;
+    _amo_rsp_ready = _amo_selected;
+
+    _amo_req = '{
+        valid: _amo_access,
+        ctrl: ex_mem.ctrl.amo,
+        address: virtual_address_u'(ex_mem.alu_result),
+        operand: ex_mem.write_data,
+        ctx: '{
+            access : ex_mem.ctrl.amo.op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE,
+            privilege: csr_status.priv_mode,
+            sum: csr_status.mstatus.sum,
+            mxr: csr_status.mstatus.mxr
+        }
+    };
   end
-  assign dbus.req.write_en = _mem_access && ex_mem.ctrl.mem_write_en;
-  assign dbus.req.addr = ex_mem.alu_result;
-  assign _trap = ex_mem.trap.valid ? ex_mem.trap : _mem_trap;
+
+  always_comb begin
+    // The ordinary load/store path owns dbus by default. An AMO takes all four
+    // handshake signals for its complete read-modify-write transaction.
+    dbus.req = _normal_req;
+    _normal_req_ready = dbus.req_ready;
+    _normal_rsp = dbus.rsp;
+    dbus.rsp_ready = _normal_rsp_ready;
+    _amo_memory.req_ready = 1'b0;
+    _amo_memory.rsp = '0;
+    _ordinary_store_event = '0;
+
+    if (_amo_selected) begin
+      dbus.req = _amo_memory.req;
+      _amo_memory.req_ready = dbus.req_ready;
+      _amo_memory.rsp = dbus.rsp;
+      dbus.rsp_ready = _amo_memory.rsp_ready;
+      _normal_req_ready = 1'b0;
+      _normal_rsp = '0;
+    end else begin
+      _ordinary_store_event = (dbus.req.write_en && (dbus.req.valid || dbus.rsp.valid));
+    end
+
+    _amo_reservation_clear = _ordinary_store_event || core_reservation_clear;
+
+  end
 
   always_comb begin
     _mem_trap_req = _addr_trap_req;
-    if (!_mem_trap_req.valid && _response_here) begin
+    if (!_mem_trap_req.valid && _memory_response_here) begin
       _mem_trap_req = _mmu_trap_req;
+    end
+
+    _trap = ex_mem.trap.valid ? ex_mem.trap : _mem_trap;
+    _mem_result_data = _amo_selected ? _amo_rsp.result : _normal_result_data;
+  end
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      _normal_accepted <= 1'b0;
+    end else if (_normal_response_here) begin
+      _normal_accepted <= 1'b0;
+    end else if (_normal_accept) begin
+      _normal_accepted <= 1'b1;
     end
   end
 
   mem_trap_control _mem_trap_control (
-    .valid(_mem_instr),
+    .valid(_normal_selected || _amo_selected),
     .addr(ex_mem.alu_result),
     .mem_size(ex_mem.ctrl.mem_size),
-    .mem_write_en(ex_mem.ctrl.mem_write_en),
+    .mem_write_en(_amo_selected ? ex_mem.ctrl.amo.op != AMO_OP_LR : ex_mem.ctrl.mem_write_en),
     .trap(_addr_trap_req)
   );
 
   mmu_trap_control _mmu_trap_control (
-    .fault(dbus.rsp.fault),
-    .access(ex_mem.ctrl.mem_write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD),
+    .fault(_amo_selected ? _amo_rsp.fault : _normal_rsp.fault),
+    .access(_amo_selected ?
+            (ex_mem.ctrl.amo.op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE) :
+            (ex_mem.ctrl.mem_write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD)),
     .virtual_addr(ex_mem.alu_result),
     .trap_req(_mmu_trap_req)
   );
@@ -95,16 +172,27 @@ module mem_stage
     .mem_size(ex_mem.ctrl.mem_size),
     .mem_unsigned(ex_mem.ctrl.mem_unsigned),
     .read_data(_mem_read_data),
-    .mem_write_data(dbus.req.write_data),
-    .mem_read_data(dbus.rsp.read_data),
-    .write_mask(dbus.req.write_mask)
+    .mem_write_data(_normal_write_data),
+    .mem_read_data(_normal_rsp.read_data),
+    .write_mask(_normal_write_mask)
   );
 
   writeback_mux _mem_result_mux (
     .writeback_result(ex_mem.ctrl.writeback_result),
     .execute_result(ex_mem.execute_result),
     .read_data(_mem_read_data),
-    .writeback_data(_mem_result_data)
+    .writeback_data(_normal_result_data)
+  );
+
+  amo_execute _amo_execute (
+    .clk(clk),
+    .rst(rst),
+    .req(_amo_req),
+    .req_ready(_amo_req_ready),
+    .rsp(_amo_rsp),
+    .rsp_ready(_amo_rsp_ready),
+    .reservation_clear(_amo_reservation_clear),
+    .memory(_amo_memory.master)
   );
 
   assign mem_wb_payload = '{
@@ -114,5 +202,13 @@ module mem_stage
           rd: ex_mem.rd,
           trap: _trap
       };
+
+  a_memory_sources_exclusive :
+  assert property (@(posedge clk) disable iff (rst) !(_normal_req.valid && _amo_memory.req.valid))
+  else $error("mem_stage: ordinary LSU and AMO requested dbus simultaneously");
+
+  a_amo_blocks_normal_request :
+  assert property (@(posedge clk) disable iff (rst) _amo_selected |-> !_normal_req.valid)
+  else $error("mem_stage: younger ordinary memory request issued during AMO");
 
 endmodule

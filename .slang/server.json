@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/hudson-trading/slang-server/master/schema.json",
+  "flags": "-Wno-case-enum-explicit",
   "buildPattern": ".slang/builds/{}.f",
   "buildRelativePaths": false,
   "index": [

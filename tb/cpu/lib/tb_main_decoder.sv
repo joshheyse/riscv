@@ -46,6 +46,7 @@ module tb_main_decoder
   flow_e             _flow;
   logic              _alu_decode_en;
   logic              _muldiv_decode_en;
+  logic              _amo_decode_en;
   logic              _clear_pc_lsb;
   logic              _main_op_illegal;
   mem_order_op_e     _mem_order;
@@ -65,6 +66,7 @@ module tb_main_decoder
     .flow(_flow),
     .alu_decode_en(_alu_decode_en),
     .muldiv_decode_en(_muldiv_decode_en),
+    .amo_decode_en(_amo_decode_en),
     .clear_pc_lsb(_clear_pc_lsb),
     .mem_order(_mem_order),
     .main_op_illegal(_main_op_illegal)
@@ -90,7 +92,7 @@ module tb_main_decoder
   // corrupting state -- so this is checked strictly for all 128 values.
   function automatic logic exp_reg_write_en(input logic [6:0] op);
     case (op)
-      7'b0110011, 7'b0010011, 7'b0000011, 7'b1100111, 7'b1101111, 7'b0110111, 7'b0010111:
+      OP_R, OP_I_ALU, OP_LOAD, OP_JALR, OP_JAL, OP_LUI, OP_AUIPC, OP_AMO:
       return 1'b1;
       default: return 1'b0;
     endcase
@@ -215,6 +217,10 @@ module tb_main_decoder
     return op == OP_R && funct7 == 7'b0000001;
   endfunction
 
+  function automatic logic exp_amo_decode_en(input logic [6:0] op);
+    return op == OP_AMO;
+  endfunction
+
   function automatic logic exp_clear_pc_lsb(input logic [6:0] op);
     return op == 7'b1100111;
   endfunction
@@ -225,7 +231,7 @@ module tb_main_decoder
       OP_R: return !(funct7 == 7'b0000000 || funct7 == 7'b0100000 || funct7 == 7'b0000001);
       OP_MISC_MEM: return funct3 != 3'b000 && funct3 != 3'b001;
       7'b0010011, 7'b0000011, 7'b0100011, 7'b1100011, 7'b1101111, 7'b1100111, 7'b0110111,
-      7'b0010111, 7'b1110011:
+      7'b0010111, 7'b1110011, OP_AMO:
       return 1'b0;
       default: return 1'b1;
     endcase
@@ -262,6 +268,7 @@ module tb_main_decoder
       7'b0110111: return "lui";
       7'b0010111: return "auipc";
       7'b1110011: return "system";
+      OP_AMO:     return "AMO";
       default:    return "illegal";
     endcase
   endfunction
@@ -362,6 +369,7 @@ module tb_main_decoder
             "alu_decode_en");
     chk_bit(_muldiv_decode_en, exp_muldiv_decode_en(op, funct7), 1'b1, who,
             "muldiv_decode_en");
+    chk_bit(_amo_decode_en, exp_amo_decode_en(op), 1'b1, who, "amo_decode_en");
     chk_bit(_clear_pc_lsb, exp_clear_pc_lsb(op), 1'b1, who, "clear_pc_lsb");
     chk_bit(_main_op_illegal, exp_main_op_illegal(op, funct3, funct7), 1'b1, who,
             "main_op_illegal");

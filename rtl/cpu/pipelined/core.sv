@@ -108,6 +108,8 @@ module core
   translation_ctx_t _ifetch_translation_ctx;
   translation_ctx_t _data_translation_ctx;
 
+  logic             _core_reservation_clear;
+
   vmem_if _ifetch_ifu_adapter (
     clk,
     rst
@@ -168,7 +170,14 @@ module core
           mxr: _csr_status.mstatus.mxr
       };
   assign _data_translation_ctx = '{
-          access : _data_lsu_adapter.req.write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD,
+          access :
+          (
+          _ex_mem.valid && _ex_mem.ctrl.amo.en
+          ) ?
+          (_ex_mem.ctrl.amo.op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE)
+          : (
+          _data_lsu_adapter.req.write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD
+          ),
           privilege: _csr_status.priv_mode,
           sum: _csr_status.mstatus.sum,
           mxr: _csr_status.mstatus.mxr
@@ -188,6 +197,10 @@ module core
   assign _ex_sret_valid = _id_ex.valid && _id_ex.ctrl.system.en &&
       (_id_ex.ctrl.system.op == SYSTEM_OP_SRET) && !_id_ex.trap.valid &&
       !_system_access_illegal;
+
+  assign _core_reservation_clear = _retire.trap
+    || (_mem_wb.valid && _mem_wb.ctrl.mem_order == MEM_ORDER_SFENCE_VMA)
+    || (_csr.en && _csr.write_en && !_csr_illegal && _csr.addr.raw == CSR_SATP);
 
   logic _mie_pending_meip;
   logic _mie_pending_mtip;
@@ -445,7 +458,7 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _l1i_cache (
     .clk(clk),
     .rst(rst),
@@ -531,7 +544,7 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd (CacheableEnd)
+    .CacheableEnd(CacheableEnd)
   ) _l1d_cache (
     .clk(clk),
     .rst(rst),
@@ -573,15 +586,16 @@ module core
     .csr_status(_csr_status),
     .mem_wait(_dbus_wait),
     .mem_wb_payload(_mem_wb_payload),
+    .core_reservation_clear(_core_reservation_clear),
     .dbus(_data_lsu_adapter.master)
   );
 
   // Writeback and hazards
   hazard_unit _hazard_unit (
-    .if_id (_if_id),
-    .id_ex (_id_ex),
+    .if_id(_if_id),
+    .id_ex(_id_ex),
     .ex_mem(_ex_mem),
-    .stall (_data_stall)
+    .stall(_data_stall)
   );
 
   forwarding_unit _forwarding_unit (

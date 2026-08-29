@@ -151,7 +151,6 @@ module set_associative_cache
     _lru_touch_valid = 1'b0;
     _lru_touch_way   = '0;
 
-    // slang lint_off case-enum-explicit
     case (_state)
       LOOKUP, RESPOND: begin
         if (_request_hit && _response_transfer) begin
@@ -169,7 +168,6 @@ module set_associative_cache
       default: begin
       end
     endcase
-    // slang lint_on case-enum-explicit
   end
 
   always_comb begin
@@ -184,7 +182,6 @@ module set_associative_cache
     _data_write_mask   = '0;
     _data_write_data   = '0;
 
-    // slang lint_off case-enum-explicit
     case (_state)
       IDLE: begin
         _way_set      = upstream.req.addr[CacheLineOffsetBits+:CacheSetIndexBits];
@@ -241,7 +238,6 @@ module set_associative_cache
       default: begin
       end
     endcase
-    // slang lint_on case-enum-explicit
   end
 
   always_comb begin
@@ -250,7 +246,6 @@ module set_associative_cache
     upstream.req_ready = (_state == IDLE && !cache_command.valid);
     upstream.rsp = '0;
     downstream.req = '0;
-    // slang lint_off case-enum-explicit
     case (_state)
       WRITE_BACK_REQUEST: begin
         downstream.req = '{
@@ -282,7 +277,6 @@ module set_associative_cache
       default: begin
       end
     endcase
-    // slang lint_on case-enum-explicit
   end
 
   always_ff @(posedge clk) begin

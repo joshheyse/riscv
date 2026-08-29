@@ -83,8 +83,8 @@ module integer_execute
   );
 
   branch_logic _execute_branch_logic (
-    .flow  (ctrl.flow),
-    .flags (_branch_flags_result),
+    .flow(ctrl.flow),
+    .flags(_branch_flags_result),
     .funct3(branch_funct3),
     .pc_src(_branch_pc_src)
   );
@@ -100,7 +100,11 @@ module integer_execute
     pc_src = (_branch_selected && !_branch_result_valid) ? PC_SRC_INC : _branch_pc_src;
 
     alu_result = '0;
-    if (ctrl.muldiv.en) begin
+    if (ctrl.amo.en) begin
+      // RV32A has no address immediate: rs1 is the effective address and rs2
+      // is carried separately as the AMO store operand.
+      alu_result = rs1_data;
+    end else if (ctrl.muldiv.en) begin
       if (ctrl.muldiv.unit == MULDIV_DIV) begin
         alu_result = _div_rsp.result;
       end else if (ctrl.muldiv.unit == MULDIV_MUL) begin

@@ -126,7 +126,6 @@ module csr_file
         _minstret <= _minstret + 1'b1;
       end
       if (trap_valid) begin
-        // slang lint_off case-enum-explicit
         case (trap.target_priv)
           PRIV_SUPERVISOR: begin
             _sepc <= trap.epc;
@@ -146,7 +145,6 @@ module csr_file
             _mstatus.mpp <= mpp_e'(_priv_mode);
             _priv_mode <= PRIV_MACHINE;
           end
-          // slang lint_on case-enum-explicit
         endcase
       end else if (mret_valid) begin
         if (_mstatus.mpp != MPP_MACHINE) begin
@@ -162,7 +160,6 @@ module csr_file
         _priv_mode    <= _mstatus.spp ? PRIV_SUPERVISOR : PRIV_USER;
         _mstatus.spp  <= 1'b0;
       end else if (csr_en && csr_write_en && !illegal_csr) begin
-        // slang lint_off case-enum-explicit
         case (_csr_addr.named)
           CSR_MSTATUS:  _mstatus <= _mstatus_write;
           CSR_SSTATUS: begin
@@ -207,7 +204,6 @@ module csr_file
           default: begin
           end
         endcase
-        // slang lint_on case-enum-explicit
       end
     end
   end
@@ -217,7 +213,6 @@ module csr_file
     illegal_csr   = 1'b0;
 
     if (csr_en && csr_write_en) begin
-      // slang lint_off case-enum-explicit
       case (_csr_addr.named)
         CSR_MSTATUS, CSR_MEDELEG, CSR_MIDELEG, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE,
             CSR_MTVAL, CSR_MIP, CSR_SSTATUS, CSR_SIE, CSR_STVEC, CSR_SEPC, CSR_SCAUSE,
@@ -226,11 +221,9 @@ module csr_file
         end
         default: illegal_csr = 1'b1;
       endcase
-      // slang lint_on case-enum-explicit
     end
 
     if (csr_en) begin
-      // slang lint_off case-enum-explicit
       case (_csr_addr.named)
         CSR_MSTATUS:    csr_read_data = _mstatus;
         CSR_MEDELEG:    csr_read_data = _medeleg;
@@ -268,7 +261,6 @@ module csr_file
         CSR_INSTRETH:   csr_read_data = _minstret[63:32];
         default:        illegal_csr = 1'b1;
       endcase
-      // slang lint_on case-enum-explicit
     end
   end
 

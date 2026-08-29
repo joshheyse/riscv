@@ -80,7 +80,7 @@ module tb_l1_cache;
 
   l1_cache #(
       .CacheableBase(CacheableBase),
-      .CacheableEnd (CacheableEnd)
+      .CacheableEnd(CacheableEnd)
   ) _dut (
       .clk(_clk),
       .rst(_rst),

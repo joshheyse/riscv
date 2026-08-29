@@ -189,6 +189,15 @@ module tb_integer_execute
     settle();
     expect_word(_alu_result, 32'h0000_1020, "pc+imm ALU operands");
 
+    _ctrl.amo.en = 1'b1;
+    _rs1_data = 32'h8000_0040;
+    _rs2_data = 32'hdead_beef;
+    settle();
+    expect_word(_alu_result, 32'h8000_0040, "AMO address comes directly from rs1");
+    expect_word(_store_data, 32'hdead_beef, "AMO operand remains rs2");
+    expect_bit(_execute_wait, 1'b0, "AMO does not wait in integer execute");
+    _ctrl.amo.en = 1'b0;
+
     _ctrl.integer_operands_sel = INTEGER_OPERANDS_RS1_RS2;
     check_branch(32'h0000_0042, 32'h0000_0042, br_funct3_t'(3'b000), 1'b1,
                  PC_SRC_IEU_ADR, "taken beq redirects");

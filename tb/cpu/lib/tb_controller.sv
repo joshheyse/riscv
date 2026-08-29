@@ -50,13 +50,14 @@ module tb_controller
       OP_AUIPC:    return "AUIPC";
       OP_SYSTEM:   return "SYSTEM";
       OP_MISC_MEM: return "MISC_MEM";
+      OP_AMO:      return "AMO";
       default:     return "ILLEGAL";
     endcase
   endfunction
 
   function automatic logic exp_reg_write_en(input logic [6:0] op);
     case (op)
-      OP_R, OP_I_ALU, OP_LOAD, OP_JALR, OP_JAL, OP_LUI, OP_AUIPC: return 1'b1;
+      OP_R, OP_I_ALU, OP_LOAD, OP_JALR, OP_JAL, OP_LUI, OP_AUIPC, OP_AMO: return 1'b1;
       default: return 1'b0;
     endcase
   endfunction
@@ -249,7 +250,8 @@ module tb_controller
                                             input logic [6:0] funct7);
     case (op)
       OP_R: return !(funct7 == 7'b0000000 || funct7 == 7'b0100000 || funct7 == 7'b0000001);
-      OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_SYSTEM:
+      OP_I_ALU, OP_LOAD, OP_STORE, OP_BRANCH, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC, OP_SYSTEM,
+      OP_AMO:
       return 1'b0;
       OP_MISC_MEM: return funct3 != 3'b000 && funct3 != 3'b001;
       default: return 1'b1;
@@ -312,6 +314,22 @@ module tb_controller
     endcase
   endfunction
 
+  function automatic logic exp_amo_illegal(input logic [6:0] op, input logic [4:0] funct5,
+                                            input funct3_t funct3, input logic [4:0] rs2);
+    amo_op_e amo_op;
+
+    if (op != OP_AMO) return 1'b0;
+    if (funct3 != AMO_F3_WORD) return 1'b1;
+
+    amo_op = amo_op_e'(funct5);
+    case (amo_op)
+      AMO_OP_LR: return rs2 != 5'd0;
+      AMO_OP_ADD, AMO_OP_SWAP, AMO_OP_SC, AMO_OP_XOR, AMO_OP_OR, AMO_OP_AND, AMO_OP_MIN,
+          AMO_OP_MAX, AMO_OP_MINU, AMO_OP_MAXU: return 1'b0;
+      default: return 1'b1;
+    endcase
+  endfunction
+
   function automatic system_ctrl_t exp_system_ctrl(input logic [6:0] op, input logic [11:0] imm,
                                                    input funct3_t funct3, input logic [4:0] rs1,
                                                    input logic [4:0] rd);
@@ -361,7 +379,7 @@ module tb_controller
 
   function automatic trap_req_t exp_trap(
       input logic [6:0] op, input logic [11:0] imm, input funct3_t funct3, input logic [6:0] funct7,
-      input logic [4:0] rs1, input logic [4:0] rd, input instr_t instr);
+      input logic [4:0] rs2, input logic [4:0] rs1, input logic [4:0] rd, input instr_t instr);
     trap_req_t  trap;
     system_op_e system_op;
 
@@ -369,6 +387,7 @@ module tb_controller
     system_op = exp_system_op(op, imm, funct3, rs1, rd);
     trap.valid = exp_main_illegal(op, funct3, funct7) || exp_alu_illegal(op, funct3, funct7) ||
         exp_mem_illegal(op, funct3) || exp_csr_illegal(op, imm, funct3, rs1, rd) ||
+        exp_amo_illegal(op, funct7[6:2], funct3, rs2) ||
         (system_op == SYSTEM_OP_ECALL) || (system_op == SYSTEM_OP_EBREAK);
 
     if (system_op == SYSTEM_OP_ECALL) begin
@@ -393,8 +412,10 @@ module tb_controller
     logic           funct7_bit5;
     logic    [ 4:0] rd;
     logic    [ 4:0] rs1;
+    logic    [ 4:0] rs2;
     logic           mem_unsigned_bad;
     logic           muldiv_bad;
+    logic           amo_bad;
 
     op = word[6:0];
     imm = word[31:20];
@@ -403,6 +424,7 @@ module tb_controller
     funct7_bit5 = word[30];
     rd = word[11:7];
     rs1 = word[19:15];
+    rs2 = word[24:20];
 
     _instr.raw = word;
     _branch_flags.eq = eq;
@@ -416,6 +438,10 @@ module tb_controller
          (_ctrl.muldiv.unit !== exp_muldiv_unit(funct3[2]) ||
           _ctrl.muldiv.mul_op !== mul_op_e'(funct3[1:0]) ||
           _ctrl.muldiv.div_op !== div_op_e'(funct3[1:0])));
+    amo_bad = _ctrl.amo.en !== (op == OP_AMO) ||
+        ((op == OP_AMO) &&
+         (_ctrl.amo.op !== amo_op_e'(funct7[6:2]) || _ctrl.amo.aq !== funct7[1] ||
+          _ctrl.amo.rl !== funct7[0]));
 
     if (_ctrl.reg_write_en !== (exp_reg_write_en(
             op
@@ -455,10 +481,10 @@ module tb_controller
             funct3[1]
         ) || _ctrl.mem_size !== exp_mem_size(
             op, funct3
-        ) || mem_unsigned_bad || muldiv_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
+        ) || mem_unsigned_bad || muldiv_bad || amo_bad || _ctrl.clear_pc_lsb !== exp_clear_pc_lsb(
             op
         ) || _ctrl.trap !== exp_trap(
-            op, imm, funct3, funct7, rs1, rd, word
+            op, imm, funct3, funct7, rs2, rs1, rd, word
         )) begin
       errors++;
       if (printed < MaxPrintedFailures) begin
@@ -484,7 +510,7 @@ module tb_controller
             exp_writeback_result(op).name(), exp_flow(op).name(), exp_sub_arith(
             op, funct3, funct7), exp_pc_src(op, eq, lt, funct3).name(), exp_branch_sgnd(
             funct3[1]), exp_mem_size(op, funct3).name(), exp_mem_unsigned(op, funct3),
-            exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs1, rd, word));
+            exp_clear_pc_lsb(op), exp_trap(op, imm, funct3, funct7, rs2, rs1, rd, word));
       end else if (printed == MaxPrintedFailures) begin
         printed++;
         $display("  ... further failures suppressed; see the summary for exact counts");
@@ -540,6 +566,14 @@ module tb_controller
           "M rem enables divider control");
     check(encode(7'b0000010, 5'd3, 5'd2, 3'b000, 5'd1, OP_R), 1'b0, 1'b0,
           "unsupported R funct7 traps");
+    check(encode({AMO_OP_ADD, 2'b00}, 5'd3, 5'd2, AMO_F3_WORD, 5'd1, OP_AMO), 1'b0,
+          1'b0, "amoadd.w enables AMO control");
+    check(encode({AMO_OP_LR, 2'b00}, 5'd0, 5'd2, AMO_F3_WORD, 5'd1, OP_AMO), 1'b0, 1'b0,
+          "lr.w accepts rs2 x0");
+    check(encode({AMO_OP_LR, 2'b00}, 5'd3, 5'd2, AMO_F3_WORD, 5'd1, OP_AMO), 1'b0, 1'b0,
+          "lr.w rejects nonzero rs2");
+    check(encode({5'b00101, 2'b00}, 5'd3, 5'd2, AMO_F3_WORD, 5'd1, OP_AMO), 1'b0, 1'b0,
+          "reserved AMO funct5 traps");
     check(encode(7'b1111111, 5'b11111, 5'd2, 3'b000, 5'd1, OP_I_ALU), 1'b0, 1'b0,
           "addi with bit 30 set remains add");
     check(encode(7'b0100000, 5'd4, 5'd2, 3'b101, 5'd1, OP_I_ALU), 1'b0, 1'b0,

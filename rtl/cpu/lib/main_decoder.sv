@@ -34,6 +34,7 @@ module main_decoder
   output flow_e                 flow,
   output logic                  alu_decode_en,
   output logic                  muldiv_decode_en,
+  output logic                  amo_decode_en,
   output logic                  clear_pc_lsb,
   output mem_order_op_e         mem_order,
   output logic                  main_op_illegal
@@ -51,6 +52,7 @@ module main_decoder
     flow                 = FLOW_NONE;
     alu_decode_en        = 1'b0;
     muldiv_decode_en     = 1'b0;
+    amo_decode_en        = 1'b0;
     clear_pc_lsb         = 1'b0;
     main_op_illegal      = 1'b0;
     mem_order            = MEM_ORDER_NONE;
@@ -133,7 +135,13 @@ module main_decoder
         end
       end
 
+      // handled by its own decoders
       OP_SYSTEM: begin
+      end
+
+      OP_AMO: begin
+        reg_write_en  = 1'b1;
+        amo_decode_en = 1'b1;
       end
 
       default: begin

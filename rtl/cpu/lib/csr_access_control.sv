@@ -33,7 +33,6 @@ module csr_access_control
         illegal_csr_access = 1'b1;
       end
 
-      // slang lint_off case-enum-explicit
       case (csr_addr.named)
         CSR_CYCLE, CSR_CYCLEH: begin
           if (!counter_access_allowed(priv_mode, mcounteren.cy, scounteren.cy)) begin
@@ -53,7 +52,6 @@ module csr_access_control
         default: begin
         end
       endcase
-      // slang lint_on case-enum-explicit
 
       if (csr_write_en) begin
         if (csr_addr.fields.rw == 2'b11) begin

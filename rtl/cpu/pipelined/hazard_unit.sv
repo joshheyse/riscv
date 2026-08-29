@@ -46,7 +46,7 @@ module hazard_unit
     _id_ex_rd = id_ex.slot.instr.r.rd;
 
     unique case (if_id.slot.instr.r.opcode)
-      OP_R: begin
+      OP_R, OP_AMO: begin
         _uses_rs1 = 1'b1;
         _uses_rs2 = 1'b1;
       end

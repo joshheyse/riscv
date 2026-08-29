@@ -13,7 +13,6 @@ module system_access_control
   always_comb begin
     illegal_system_access = 1'b0;
     if (system_ctrl.en) begin
-      // slang lint_off case-enum-explicit
       case (system_ctrl.op)
         SYSTEM_OP_MRET: begin
           illegal_system_access = priv_mode != PRIV_MACHINE;
@@ -27,7 +26,6 @@ module system_access_control
         default: begin
         end
       endcase
-      // slang lint_on case-enum-explicit
     end
   end
 

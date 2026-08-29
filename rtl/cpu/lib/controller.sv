@@ -20,9 +20,11 @@ module controller
 
   logic            _alu_decode_en;
   logic            _muldiv_decode_en;
+  logic            _amo_decode_en;
   logic            _main_op_illegal;
   logic            _alu_op_illegal;
   logic            _mem_op_illegal;
+  logic            _amo_op_illegal;
   logic            _system_op_illegal;
   logic            _instr_illegal;
 
@@ -45,12 +47,11 @@ module controller
 
   always_comb begin
     ctrl.trap = '0;
-    _instr_illegal = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal;
+    _instr_illegal = _main_op_illegal | _alu_op_illegal | _mem_op_illegal | _system_op_illegal | _amo_op_illegal;
 
     if (_instr_illegal) begin
       ctrl.trap = '{valid: 1'b1, src: TRAP_SRC_ILLEGAL_INSTR, tval: instr.raw};
     end else begin
-      // slang lint_off case-enum-explicit
       case (_system_ctrl.op)
         SYSTEM_OP_ECALL: begin
           ctrl.trap.valid = 1'b1;
@@ -65,7 +66,6 @@ module controller
         default: begin
         end
       endcase
-      // slang lint_on case-enum-explicit
     end
   end
 
@@ -80,14 +80,15 @@ module controller
     .flow(ctrl.flow),
     .alu_decode_en(_alu_decode_en),
     .muldiv_decode_en(_muldiv_decode_en),
+    .amo_decode_en(_amo_decode_en),
     .clear_pc_lsb(ctrl.clear_pc_lsb),
     .mem_order(_main_mem_order),
     .main_op_illegal(_main_op_illegal)
   );
 
   branch_logic _branch_logic (
-    .flow  (ctrl.flow),
-    .flags (branch_flags),
+    .flow(ctrl.flow),
+    .flags(branch_flags),
     .funct3(instr.r.funct3.br),
     .pc_src(ctrl.pc_src)
   );
@@ -116,6 +117,13 @@ module controller
     .instr(instr),
     .csr_ctrl(_csr_ctrl),
     .system_ctrl(_system_ctrl)
+  );
+
+  amo_decoder _amo_decoder (
+    .amo_decode_en(_amo_decode_en),
+    .instr(instr),
+    .amo_ctrl(ctrl.amo),
+    .amo_op_illegal(_amo_op_illegal)
   );
 
   assign ctrl.mem_order = (_system_ctrl.op == SYSTEM_OP_SFENCE_VMA) ? MEM_ORDER_SFENCE_VMA : _main_mem_order;
