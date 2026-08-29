@@ -198,7 +198,7 @@ when memory-system latency changes.
 | Pipelined    | Registered branch decision and valid-only payload control | `d821c55`   |  7,993 |   1,699 | 4.70 |   70.34 MHz |     14.97 | 10,933 | 3,208 |     7 |           0 |
 | Pipelined    | Combinational Bare/M-mode translation bypass              | `e33d436`   |  6,292 |   1,699 | 3.70 |   66.40 MHz |     17.95 | 10,768 | 3,210 |     7 |           0 |
 | Pipelined    | Architectural counters and timer interrupts               | `6db79eb`   |  6,292 |   1,699 | 3.70 |   70.64 MHz |     19.07 | 11,686 | 3,344 |     7 |           0 |
-| Pipelined    | RV32A atomics and reservation invalidation                 | `pending`   |  6,292 |   1,699 | 3.70 |   66.58 MHz |     17.99 | 12,544 | 3,557 |     7 |           0 |
+| Pipelined    | RV32A atomics and reservation invalidation                 | `02f67e2`   |  6,292 |   1,699 | 3.70 |   66.58 MHz |     17.99 | 12,544 | 3,557 |     7 |           0 |
 
 For architectural comparisons, also report estimated instruction throughput:
 
