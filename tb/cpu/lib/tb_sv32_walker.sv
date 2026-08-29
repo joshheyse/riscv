@@ -116,6 +116,38 @@ module tb_sv32_walker;
     _memory.rsp = '0;
   endtask
 
+  task automatic serve_changed_pte(input mem_addr_t expected_addr,
+                                   input sv32_pte_t unaccepted_pte,
+                                   input sv32_pte_t accepted_pte, input string what);
+    _memory.req_ready = 1'b0;
+
+    while (!_memory.req.valid) begin
+      @(negedge _clk);
+    end
+
+    expect_addr(_memory.req.addr, expected_addr, $sformatf("%s request address", what));
+    expect_logic(_memory.req.write_en, 1'b0, $sformatf("%s is a physical read", what));
+
+    _memory.req_ready = 1'b1;
+    @(posedge _clk);
+    @(negedge _clk);
+    _memory.req_ready = 1'b0;
+
+    // Changes on read_data before valid is asserted are not responses and must
+    // not affect the walk. The PTE present on the response transfer is sampled.
+    _memory.rsp = '{valid: 1'b0, read_data: mem_data_t'(unaccepted_pte)};
+    repeat (2) @(negedge _clk);
+    _memory.rsp = '{valid: 1'b1, read_data: mem_data_t'(accepted_pte)};
+
+    while (!_memory.rsp_ready) begin
+      @(negedge _clk);
+    end
+
+    @(posedge _clk);
+    @(negedge _clk);
+    _memory.rsp = '0;
+  endtask
+
   task automatic expect_response(input mmu_fault_e expected_fault,
                                  input mem_addr_t expected_addr,
                                  input int unsigned stall_cycles, input string what);
@@ -176,6 +208,27 @@ module tb_sv32_walker;
     expect_no_memory_request("machine translation does not access memory");
     expect_response(MMU_FAULT_NONE, 32'h9234_5678, 0, "machine bypass");
 
+    // The accepted request and root PPN remain stable even if the live inputs
+    // change while the walk is active.
+    _virtual_addr.raw = 32'h3456_789a;
+    _pte = '0;
+    _pte.valid = 1'b1;
+    _pte.read = 1'b1;
+    _pte.accessed = 1'b1;
+    _pte.ppn1 = 12'h005;
+    begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
+    _satp.ppn = 22'h000200;
+    _translation.req.virtual_addr.raw = 32'hffff_f000;
+    _translation.req.ctx = '{
+      access: MMU_ACCESS_STORE, privilege: PRIV_USER, sum: 1'b1, mxr: 1'b1
+    };
+    serve_pte(pte_address(20'h00100, _virtual_addr.named.vpn1), _pte, 0, 0,
+              "latched translation context");
+    expect_response(MMU_FAULT_NONE,
+                    {10'(_pte.ppn1), _virtual_addr.named.vpn0, _virtual_addr.named.offset}, 0,
+                    "latched translation result");
+    _satp.ppn = 22'h000100;
+
     // A readable level-1 leaf translates a 4 MiB superpage. Exercise request
     // refusal and response backpressure on this walk.
     _virtual_addr.raw = 32'h1234_5678;
@@ -212,6 +265,35 @@ module tb_sv32_walker;
     expect_response(MMU_FAULT_NONE,
                     {10'(_pte.ppn1), _pte.ppn0, _virtual_addr.named.offset}, 0,
                     "level-0 translation");
+
+    // An active walk samples each PTE only when its response transfers. This
+    // models a PTE changing before the memory system returns the level-0 read.
+    _virtual_addr.raw = 32'h4abc_def0;
+    _pte = '0;
+    _pte.valid = 1'b1;
+    _pte.ppn0 = 10'h181;
+    begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+              "changing-walk level-1 PTE");
+    begin
+      sv32_pte_t unaccepted_pte;
+      sv32_pte_t accepted_pte;
+      unaccepted_pte = '0;
+      unaccepted_pte.valid = 1'b1;
+      unaccepted_pte.read = 1'b1;
+      unaccepted_pte.accessed = 1'b1;
+      unaccepted_pte.ppn1 = 12'h003;
+      unaccepted_pte.ppn0 = 10'h011;
+      accepted_pte = unaccepted_pte;
+      accepted_pte.ppn1 = 12'h004;
+      accepted_pte.ppn0 = 10'h022;
+      serve_changed_pte(pte_address(20'h00181, _virtual_addr.named.vpn0), unaccepted_pte,
+                        accepted_pte, "changed level-0 PTE");
+      expect_response(MMU_FAULT_NONE,
+                      {10'(accepted_pte.ppn1), accepted_pte.ppn0,
+                       _virtual_addr.named.offset},
+                      0, "changed PTE sampled on response transfer");
+    end
 
     // Invalid PTEs and permission failures are page faults.
     _virtual_addr.raw = 32'h2000_0123;

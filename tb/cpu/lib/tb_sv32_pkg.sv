@@ -17,6 +17,7 @@ module tb_sv32_pkg;
   sv32_pte_t _pte;
   mmu_req_t  _req;
   satp_t     _satp;
+  mstatus_t  _mstatus;
 
   task automatic expect_logic(input logic got, input logic expected, input string what);
     _checks++;
@@ -30,6 +31,17 @@ module tb_sv32_pkg;
     expect_logic(leaf_access_allowed(_pte, _req), expected, what);
   endtask
 
+  task automatic expect_privilege(input priv_mode_e current_privilege,
+                                  input priv_mode_e expected, input string what);
+    priv_mode_e got;
+    got = effective_data_privilege(current_privilege, _mstatus);
+    _checks++;
+    if (got != expected) begin
+      _errors++;
+      $display("  FAIL %s: got %s, expected %s", what, got.name(), expected.name());
+    end
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -39,6 +51,18 @@ module tb_sv32_pkg;
     _pte = '0;
     _req = '0;
     _satp = '0;
+    _mstatus = '0;
+
+    expect_privilege(PRIV_MACHINE, PRIV_MACHINE, "machine data without MPRV");
+    _mstatus.mprv = 1'b1;
+    _mstatus.mpp = MPP_MACHINE;
+    expect_privilege(PRIV_MACHINE, PRIV_MACHINE, "MPRV with machine MPP");
+    _mstatus.mpp = MPP_SUPERVISOR;
+    expect_privilege(PRIV_MACHINE, PRIV_SUPERVISOR, "MPRV applies supervisor MPP");
+    _mstatus.mpp = MPP_USER;
+    expect_privilege(PRIV_MACHINE, PRIV_USER, "MPRV applies user MPP");
+    expect_privilege(PRIV_SUPERVISOR, PRIV_SUPERVISOR, "supervisor ignores MPRV");
+    expect_privilege(PRIV_USER, PRIV_USER, "user ignores MPRV");
 
     _req.ctx.privilege = PRIV_USER;
     expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,

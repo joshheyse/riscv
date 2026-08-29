@@ -7,8 +7,7 @@ package sv32_pkg;
   // packed PTE and request arguments.
   /* verilator lint_off UNUSEDSIGNAL */
 
-  function automatic logic translation_bypassed(input satp_t satp,
-                                                 input translation_ctx_t ctx);
+  function automatic logic translation_bypassed(input satp_t satp, input translation_ctx_t ctx);
     return !satp.mode || (ctx.privilege == PRIV_MACHINE);
   endfunction
 
@@ -74,6 +73,16 @@ package sv32_pkg;
            privilege_allowed &&
            pte.accessed &&
            ((req.ctx.access != MMU_ACCESS_STORE) || pte.dirty);
+  endfunction
+
+
+  function automatic priv_mode_e effective_data_privilege(input priv_mode_e current_privilege,
+                                                           input mstatus_t mstatus);
+    if ((current_privilege == PRIV_MACHINE) && mstatus.mprv) begin
+      return priv_mode_e'(mstatus.mpp);
+    end else begin
+      return current_privilege;
+    end
   endfunction
 
   /* verilator lint_on UNUSEDSIGNAL */

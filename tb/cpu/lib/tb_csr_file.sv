@@ -461,6 +461,23 @@ module tb_csr_file
     read_csr(CSR_STVAL, 32'h0000_0240, "supervisor trap writes stval");
     read_csr(CSR_SSTATUS, 32'h0000_0100, "supervisor trap clears spie and sets spp");
 
+    // All three page-fault causes preserve the faulting virtual address in
+    // stval when the trap is delivered to supervisor mode.
+    take_target_trap(32'h0000_0250,
+                     '{is_interrupt: 1'b0, code: CAUSE_INSTR_PAGE_FAULT}, 32'h8123_4000,
+                     PRIV_SUPERVISOR);
+    read_csr(CSR_SCAUSE, 32'h0000_000c, "instruction page fault writes scause");
+    read_csr(CSR_STVAL, 32'h8123_4000, "instruction page fault writes virtual address to stval");
+    take_target_trap(32'h0000_0260, '{is_interrupt: 1'b0, code: CAUSE_LOAD_PAGE_FAULT},
+                     32'h9234_5004, PRIV_SUPERVISOR);
+    read_csr(CSR_SCAUSE, 32'h0000_000d, "load page fault writes scause");
+    read_csr(CSR_STVAL, 32'h9234_5004, "load page fault writes virtual address to stval");
+    take_target_trap(32'h0000_0270,
+                     '{is_interrupt: 1'b0, code: CAUSE_STORE_PAGE_FAULT}, 32'ha345_6008,
+                     PRIV_SUPERVISOR);
+    read_csr(CSR_SCAUSE, 32'h0000_000f, "store page fault writes scause");
+    read_csr(CSR_STVAL, 32'ha345_6008, "store page fault writes virtual address to stval");
+
     // Unsupported target encodings defensively take the machine trap path.
     take_target_trap(32'h0000_0280, '{is_interrupt: 1'b0, code: CAUSE_BREAKPOINT}, 32'h0000_00cc,
                      priv_mode_e'(2'b10));

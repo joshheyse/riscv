@@ -1,5 +1,13 @@
 `timescale 1ns / 1ps
 
+// Sv32 page-table walker.
+//
+// The memory port carries physical PTE accesses and must connect below the
+// translation boundary; routing it through a translation adapter would make a
+// page-table walk recurse into itself. Each PTE is sampled independently when
+// its memory response transfers. The walker does not take an atomic snapshot
+// of a multi-level page table or retry when software changes a PTE mid-walk;
+// software must synchronize page-table updates and execute SFENCE.VMA.
 module sv32_walker
   import riscv_pkg::*;
   import sv32_pkg::*;

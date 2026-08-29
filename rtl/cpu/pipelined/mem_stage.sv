@@ -2,6 +2,7 @@
 
 module mem_stage
   import riscv_pkg::*;
+  import sv32_pkg::*;
   import pipelined_pkg::*;
 (
   input logic clk,
@@ -89,7 +90,7 @@ module mem_stage
         operand: ex_mem.write_data,
         ctx: '{
             access : ex_mem.ctrl.amo.op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE,
-            privilege: csr_status.priv_mode,
+            privilege: effective_data_privilege(csr_status.priv_mode, csr_status.mstatus),
             sum: csr_status.mstatus.sum,
             mxr: csr_status.mstatus.mxr
         }

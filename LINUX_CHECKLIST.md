@@ -40,12 +40,19 @@ for the initial single-hart core.
 - [x] Check U/S permissions, `SUM`, and `MXR`.
 - [x] Check accessed and dirty bits.
 - [x] Distinguish page faults from physical access faults.
-- [ ] Apply `MPRV` and `MPP` to the effective privilege of data accesses.
-- [ ] Keep `satp` and the translation context stable throughout an active walk.
-- [ ] Verify that `stval` receives the faulting virtual address.
-- [ ] Verify page-table accesses are physical and cannot recursively translate.
-- [ ] Define behavior when software changes a PTE during an active walk.
+- [x] Apply `MPRV` and `MPP` to the effective privilege of data accesses.
+- [x] Keep `satp` and the translation context stable throughout an active walk.
+- [x] Verify that `stval` receives the faulting virtual address.
+- [x] Verify page-table accesses are physical and cannot recursively translate.
+- [x] Define behavior when software changes a PTE during an active walk.
 - [ ] Verify the required ordering semantics of `SFENCE.VMA`.
+
+The walker samples each PTE on its individual memory-response transfer. It does
+not provide an atomic snapshot across page-table levels or retry a walk if a PTE
+changes concurrently. Page-table software must synchronize updates and execute
+`SFENCE.VMA` as required. Walker memory requests use the physical `mem_if` path
+below the translation adapters, so page-table accesses cannot recursively start
+another translation.
 
 ## 4. Add translation lookaside buffers
 

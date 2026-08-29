@@ -21,6 +21,7 @@
 //
 module core
   import riscv_pkg::*;
+  import sv32_pkg::*;
   import pipelined_pkg::*;
 #(
   parameter mem_addr_t CacheableBase = '0,
@@ -37,6 +38,15 @@ module core
   irq_if.sink   irq
 );
 
+  function automatic mmu_access_e data_translation_access(input logic amo_selected,
+                                                           input amo_op_e amo_op,
+                                                           input logic write_en);
+    if (amo_selected) begin
+      return amo_op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE;
+    end else begin
+      return write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD;
+    end
+  endfunction
 
   if_id_t           _if_id;
   id_ex_t           _id_ex;
@@ -170,15 +180,12 @@ module core
           mxr: _csr_status.mstatus.mxr
       };
   assign _data_translation_ctx = '{
-          access :
-          (
-          _ex_mem.valid && _ex_mem.ctrl.amo.en
-          ) ?
-          (_ex_mem.ctrl.amo.op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE)
-          : (
-          _data_lsu_adapter.req.write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD
+          access: data_translation_access(
+              _ex_mem.valid && _ex_mem.ctrl.amo.en,
+              _ex_mem.ctrl.amo.op,
+              _data_lsu_adapter.req.write_en
           ),
-          privilege: _csr_status.priv_mode,
+          privilege: effective_data_privilege(_csr_status.priv_mode, _csr_status.mstatus),
           sum: _csr_status.mstatus.sum,
           mxr: _csr_status.mstatus.mxr
       };
