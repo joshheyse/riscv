@@ -45,7 +45,7 @@ for the initial single-hart core.
 - [x] Verify that `stval` receives the faulting virtual address.
 - [x] Verify page-table accesses are physical and cannot recursively translate.
 - [x] Define behavior when software changes a PTE during an active walk.
-- [ ] Verify the required ordering semantics of `SFENCE.VMA`.
+- [x] Verify the required ordering semantics of `SFENCE.VMA`.
 
 The walker samples each PTE on its individual memory-response transfer. It does
 not provide an atomic snapshot across page-table levels or retry a walk if a PTE
@@ -54,18 +54,23 @@ changes concurrently. Page-table software must synchronize updates and execute
 below the translation adapters, so page-table accesses cannot recursively start
 another translation.
 
+`SFENCE.VMA` serializes the pipeline, cleans the data cache, invalidates the
+instruction cache, and then applies selective TLB invalidation before refetch.
+The `sv32_sfence_order_halt` regression rewrites a cached leaf PTE and verifies
+that a subsequent instruction fetch observes the newly mapped physical page.
+
 ## 4. Add translation lookaside buffers
 
-- [ ] Add separate ITLB and DTLB instances.
-- [ ] Start with a small fully associative organization.
-- [ ] Store VPN, PPN, page level, permissions, ASID, and global status.
-- [ ] Check permissions on every TLB hit.
-- [ ] Share the existing page-table walker between TLB misses.
-- [ ] Preserve the current combinational Bare/M-mode bypass.
-- [ ] Implement ASID storage and matching.
-- [ ] Implement selective `SFENCE.VMA` invalidation using `rs1` and `rs2`.
-- [ ] Add a simple replacement policy such as round-robin.
-- [ ] Test ordinary pages, superpages, global mappings, ASIDs, permissions, and
+- [x] Add separate ITLB and DTLB instances.
+- [x] Start with a small fully associative organization.
+- [x] Store VPN, PPN, page level, permissions, ASID, and global status.
+- [x] Check permissions on every TLB hit.
+- [x] Share the existing page-table walker between TLB misses.
+- [x] Preserve the current combinational Bare/M-mode bypass.
+- [x] Implement ASID storage and matching.
+- [x] Implement selective `SFENCE.VMA` invalidation using `rs1` and `rs2`.
+- [x] Add a simple replacement policy such as round-robin.
+- [x] Test ordinary pages, superpages, global mappings, ASIDs, permissions, and
       invalidation.
 
 The walker is sufficient for functional translation without a TLB. The TLB is

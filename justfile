@@ -47,6 +47,10 @@ board-app-test sim="top_sim" target="sim":
     board="${board#boards/}"; \
     make board-app-test DESIGN={{ design }} BOARD="$board" BOARD_SIM="{{ sim }}" RISCV_ARCH="{{ arch }}"
 
+# Compare the fixed Sv32 workload with the TLB disabled and enabled.
+tlb-perf:
+    make tlb-perf DESIGN={{ design }}
+
 # Run a board peripheral testbench: just board-tb timer_mmio
 board-tb tb="timer_mmio" target=board:
     @board="{{ target }}"; \

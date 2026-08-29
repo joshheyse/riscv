@@ -148,7 +148,7 @@ module tb_sv32_walker;
   task automatic expect_response(input mmu_fault_e expected_fault, input mem_addr_t expected_addr,
                                  input int unsigned stall_cycles, input string what);
     sv32_level_e held_leaf_level;
-    sv32_pte_t held_leaf_pte;
+    sv32_pte_t   held_leaf_pte;
 
     _translation.rsp_ready = 1'b0;
 
@@ -157,7 +157,7 @@ module tb_sv32_walker;
     end
 
     held_leaf_level = _translation.rsp.leaf_level;
-    held_leaf_pte = _translation.rsp.leaf_pte;
+    held_leaf_pte   = _translation.rsp.leaf_pte;
     expect_logic(_translation.rsp.fault == expected_fault, 1'b1, $sformatf("%s fault", what));
     expect_addr(_translation.rsp.physical_addr, expected_addr, $sformatf("%s physical address", what
                 ));
@@ -169,10 +169,10 @@ module tb_sv32_walker;
                    ));
       expect_addr(_translation.rsp.physical_addr, expected_addr, $sformatf("%s address held", what
                   ));
-      expect_logic(_translation.rsp.leaf_level == held_leaf_level, 1'b1,
-                   $sformatf("%s leaf level held", what));
-      expect_logic(_translation.rsp.leaf_pte == held_leaf_pte, 1'b1,
-                   $sformatf("%s leaf PTE held", what));
+      expect_logic(_translation.rsp.leaf_level == held_leaf_level, 1'b1, $sformatf(
+                   "%s leaf level held", what));
+      expect_logic(_translation.rsp.leaf_pte == held_leaf_pte, 1'b1, $sformatf(
+                   "%s leaf PTE held", what));
     end
 
     _translation.rsp_ready = 1'b1;
@@ -187,10 +187,9 @@ module tb_sv32_walker;
       @(negedge _clk);
     end
 
-    expect_logic(_translation.rsp.leaf_pte == expected_pte, 1'b1,
-                 $sformatf("%s leaf PTE", what));
-    expect_logic(_translation.rsp.leaf_level == expected_level, 1'b1,
-                 $sformatf("%s leaf level", what));
+    expect_logic(_translation.rsp.leaf_pte == expected_pte, 1'b1, $sformatf("%s leaf PTE", what));
+    expect_logic(_translation.rsp.leaf_level == expected_level, 1'b1, $sformatf(
+                 "%s leaf level", what));
   endtask
 
   task automatic expect_no_memory_request(input string what);
@@ -266,10 +265,12 @@ module tb_sv32_walker;
                     2, "level-1 superpage");
 
     // A non-leaf level-1 PTE selects a second page table; its level-0 leaf
-    // supplies the complete physical page number.
+    // supplies the complete physical page number. A global bit on any ancestor
+    // makes the resulting leaf mapping global.
     _virtual_addr.raw = 32'h4567_89ab;
     _pte = '0;
     _pte.valid = 1'b1;
+    _pte.global_mapping = 1'b1;
     _pte.ppn.ppn0 = 10'h180;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_FETCH, PRIV_USER, 1'b0, 1'b0);
     serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
@@ -283,7 +284,12 @@ module tb_sv32_walker;
     _pte.ppn.ppn0 = 10'h155;
     serve_pte(pte_address(20'h00180, _virtual_addr.fields.vpn.vpn0), _pte, 1, 1,
               "level-0 leaf PTE");
-    expect_leaf_metadata(_pte, SV32_LEVEL_0, "level-0 translation");
+    begin
+      sv32_pte_t expected_leaf_pte;
+      expected_leaf_pte = _pte;
+      expected_leaf_pte.global_mapping = 1'b1;
+      expect_leaf_metadata(expected_leaf_pte, SV32_LEVEL_0, "inherited-global level-0 translation");
+    end
     expect_response(MMU_FAULT_NONE, {10'(_pte.ppn.ppn1), _pte.ppn.ppn0, _virtual_addr.fields.offset
                     }, 0, "level-0 translation");
 

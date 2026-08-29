@@ -649,6 +649,14 @@ package riscv_pkg;
   } sv32_vpn_t;
 
   typedef struct packed {
+    logic       valid;
+    logic       all_vpns;
+    sv32_vpn_t  vpn;
+    logic       all_asids;
+    sv32_asid_t asid;
+  } tlb_flush_req_t;
+
+  typedef struct packed {
     sv32_ppn1_t ppn1;
     sv32_ppn0_t ppn0;
   } sv32_ppn_t;

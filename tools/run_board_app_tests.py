@@ -21,6 +21,12 @@ class AppTest:
 
 APP_TESTS = (
     AppTest(
+        name="sv32_sfence_order_halt",
+        app="examples/apps/sv32_sfence_order_halt",
+        expected=("top_sim: halt code 0x00000000",),
+        make_args=("MEM_BYTES=131072",),
+    ),
+    AppTest(
         name="amo_satp_reservation_halt",
         app="examples/apps/amo_satp_reservation_halt",
         expected=("top_sim: halt code 0x00000000",),

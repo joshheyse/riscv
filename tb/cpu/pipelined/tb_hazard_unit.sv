@@ -132,6 +132,21 @@ module tb_hazard_unit
     expect_stall(1'b0, "jal does not use source registers");
 
     clear_inputs();
+    set_consumer({7'b0001001, 5'd2, 5'd1, 3'b000, 5'd0, OP_SYSTEM});
+    set_id_ex_producer(5'd1);
+    expect_stall(1'b1, "SFENCE.VMA rs1 hazard against ID/EX stalls");
+
+    clear_inputs();
+    set_consumer({7'b0001001, 5'd2, 5'd1, 3'b000, 5'd0, OP_SYSTEM});
+    set_ex_mem_producer(5'd2, WB_RESULT_MEM);
+    expect_stall(1'b1, "SFENCE.VMA rs2 load hazard against EX/MEM stalls");
+
+    clear_inputs();
+    set_consumer({7'b0001001, 5'd2, 5'd1, 3'b000, 5'd0, OP_SYSTEM});
+    set_ex_mem_producer(5'd2, WB_RESULT_EXEC);
+    expect_stall(1'b0, "SFENCE.VMA rs2 ALU dependency forwards in execute");
+
+    clear_inputs();
     set_consumer(32'h0000_0133);  // add x2, x0, x0
     set_id_ex_producer(5'd0);
     set_ex_mem_producer(5'd0, WB_RESULT_EXEC);

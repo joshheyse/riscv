@@ -13,7 +13,7 @@ module tb_translation_adapter;
 
   logic             _clk;
   logic             _rst;
-  logic             _tlb_flush;
+  tlb_flush_req_t   _tlb_flush;
 
   translation_ctx_t _ctx;
   satp_t            _satp;
@@ -266,7 +266,7 @@ module tb_translation_adapter;
     end
 
     _rst = 1'b1;
-    _tlb_flush = 1'b0;
+    _tlb_flush = '0;
     _ctx = '0;
     _satp = '{mode: SATP_MODE_SV32, asid: '0, ppn: '0};
     _upstream.req = '0;
@@ -314,14 +314,14 @@ module tb_translation_adapter;
     request.addr = 32'h8123_4abc;
     begin_request(request, request_ctx);
     expect_logic(_translation.req.valid, 1'b0, "TLB hit issues no walker request");
-    accept_physical_request(32'h0123_4abc, request.write_en, request.write_data,
-                            request.write_mask, 0);
+    accept_physical_request(32'h0123_4abc, request.write_en, request.write_data, request.write_mask,
+                            0);
     return_physical_response(32'h1234_abcd, 0);
     expect_upstream_response(MMU_FAULT_NONE, 32'h1234_abcd, 32'h0123_4abc, 0, "TLB-hit load");
 
     // Permissions are checked again on every hit. A store through the cached
     // read-only leaf faults locally rather than walking again.
-    request.write_en = 1'b1;
+    request.write_en   = 1'b1;
     request.write_data = 32'haaaa_5555;
     request.write_mask = 4'b1111;
     request_ctx.access = MMU_ACCESS_STORE;
@@ -333,10 +333,10 @@ module tb_translation_adapter;
     // Flushing removes the cached leaf, so the next access to the same page
     // must return to the walker before reaching physical memory.
     @(negedge _clk);
-    _tlb_flush = 1'b1;
+    _tlb_flush = '{valid: 1'b1, all_vpns: 1'b1, vpn: '0, all_asids: 1'b1, asid: '0};
     @(posedge _clk);
     @(negedge _clk);
-    _tlb_flush = 1'b0;
+    _tlb_flush = '0;
     request.write_en = 1'b0;
     request.write_data = '0;
     request.write_mask = '0;
@@ -344,11 +344,39 @@ module tb_translation_adapter;
     begin_request(request, request_ctx);
     accept_translation(request.addr, request_ctx, 0);
     return_translation(MMU_FAULT_NONE, 32'h0123_4abc, SV32_LEVEL_0, leaf_pte, 0);
-    accept_physical_request(32'h0123_4abc, request.write_en, request.write_data,
-                            request.write_mask, 0);
+    accept_physical_request(32'h0123_4abc, request.write_en, request.write_data, request.write_mask,
+                            0);
     return_physical_response(32'h55aa_33cc, 0);
     expect_upstream_response(MMU_FAULT_NONE, 32'h55aa_33cc, 32'h0123_4abc, 0,
                              "post-flush translation");
+
+    // A walk that started before a flush may finish the current access, but
+    // its stale result must not repopulate the TLB after the flush.
+    request.addr = 32'h5000_1234;
+    begin_request(request, request_ctx);
+    accept_translation(request.addr, request_ctx, 0);
+    @(negedge _clk);
+    _tlb_flush = '{valid: 1'b1, all_vpns: 1'b1, vpn: '0, all_asids: 1'b1, asid: '0};
+    @(posedge _clk);
+    @(negedge _clk);
+    _tlb_flush   = '0;
+    leaf_pte.ppn = sv32_ppn_t'(22'h000002);
+    return_translation(MMU_FAULT_NONE, 32'h0000_2234, SV32_LEVEL_0, leaf_pte, 0);
+    accept_physical_request(32'h0000_2234, request.write_en, request.write_data, request.write_mask,
+                            0);
+    return_physical_response(32'hfeed_face, 0);
+    expect_upstream_response(MMU_FAULT_NONE, 32'hfeed_face, 32'h0000_2234, 0,
+                             "pre-flush walk completion");
+
+    request.addr = 32'h5000_1abc;
+    begin_request(request, request_ctx);
+    accept_translation(request.addr, request_ctx, 0);
+    return_translation(MMU_FAULT_NONE, 32'h0000_2abc, SV32_LEVEL_0, leaf_pte, 0);
+    accept_physical_request(32'h0000_2abc, request.write_en, request.write_data, request.write_mask,
+                            0);
+    return_physical_response(32'hcafe_babe, 0);
+    expect_upstream_response(MMU_FAULT_NONE, 32'hcafe_babe, 32'h0000_2abc, 0,
+                             "post-flush walk repeats");
 
     // Successful store preserves the write payload and mask.
     request = '{

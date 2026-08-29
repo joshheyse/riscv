@@ -3,12 +3,14 @@
 module translation_adapter
   import riscv_pkg::*;
   import sv32_pkg::*;
-(
-  input logic clk,
-  input logic rst,
-  input logic tlb_flush,
+#(
+  parameter bit TlbEnabled = 1'b1
+) (
+  input logic           clk,
+  input logic           rst,
+  input tlb_flush_req_t tlb_flush,
 
-  input satp_t satp,
+  input satp_t            satp,
   input translation_ctx_t ctx,
 
   vmem_if.slave    upstream,
@@ -26,16 +28,16 @@ module translation_adapter
     RESPOND
   } state_e;
 
-  state_e _state;
+  state_e           _state;
   translation_ctx_t _ctx;
-  sv32_asid_t _request_asid;
-  mmu_req_t _mmu_request;
+  sv32_asid_t       _request_asid;
+  mmu_req_t         _mmu_request;
   // verilator lint_off UNUSEDSIGNAL
-  vmem_req_t _vmem_request;
+  vmem_req_t        _vmem_request;
   // verilator lint_on UNUSEDSIGNAL
-  vmem_rsp_t _vmem_response;
-  mem_addr_t _physical_addr;
-  mem_req_t _mem_request;
+  vmem_rsp_t        _vmem_response;
+  mem_addr_t        _physical_addr;
+  mem_req_t         _mem_request;
 
   always_comb begin
     upstream.rsp = _vmem_response;
@@ -66,18 +68,20 @@ module translation_adapter
     end
   end
 
-  logic _tlb_we;
+  logic             _tlb_we;
+  logic             _tlb_epoch;
+  logic             _request_tlb_epoch;
   virtual_address_u _tlb_virtual_addr;
-  sv32_vpn_t _tlb_vpn;
-  sv32_asid_t _tlb_asid;
-  sv32_level_e _tlb_write_level;
-  sv32_pte_t _tlb_write_pte;
-  logic _tlb_hit;
-  sv32_level_e _tlb_read_level;
-  sv32_pte_t _tlb_read_pte;
-  mmu_req_t _tlb_request;
-  logic _tlb_access_allowed;
-  mem_addr_t _tlb_physical_addr;
+  sv32_vpn_t        _tlb_vpn;
+  sv32_asid_t       _tlb_asid;
+  sv32_level_e      _tlb_write_level;
+  sv32_pte_t        _tlb_write_pte;
+  logic             _tlb_hit;
+  sv32_level_e      _tlb_read_level;
+  sv32_pte_t        _tlb_read_pte;
+  mmu_req_t         _tlb_request;
+  logic             _tlb_access_allowed;
+  mem_addr_t        _tlb_physical_addr;
 
   tlb_store _tlb (
     .clk(clk),
@@ -102,8 +106,9 @@ module translation_adapter
     _tlb_write_level = translation.rsp.leaf_level;
     _tlb_write_pte = translation.rsp.leaf_pte;
 
-    if ((_state == TRANSLATE_WAIT) && translation.rsp.valid && translation.rsp_ready &&
-        (translation.rsp.fault == MMU_FAULT_NONE) && !tlb_flush) begin
+    if (TlbEnabled && (_state == TRANSLATE_WAIT) && translation.rsp.valid && translation.rsp_ready &&
+        (translation.rsp.fault == MMU_FAULT_NONE) && !tlb_flush.valid &&
+        (_request_tlb_epoch == _tlb_epoch)) begin
       _tlb_we = 1'b1;
     end
   end
@@ -111,14 +116,14 @@ module translation_adapter
   always_comb begin
     _tlb_request = '{valid: upstream.req.valid, virtual_addr: _tlb_virtual_addr, ctx: ctx};
     _tlb_access_allowed = leaf_access_allowed(_tlb_read_pte, _tlb_request);
-    _tlb_physical_addr = leaf_physical_address(
-        _tlb_read_pte, _tlb_read_level, _tlb_virtual_addr
-    );
+    _tlb_physical_addr = leaf_physical_address(_tlb_read_pte, _tlb_read_level, _tlb_virtual_addr);
   end
 
   always_ff @(posedge clk) begin
     if (rst) begin
       _state <= IDLE;
+      _tlb_epoch <= 1'b0;
+      _request_tlb_epoch <= 1'b0;
       _ctx <= '0;
       _request_asid <= '0;
       _mmu_request <= '0;
@@ -127,6 +132,9 @@ module translation_adapter
       _physical_addr <= '0;
       _mem_request <= '0;
     end else begin
+      if (tlb_flush.valid) begin
+        _tlb_epoch <= ~_tlb_epoch;
+      end
       case (_state)
         IDLE: begin
           if (upstream.req.valid && upstream.req_ready) begin
@@ -138,8 +146,9 @@ module translation_adapter
             end else begin
               _ctx <= ctx;
               _request_asid <= satp.asid;
+              _request_tlb_epoch <= _tlb_epoch;
               _vmem_request <= upstream.req;
-              if (_tlb_hit) begin
+              if (TlbEnabled && _tlb_hit) begin
                 if (_tlb_access_allowed) begin
                   _physical_addr <= _tlb_physical_addr;
                   _state <= PHYSICAL_REQUEST;

@@ -160,6 +160,34 @@ Key commits: `2043be5`, `60ac66d`, `4578f56`, `7b74dc2`, `af1e042`,
 
 Key commit: `f026e60`.
 
+### 12. Translation Lookaside Buffers
+
+- Added separate 16-entry, fully associative instruction and data TLB stores.
+- Added 4 KiB and 4 MiB leaf matching, ASID and global mappings, permission
+  validation on every hit, invalid-first round-robin replacement, and walker
+  refill on misses.
+- Added selective `SFENCE.VMA` invalidation for all `rs1`/`rs2` forms and full
+  invalidation on `satp` writes.
+- Added conservative end-to-end `SFENCE.VMA` ordering: pipeline serialization,
+  data-cache clean, instruction-cache invalidation, and post-maintenance TLB
+  invalidation. The `sv32_sfence_order_halt` regression verifies cached PTE
+  updates across the separate data and instruction paths.
+- Added `sv32_tlb_stress` and `make tlb-perf`/`just tlb-perf` for an
+  apples-to-apples comparison using identical RTL and firmware with only the
+  constant TLB-enable parameter changed.
+
+Current `make tlb-perf` snapshot:
+
+| TLB      | Measured cycles | Total cycles | Instret |
+| -------- | --------------: | -----------: | ------: |
+| Disabled |         268,370 |      276,384 |  17,851 |
+| Enabled  |         116,810 |      121,640 |  17,851 |
+
+The TLB reduces measured cycles by 56.5%, a 2.30x speedup. The remaining hit
+cost is a useful optimization reference: a TLB hit still traverses the
+translation adapter's request/response states, while TLB-disabled page-table
+walks benefit from cached PTE accesses.
+
 ## Performance History
 
 Keep this table current when a major architectural feature changes CPI, FPGA

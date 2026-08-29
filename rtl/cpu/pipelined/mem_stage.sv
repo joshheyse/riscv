@@ -8,7 +8,9 @@ module mem_stage
   input logic clk,
   input logic rst,
 
+  /* verilator lint_off UNUSEDSIGNAL */
   input ex_mem_t     ex_mem,
+  /* verilator lint_on UNUSEDSIGNAL */
   input csr_status_t csr_status,
 
   input logic core_reservation_clear,

@@ -60,7 +60,16 @@ module hazard_unit
         _uses_rs2 = 1'b1;
       end
 
-      OP_JAL, OP_LUI, OP_AUIPC, OP_MISC_MEM, OP_SYSTEM: begin
+      OP_SYSTEM: begin
+        if (if_id.slot.instr.r.funct3.sys == SYS_F3_PRIV &&
+            if_id.slot.instr.r.funct7 == 7'b0001001 &&
+            if_id.slot.instr.r.rd == 5'd0) begin
+          _uses_rs1 = 1'b1;
+          _uses_rs2 = 1'b1;
+        end
+      end
+
+      OP_JAL, OP_LUI, OP_AUIPC, OP_MISC_MEM: begin
       end
     endcase
 

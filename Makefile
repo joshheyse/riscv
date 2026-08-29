@@ -13,9 +13,14 @@
 DESIGN ?= pipelined
 TOP    ?= core
 CACHE_WAYS ?= 4
+TLB_ENABLED ?= 1
 
 ifeq ($(filter $(CACHE_WAYS),2 4),)
 $(error CACHE_WAYS must be 2 or 4)
+endif
+
+ifeq ($(filter $(TLB_ENABLED),0 1),)
+$(error TLB_ENABLED must be 0 or 1)
 endif
 
 DEFAULT_BOARD     := lfe5um5g_85f_evn
@@ -73,7 +78,7 @@ BOARD_TOP       ?= top
 BOARD_SIM       ?= top_sim
 BOARD_SIM_TOP   := $(BOARD_SIM)
 BOARD_BUILD_DIR := build/boards/$(BOARD)/cache-$(CACHE_WAYS)-way
-BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(DESIGN)/$(BOARD_SIM_TOP)/$(APP_NAME)
+BOARD_SIM_BUILD_DIR = $(BOARD_BUILD_DIR)/sim/$(DESIGN)/$(BOARD_SIM_TOP)/tlb-$(TLB_ENABLED)/$(APP_NAME)
 BOARD_TB_DIR       := tb/boards/$(BOARD)
 BOARD_TB           ?= timer_mmio
 BOARD_TB_TOP       := tb_$(BOARD_TB)
@@ -207,7 +212,7 @@ SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test board-tb board-tb-run board-program board-synth board-pnr board-timing board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test tlb-perf board-tb board-tb-run board-program board-synth board-pnr board-timing board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -358,6 +363,7 @@ $(BOARD_HARNESS_BIN): $(BOARD_SIM_HARNESS_SRCS) $(APP_MEM)
 		--top-module $(BOARD_SIM_TOP) \
 		-GMemInitFile=\"$(abspath $(APP_MEM))\" \
 		-GMemDepthWords=$(shell expr $(MEM_BYTES) / 4) \
+		-GTlbEnabled=$(TLB_ENABLED) \
 		--Mdir $(BOARD_SIM_BUILD_DIR) \
 		-o V$(BOARD_SIM_TOP) \
 		$(BOARD_SIM_HARNESS_SRCS)
@@ -371,6 +377,10 @@ board-sim: board-run
 ## board-app-test: run simulated-board firmware regressions
 board-app-test:
 	tools/run_board_app_tests.py --design $(DESIGN) --board $(BOARD) --sim $(BOARD_SIM)
+
+## tlb-perf: compare the fixed Sv32 workload with the TLB disabled and enabled
+tlb-perf:
+	python3 tools/run_tlb_perf.py --design $(DESIGN) --cache-ways $(CACHE_WAYS)
 
 $(BOARD_TB_BIN): $(BOARD_SRCS) $(BOARD_TB_SRC)
 	@test -f $(BOARD_TB_SRC) || { echo "no such board testbench: $(BOARD_TB_SRC)"; exit 1; }

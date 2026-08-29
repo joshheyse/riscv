@@ -34,6 +34,7 @@ module sv32_walker
   mmu_req_t    _request;
   sv32_level_e _level;
   sv32_ppn_t   _table_ppn;
+  logic        _global_mapping;
 
   mem_req_t    _memory_request;
 
@@ -49,6 +50,7 @@ module sv32_walker
       _state <= IDLE;
       _response <= '0;
       _memory_request <= '0;
+      _global_mapping <= 1'b0;
     end else begin
       case (_state)
         IDLE: begin
@@ -63,10 +65,11 @@ module sv32_walker
               };
               _state <= RESPOND;
             end else begin
-              _request   <= translation.req;
-              _level     <= SV32_LEVEL_1;
-              _table_ppn <= satp.ppn;
-              _state     <= PTE_REQUEST;
+              _request        <= translation.req;
+              _level          <= SV32_LEVEL_1;
+              _table_ppn      <= satp.ppn;
+              _global_mapping <= 1'b0;
+              _state          <= PTE_REQUEST;
             end
           end
         end
@@ -79,7 +82,7 @@ module sv32_walker
                 leaf_level: SV32_LEVEL_0,
                 leaf_pte: '0
             };
-            _state    <= RESPOND;
+            _state <= RESPOND;
           end else begin
             _memory_request.valid <= 1'b1;
             _memory_request.addr <= {
@@ -98,6 +101,7 @@ module sv32_walker
           if (memory.rsp.valid && memory.rsp_ready) begin
             sv32_pte_t pte;
             pte = sv32_pte_t'(memory.rsp.read_data);
+            pte.global_mapping = pte.global_mapping || _global_mapping;
             if (pte_is_invalid(pte)) begin
               _response <= '{
                   valid: 1'b1,
@@ -116,7 +120,7 @@ module sv32_walker
                     leaf_level: SV32_LEVEL_0,
                     leaf_pte: '0
                 };
-                _state    <= RESPOND;
+                _state <= RESPOND;
               end else if (!ppn_is_supported(pte.ppn)) begin
                 _response <= '{
                     valid: 1'b1,
@@ -125,7 +129,7 @@ module sv32_walker
                     leaf_level: SV32_LEVEL_0,
                     leaf_pte: '0
                 };
-                _state    <= RESPOND;
+                _state <= RESPOND;
               end else begin
                 _response <= '{
                     valid: 1'b1,
@@ -144,7 +148,7 @@ module sv32_walker
                   leaf_level: SV32_LEVEL_0,
                   leaf_pte: '0
               };
-              _state    <= RESPOND;
+              _state <= RESPOND;
             end else if (!ppn_is_supported(pte.ppn)) begin
               _response <= '{
                   valid: 1'b1,
@@ -153,13 +157,14 @@ module sv32_walker
                   leaf_level: SV32_LEVEL_0,
                   leaf_pte: '0
               };
-              _state    <= RESPOND;
+              _state <= RESPOND;
             end else begin
               _memory_request.valid <= 1'b1;
               _memory_request.addr <= {
                 pte.ppn.ppn1[9:0], pte.ppn.ppn0, _request.virtual_addr.fields.vpn.vpn0, 2'b00
               };
               _table_ppn <= pte.ppn;
+              _global_mapping <= _global_mapping || pte.global_mapping;
               _level <= SV32_LEVEL_0;
               _state <= PTE_REQUEST;
             end

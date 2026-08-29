@@ -29,14 +29,15 @@ package pipelined_pkg;
   } id_ex_t;
 
   typedef struct packed {
-    logic        valid;           // slot contains an instruction
-    pc_t         pc;              // PC associated with instr
-    control_t    ctrl;            // control signals carried into memory
-    word_t       alu_result;      // raw ALU output
-    word_t       execute_result;  // value selected before memory/writeback
-    word_t       write_data;      // store data before LSU alignment
-    regaddr_t    rd;              // destination register address
-    trap_stage_t trap;
+    logic           valid;           // slot contains an instruction
+    pc_t            pc;              // PC associated with instr
+    control_t       ctrl;            // control signals carried into memory
+    word_t          alu_result;      // raw ALU output
+    word_t          execute_result;  // value selected before memory/writeback
+    word_t          write_data;      // store data before LSU alignment
+    regaddr_t       rd;              // destination register address
+    tlb_flush_req_t tlb_flush;       // SFENCE.VMA selectors carried into maintenance
+    trap_stage_t    trap;
   } ex_mem_t;
 
   typedef struct packed {

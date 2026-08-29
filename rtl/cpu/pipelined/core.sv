@@ -25,10 +25,11 @@ module core
   import pipelined_pkg::*;
 #(
   parameter mem_addr_t CacheableBase = '0,
-  parameter mem_addr_t CacheableEnd  = '0
+  parameter mem_addr_t CacheableEnd  = '0,
+  parameter bit        TlbEnabled    = 1'b1
 ) (
-  input clk,
-  input rst,
+  input         clk,
+  input         rst,
   input dword_t time_value,
 
   output logic halted,
@@ -38,9 +39,8 @@ module core
   irq_if.sink   irq
 );
 
-  function automatic mmu_access_e data_translation_access(input logic amo_selected,
-                                                           input amo_op_e amo_op,
-                                                           input logic write_en);
+  function automatic mmu_access_e data_translation_access(
+      input logic amo_selected, input amo_op_e amo_op, input logic write_en);
     if (amo_selected) begin
       return amo_op == AMO_OP_LR ? MMU_ACCESS_LOAD : MMU_ACCESS_STORE;
     end else begin
@@ -114,12 +114,13 @@ module core
 
   logic             _mem_order_busy;
   logic             _mem_order_start;
+  tlb_flush_req_t   _mem_order_tlb_flush;
 
   translation_ctx_t _ifetch_translation_ctx;
   translation_ctx_t _data_translation_ctx;
 
   logic             _core_reservation_clear;
-  logic             _tlb_flush;
+  tlb_flush_req_t   _tlb_flush;
 
   vmem_if _ifetch_ifu_adapter (
     clk,
@@ -206,9 +207,14 @@ module core
       (_id_ex.ctrl.system.op == SYSTEM_OP_SRET) && !_id_ex.trap.valid &&
       !_system_access_illegal;
 
-  assign _tlb_flush = (_mem_wb.valid && _mem_wb.ctrl.mem_order == MEM_ORDER_SFENCE_VMA)
-    || (_csr.en && _csr.write_en && !_csr_illegal && _csr.addr.raw == CSR_SATP);
-  assign _core_reservation_clear = _retire.trap || _tlb_flush;
+  always_comb begin
+    _tlb_flush = _mem_order_tlb_flush;
+
+    if (_csr.en && _csr.write_en && !_csr_illegal && _csr.addr.raw == CSR_SATP) begin
+      _tlb_flush = '{valid: 1'b1, all_vpns: 1'b1, vpn: '0, all_asids: 1'b1, asid: '0};
+    end
+  end
+  assign _core_reservation_clear = _retire.trap || _tlb_flush.valid;
 
   logic _mie_pending_meip;
   logic _mie_pending_mtip;
@@ -446,7 +452,9 @@ module core
     .mem(_ifetch_ifu_cache.master)
   );
 
-  translation_adapter _ifetch_translation_adapter (
+  translation_adapter #(
+    .TlbEnabled(TlbEnabled)
+  ) _ifetch_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
@@ -547,6 +555,7 @@ module core
     .start(_mem_order_start),
     .busy(_mem_order_busy),
     .redirect(_mem_order_redirect),
+    .tlb_flush(_mem_order_tlb_flush),
     .dcache_command(_dcache_command),
     .icache_command(_icache_command)
   );
@@ -570,7 +579,9 @@ module core
     .mem(_data_lsu_cache.master)
   );
 
-  translation_adapter _data_translation_adapter (
+  translation_adapter #(
+    .TlbEnabled(TlbEnabled)
+  ) _data_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
@@ -681,6 +692,13 @@ module core
                 execute_result: _ex_result,
                 write_data: _store_data,
                 rd: _id_ex.slot.instr.r.rd,
+                tlb_flush: '{
+                    valid: _id_ex.ctrl.mem_order == MEM_ORDER_SFENCE_VMA,
+                    all_vpns: _id_ex.slot.instr.r.rs1 == 5'd0,
+                    vpn: sv32_vpn_t'(_ex_rs1_operand[31:12]),
+                    all_asids: _id_ex.slot.instr.r.rs2 == 5'd0,
+                    asid: sv32_asid_t'(_ex_rs2_operand)
+                },
                 trap: _ex_trap
             };
           end else begin
