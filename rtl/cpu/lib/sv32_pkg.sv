@@ -8,7 +8,7 @@ package sv32_pkg;
   /* verilator lint_off UNUSEDSIGNAL */
 
   function automatic logic translation_bypassed(input satp_t satp, input translation_ctx_t ctx);
-    return !satp.mode || (ctx.privilege == PRIV_MACHINE);
+    return (satp.mode == SATP_MODE_BARE) || (ctx.privilege == PRIV_MACHINE);
   endfunction
 
   function automatic logic pte_is_invalid(input sv32_pte_t pte);
@@ -19,16 +19,29 @@ package sv32_pkg;
     return pte.read || pte.execute;
   endfunction
 
-  function automatic logic leaf_is_misaligned(input sv32_pte_t pte, input logic level);
-    return level && (pte.ppn0 != '0);
+  function automatic logic leaf_is_misaligned(input sv32_pte_t pte, input sv32_level_e level);
+    return (level == SV32_LEVEL_1) && (pte.ppn.ppn0 != '0);
   endfunction
 
   function automatic logic nonleaf_has_reserved_bits(input sv32_pte_t pte);
     return pte.dirty || pte.accessed || pte.user;
   endfunction
 
-  function automatic logic ppn_is_supported(input logic [21:0] ppn);
-    return ppn[21:20] == 2'b00;
+  function automatic logic ppn_is_supported(input sv32_ppn_t ppn);
+    return ppn.ppn1[11:10] == 2'b00;
+  endfunction
+
+  function automatic mem_addr_t leaf_physical_address(input sv32_pte_t pte,
+                                                       input sv32_level_e level,
+                                                       input virtual_address_u virtual_addr);
+    sv32_ppn_t effective_ppn;
+
+    effective_ppn = pte.ppn;
+    if (level == SV32_LEVEL_1) begin
+      effective_ppn.ppn0 = virtual_addr.fields.vpn.vpn0;
+    end
+
+    return {effective_ppn.ppn1[9:0], effective_ppn.ppn0, virtual_addr.fields.offset};
   endfunction
 
   function automatic logic leaf_access_allowed(input sv32_pte_t pte, input mmu_req_t req);
@@ -77,7 +90,7 @@ package sv32_pkg;
 
 
   function automatic priv_mode_e effective_data_privilege(input priv_mode_e current_privilege,
-                                                           input mstatus_t mstatus);
+                                                          input mstatus_t mstatus);
     if ((current_privilege == PRIV_MACHINE) && mstatus.mprv) begin
       return priv_mode_e'(mstatus.mpp);
     end else begin

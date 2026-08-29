@@ -48,6 +48,12 @@ module tb_riscv_pkg
       $dumpvars(0, tb_riscv_pkg);
     end
 
+    expect_int(index_width(1), 1, "single-element index width");
+    expect_int(index_width(2), 1, "two-element index width");
+    expect_int(index_width(3), 2, "non-power-of-two index width");
+    expect_int(index_width(4), 2, "power-of-two index width");
+    expect_int(index_width(5), 3, "next index-width boundary");
+
     expect_int($bits(mstatus_t), 32, "mstatus_t width");
     expect_int($bits(mstatush_t), 32, "mstatush_t width");
     expect_int($bits(sstatus_t), 32, "sstatus_t width");
@@ -60,10 +66,20 @@ module tb_riscv_pkg
     expect_int($bits(cause_t), 32, "cause_t width");
     expect_int($bits(tval_t), 32, "tval_t width");
     expect_int($bits(satp_t), 32, "satp_t width");
-    expect_int($bits(virtual_address_fields_t), 32, "virtual address fields width");
+    expect_int($bits(sv32_asid_t), 9, "Sv32 ASID width");
+    expect_int($bits(sv32_vpn_index_t), 10, "Sv32 VPN index width");
+    expect_int($bits(sv32_vpn_t), 20, "Sv32 VPN width");
+    expect_int($bits(sv32_page_offset_t), 12, "Sv32 page offset width");
+    expect_int($bits(sv32_ppn0_t), 10, "Sv32 PPN[0] width");
+    expect_int($bits(sv32_ppn1_t), 12, "Sv32 PPN[1] width");
+    expect_int($bits(sv32_ppn_t), 22, "Sv32 PPN width");
+    expect_int($bits(sv32_level_e), 1, "Sv32 level width");
+    expect_int($bits(sv32_virtual_address_fields_t), 32, "virtual address fields width");
     expect_int($bits(virtual_address_u), 32, "virtual address width");
+    expect_int($bits(sv32_pte_t), 32, "Sv32 PTE width");
     expect_int($bits(translation_ctx_t), 6, "translation context width");
     expect_int($bits(mmu_req_t), 39, "MMU request width");
+    expect_int($bits(mmu_rsp_t), 68, "MMU response width");
     expect_int($bits(mvendorid_t), 32, "mvendorid_t width");
     expect_int($bits(marchid_t), 32, "marchid_t width");
     expect_int($bits(mimpid_t), 32, "mimpid_t width");
@@ -113,9 +129,10 @@ module tb_riscv_pkg
     expect_bits(32'(SYS_IMM_SRET), 32'h0000_0102, "SYS_IMM_SRET encoding");
 
     _virtual_addr.raw = 32'habcd_e123;
-    expect_bits(32'(_virtual_addr.named.vpn1), 32'h0000_02af, "virtual address VPN[1] view");
-    expect_bits(32'(_virtual_addr.named.vpn0), 32'h0000_00de, "virtual address VPN[0] view");
-    expect_bits(32'(_virtual_addr.named.offset), 32'h0000_0123, "virtual address page-offset view");
+    expect_bits(32'(_virtual_addr.fields.vpn.vpn1), 32'h0000_02af, "virtual address VPN[1] view");
+    expect_bits(32'(_virtual_addr.fields.vpn.vpn0), 32'h0000_00de, "virtual address VPN[0] view");
+    expect_bits(32'(_virtual_addr.fields.offset), 32'h0000_0123,
+                "virtual address page-offset view");
 
     expect_bits(32'(CSR_SSTATUS), 32'h0000_0100, "CSR_SSTATUS address");
     expect_bits(32'(CSR_SENVCFG), 32'h0000_010a, "CSR_SENVCFG address");

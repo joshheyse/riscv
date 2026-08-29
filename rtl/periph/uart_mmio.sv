@@ -46,7 +46,7 @@ module uart_mmio
   logic        _rx_irq_en;
   logic        _rx_prev;
 
-  localparam int unsigned RxCounterBits = (ClocksPerBit <= 1) ? 1 : $clog2(ClocksPerBit);
+  localparam int unsigned RxCounterBits = index_width(ClocksPerBit);
   localparam logic [RxCounterBits-1:0] RxHalfBitCount =
       RxCounterBits'(((ClocksPerBit + 1) / 2) - 1);
   localparam logic [RxCounterBits-1:0] RxFullBitCount = RxCounterBits'(ClocksPerBit - 1);

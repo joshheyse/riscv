@@ -44,7 +44,7 @@ module tb_core_bus
   output mem_data_t mmio_write_data
 );
 
-  localparam int unsigned IndexBits = $clog2(Words);
+  localparam int unsigned IndexBits = index_width(Words);
 
   mem_data_t                   _store         [0:Words-1];
 

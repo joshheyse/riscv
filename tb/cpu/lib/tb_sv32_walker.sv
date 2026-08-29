@@ -11,8 +11,8 @@ module tb_sv32_walker;
   localparam int unsigned ClockPeriodNs = 10;
   localparam int unsigned TimeoutCycles = 1000;
 
-  logic _clk;
-  logic _rst = 1'b1;
+  logic  _clk;
+  logic  _rst = 1'b1;
 
   satp_t _satp;
   mmu_if _translation ();
@@ -21,10 +21,10 @@ module tb_sv32_walker;
     .rst(_rst)
   );
 
-  int unsigned _errors = 0;
-  int unsigned _checks = 0;
+  int unsigned      _errors = 0;
+  int unsigned      _checks = 0;
 
-  sv32_pte_t    _pte;
+  sv32_pte_t        _pte;
   virtual_address_u _virtual_addr;
 
   initial begin
@@ -40,8 +40,7 @@ module tb_sv32_walker;
     .memory(_memory)
   );
 
-  function automatic mem_addr_t pte_address(input logic [19:0] ppn,
-                                             input logic [9:0] vpn);
+  function automatic mem_addr_t pte_address(input logic [19:0] ppn, input logic [9:0] vpn);
     return {ppn, vpn, 2'b00};
   endfunction
 
@@ -53,8 +52,7 @@ module tb_sv32_walker;
     end
   endtask
 
-  task automatic expect_addr(input mem_addr_t got, input mem_addr_t expected,
-                             input string what);
+  task automatic expect_addr(input mem_addr_t got, input mem_addr_t expected, input string what);
     _checks++;
     if (got !== expected) begin
       _errors++;
@@ -66,9 +64,9 @@ module tb_sv32_walker;
                                    input priv_mode_e privilege, input logic sum, input logic mxr);
     @(negedge _clk);
     _translation.req = '{
-      valid: 1'b1,
-      virtual_addr: virtual_address_u'(virtual_addr),
-      ctx: '{access: access, privilege: privilege, sum: sum, mxr: mxr}
+        valid: 1'b1,
+        virtual_addr: virtual_address_u'(virtual_addr),
+        ctx: '{access : access, privilege: privilege, sum: sum, mxr: mxr}
     };
 
     while (!_translation.req_ready) begin
@@ -95,8 +93,8 @@ module tb_sv32_walker;
     repeat (refuse_cycles) begin
       @(negedge _clk);
       expect_logic(_memory.req.valid, 1'b1, $sformatf("%s request held while refused", what));
-      expect_addr(_memory.req.addr, expected_addr,
-                  $sformatf("%s address held while refused", what));
+      expect_addr(_memory.req.addr, expected_addr, $sformatf("%s address held while refused", what
+                  ));
     end
 
     _memory.req_ready = 1'b1;
@@ -116,8 +114,7 @@ module tb_sv32_walker;
     _memory.rsp = '0;
   endtask
 
-  task automatic serve_changed_pte(input mem_addr_t expected_addr,
-                                   input sv32_pte_t unaccepted_pte,
+  task automatic serve_changed_pte(input mem_addr_t expected_addr, input sv32_pte_t unaccepted_pte,
                                    input sv32_pte_t accepted_pte, input string what);
     _memory.req_ready = 1'b0;
 
@@ -148,33 +145,52 @@ module tb_sv32_walker;
     _memory.rsp = '0;
   endtask
 
-  task automatic expect_response(input mmu_fault_e expected_fault,
-                                 input mem_addr_t expected_addr,
+  task automatic expect_response(input mmu_fault_e expected_fault, input mem_addr_t expected_addr,
                                  input int unsigned stall_cycles, input string what);
+    sv32_level_e held_leaf_level;
+    sv32_pte_t held_leaf_pte;
+
     _translation.rsp_ready = 1'b0;
 
     while (!_translation.rsp.valid) begin
       @(negedge _clk);
     end
 
-    expect_logic(_translation.rsp.fault == expected_fault, 1'b1,
-                 $sformatf("%s fault", what));
-    expect_addr(_translation.rsp.physical_addr, expected_addr,
-                $sformatf("%s physical address", what));
+    held_leaf_level = _translation.rsp.leaf_level;
+    held_leaf_pte = _translation.rsp.leaf_pte;
+    expect_logic(_translation.rsp.fault == expected_fault, 1'b1, $sformatf("%s fault", what));
+    expect_addr(_translation.rsp.physical_addr, expected_addr, $sformatf("%s physical address", what
+                ));
 
     repeat (stall_cycles) begin
       @(negedge _clk);
       expect_logic(_translation.rsp.valid, 1'b1, $sformatf("%s response held", what));
-      expect_logic(_translation.rsp.fault == expected_fault, 1'b1,
-                   $sformatf("%s fault held", what));
-      expect_addr(_translation.rsp.physical_addr, expected_addr,
-                  $sformatf("%s address held", what));
+      expect_logic(_translation.rsp.fault == expected_fault, 1'b1, $sformatf("%s fault held", what
+                   ));
+      expect_addr(_translation.rsp.physical_addr, expected_addr, $sformatf("%s address held", what
+                  ));
+      expect_logic(_translation.rsp.leaf_level == held_leaf_level, 1'b1,
+                   $sformatf("%s leaf level held", what));
+      expect_logic(_translation.rsp.leaf_pte == held_leaf_pte, 1'b1,
+                   $sformatf("%s leaf PTE held", what));
     end
 
     _translation.rsp_ready = 1'b1;
     @(posedge _clk);
     @(negedge _clk);
     _translation.rsp_ready = 1'b0;
+  endtask
+
+  task automatic expect_leaf_metadata(input sv32_pte_t expected_pte,
+                                      input sv32_level_e expected_level, input string what);
+    while (!_translation.rsp.valid) begin
+      @(negedge _clk);
+    end
+
+    expect_logic(_translation.rsp.leaf_pte == expected_pte, 1'b1,
+                 $sformatf("%s leaf PTE", what));
+    expect_logic(_translation.rsp.leaf_level == expected_level, 1'b1,
+                 $sformatf("%s leaf level", what));
   endtask
 
   task automatic expect_no_memory_request(input string what);
@@ -200,10 +216,11 @@ module tb_sv32_walker;
     // Bare mode returns the virtual address without touching page tables.
     begin_translation(32'h8123_4567, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
     expect_no_memory_request("Bare translation does not access memory");
+    expect_leaf_metadata('0, SV32_LEVEL_0, "Bare translation");
     expect_response(MMU_FAULT_NONE, 32'h8123_4567, 2, "Bare translation");
 
     // Effective machine privilege also bypasses an enabled Sv32 translation.
-    _satp = '{mode: 1'b1, asid: '0, ppn: 22'h000100};
+    _satp = '{mode: SATP_MODE_SV32, asid: '0, ppn: sv32_ppn_t'(22'h000100)};
     begin_translation(32'h9234_5678, MMU_ACCESS_STORE, PRIV_MACHINE, 1'b0, 1'b0);
     expect_no_memory_request("machine translation does not access memory");
     expect_response(MMU_FAULT_NONE, 32'h9234_5678, 0, "machine bypass");
@@ -215,19 +232,22 @@ module tb_sv32_walker;
     _pte.valid = 1'b1;
     _pte.read = 1'b1;
     _pte.accessed = 1'b1;
-    _pte.ppn1 = 12'h005;
+    _pte.ppn.ppn1 = 12'h005;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    _satp.ppn = 22'h000200;
+    _satp.ppn = sv32_ppn_t'(22'h000200);
     _translation.req.virtual_addr.raw = 32'hffff_f000;
     _translation.req.ctx = '{
-      access: MMU_ACCESS_STORE, privilege: PRIV_USER, sum: 1'b1, mxr: 1'b1
+        access : MMU_ACCESS_STORE,
+        privilege: PRIV_USER,
+        sum: 1'b1,
+        mxr: 1'b1
     };
-    serve_pte(pte_address(20'h00100, _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(20'h00100, _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "latched translation context");
-    expect_response(MMU_FAULT_NONE,
-                    {10'(_pte.ppn1), _virtual_addr.named.vpn0, _virtual_addr.named.offset}, 0,
-                    "latched translation result");
-    _satp.ppn = 22'h000100;
+    expect_response(MMU_FAULT_NONE, {
+                    10'(_pte.ppn.ppn1), _virtual_addr.fields.vpn.vpn0, _virtual_addr.fields.offset},
+                    0, "latched translation result");
+    _satp.ppn = sv32_ppn_t'(22'h000100);
 
     // A readable level-1 leaf translates a 4 MiB superpage. Exercise request
     // refusal and response backpressure on this walk.
@@ -236,44 +256,45 @@ module tb_sv32_walker;
     _pte.valid = 1'b1;
     _pte.read = 1'b1;
     _pte.accessed = 1'b1;
-    _pte.ppn1 = 12'h001;
+    _pte.ppn.ppn1 = 12'h001;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 2, 2,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 2, 2,
               "level-1 PTE");
-    expect_response(MMU_FAULT_NONE,
-                    {10'(_pte.ppn1), _virtual_addr.named.vpn0, _virtual_addr.named.offset}, 2,
-                    "level-1 superpage");
+    expect_leaf_metadata(_pte, SV32_LEVEL_1, "level-1 superpage");
+    expect_response(MMU_FAULT_NONE, {
+                    10'(_pte.ppn.ppn1), _virtual_addr.fields.vpn.vpn0, _virtual_addr.fields.offset},
+                    2, "level-1 superpage");
 
     // A non-leaf level-1 PTE selects a second page table; its level-0 leaf
     // supplies the complete physical page number.
     _virtual_addr.raw = 32'h4567_89ab;
     _pte = '0;
     _pte.valid = 1'b1;
-    _pte.ppn0 = 10'h180;
+    _pte.ppn.ppn0 = 10'h180;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_FETCH, PRIV_USER, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "level-1 non-leaf PTE");
     _pte = '0;
     _pte.valid = 1'b1;
     _pte.execute = 1'b1;
     _pte.user = 1'b1;
     _pte.accessed = 1'b1;
-    _pte.ppn1 = 12'h002;
-    _pte.ppn0 = 10'h155;
-    serve_pte(pte_address(20'h00180, _virtual_addr.named.vpn0), _pte, 1, 1,
+    _pte.ppn.ppn1 = 12'h002;
+    _pte.ppn.ppn0 = 10'h155;
+    serve_pte(pte_address(20'h00180, _virtual_addr.fields.vpn.vpn0), _pte, 1, 1,
               "level-0 leaf PTE");
-    expect_response(MMU_FAULT_NONE,
-                    {10'(_pte.ppn1), _pte.ppn0, _virtual_addr.named.offset}, 0,
-                    "level-0 translation");
+    expect_leaf_metadata(_pte, SV32_LEVEL_0, "level-0 translation");
+    expect_response(MMU_FAULT_NONE, {10'(_pte.ppn.ppn1), _pte.ppn.ppn0, _virtual_addr.fields.offset
+                    }, 0, "level-0 translation");
 
     // An active walk samples each PTE only when its response transfers. This
     // models a PTE changing before the memory system returns the level-0 read.
     _virtual_addr.raw = 32'h4abc_def0;
     _pte = '0;
     _pte.valid = 1'b1;
-    _pte.ppn0 = 10'h181;
+    _pte.ppn.ppn0 = 10'h181;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "changing-walk level-1 PTE");
     begin
       sv32_pte_t unaccepted_pte;
@@ -282,25 +303,25 @@ module tb_sv32_walker;
       unaccepted_pte.valid = 1'b1;
       unaccepted_pte.read = 1'b1;
       unaccepted_pte.accessed = 1'b1;
-      unaccepted_pte.ppn1 = 12'h003;
-      unaccepted_pte.ppn0 = 10'h011;
+      unaccepted_pte.ppn.ppn1 = 12'h003;
+      unaccepted_pte.ppn.ppn0 = 10'h011;
       accepted_pte = unaccepted_pte;
-      accepted_pte.ppn1 = 12'h004;
-      accepted_pte.ppn0 = 10'h022;
-      serve_changed_pte(pte_address(20'h00181, _virtual_addr.named.vpn0), unaccepted_pte,
+      accepted_pte.ppn.ppn1 = 12'h004;
+      accepted_pte.ppn.ppn0 = 10'h022;
+      serve_changed_pte(pte_address(20'h00181, _virtual_addr.fields.vpn.vpn0), unaccepted_pte,
                         accepted_pte, "changed level-0 PTE");
-      expect_response(MMU_FAULT_NONE,
-                      {10'(accepted_pte.ppn1), accepted_pte.ppn0,
-                       _virtual_addr.named.offset},
-                      0, "changed PTE sampled on response transfer");
+      expect_response(MMU_FAULT_NONE, {
+                      10'(accepted_pte.ppn.ppn1), accepted_pte.ppn.ppn0, _virtual_addr.fields.offset
+                      }, 0, "changed PTE sampled on response transfer");
     end
 
     // Invalid PTEs and permission failures are page faults.
     _virtual_addr.raw = 32'h2000_0123;
     _pte = '0;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "invalid PTE");
+    expect_leaf_metadata('0, SV32_LEVEL_0, "invalid PTE");
     expect_response(MMU_FAULT_PAGE, '0, 0, "invalid PTE");
 
     _pte = '0;
@@ -309,7 +330,7 @@ module tb_sv32_walker;
     _pte.user = 1'b1;
     _pte.accessed = 1'b1;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "SUM permission PTE");
     expect_response(MMU_FAULT_PAGE, '0, 0, "supervisor load without SUM");
 
@@ -318,39 +339,39 @@ module tb_sv32_walker;
     _pte.valid = 1'b1;
     _pte.read = 1'b1;
     _pte.accessed = 1'b1;
-    _pte.ppn0 = 10'h001;
+    _pte.ppn.ppn0 = 10'h001;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "misaligned superpage PTE");
     expect_response(MMU_FAULT_PAGE, '0, 0, "misaligned superpage");
 
     _pte = '0;
     _pte.valid = 1'b1;
-    _pte.ppn0 = 10'h180;
+    _pte.ppn.ppn0 = 10'h180;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "level-1 pointer for final non-leaf");
     _pte = '0;
     _pte.valid = 1'b1;
-    serve_pte(pte_address(20'h00180, _virtual_addr.named.vpn0), _pte, 0, 0,
+    serve_pte(pte_address(20'h00180, _virtual_addr.fields.vpn.vpn0), _pte, 0, 0,
               "level-0 non-leaf PTE");
     expect_response(MMU_FAULT_PAGE, '0, 0, "non-leaf at final level");
 
     // Unsupported 34-bit PPNs are access faults. The root case must not issue
     // a memory transaction; the leaf case faults after reading its PTE.
-    _satp.ppn = 22'h100000;
+    _satp.ppn = sv32_ppn_t'(22'h100000);
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
     expect_no_memory_request("unsupported root PPN does not access memory");
     expect_response(MMU_FAULT_ACCESS, '0, 0, "unsupported root PPN");
 
-    _satp.ppn = 22'h000100;
+    _satp.ppn = sv32_ppn_t'(22'h000100);
     _pte = '0;
     _pte.valid = 1'b1;
     _pte.read = 1'b1;
     _pte.accessed = 1'b1;
-    _pte.ppn1 = 12'h400;
+    _pte.ppn.ppn1 = 12'h400;
     begin_translation(_virtual_addr.raw, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.named.vpn1), _pte, 0, 0,
+    serve_pte(pte_address(_satp.ppn[19:0], _virtual_addr.fields.vpn.vpn1), _pte, 0, 0,
               "unsupported leaf PPN");
     expect_response(MMU_FAULT_ACCESS, '0, 0, "unsupported leaf PPN");
 

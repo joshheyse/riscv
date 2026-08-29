@@ -37,7 +37,7 @@ module imem
   // acceptance is unconditional. Drive it for real only if that changes.
   assign ibus.req_ready = 1'b1;
 
-  localparam int unsigned IndexBits = $clog2(DepthWords);
+  localparam int unsigned IndexBits = index_width(DepthWords);
   instr_u _rom[DepthWords-1:0];
 
   initial begin

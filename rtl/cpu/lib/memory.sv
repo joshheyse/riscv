@@ -16,7 +16,7 @@ module memory
   // acceptance is unconditional. Drive it for real only if that changes.
   assign mem.req_ready = 1'b1;
 
-  localparam int unsigned IndexBits = $clog2(DepthWords);
+  localparam int unsigned IndexBits = index_width(DepthWords);
 
   mem_data_t _memory[0:DepthWords-1];
   initial begin

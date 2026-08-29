@@ -33,7 +33,7 @@ module push_button_mmio
   assign mem.req_ready = 1'b1;
 
   localparam int unsigned WordBits = $bits(mem_addr_t);
-  localparam int unsigned DebounceCounterBits = $clog2(DebounceCycles + 1);
+  localparam int unsigned DebounceCounterBits = index_width(DebounceCycles + 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterMax = DebounceCounterBits'(DebounceCycles - 1);
   localparam logic [DebounceCounterBits-1:0] DebounceCounterInc = DebounceCounterBits'(1);
 

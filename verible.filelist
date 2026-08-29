@@ -15,6 +15,7 @@ rtl/cpu/lib/imem.sv
 rtl/cpu/lib/lsu.sv
 rtl/cpu/lib/main_decoder.sv
 rtl/cpu/lib/reg_file.sv
+rtl/cpu/lib/tlb_store.sv
 rtl/cpu/lib/writeback_mux.sv
 rtl/cpu/pipelined/core.sv
 rtl/cpu/pipelined/hazard_unit.sv

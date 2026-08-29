@@ -33,7 +33,7 @@ module plic
   localparam mem_addr_t PlicEndAddr = PlicMClaimCompleteAddr + mem_addr_t'(4);
   localparam mem_addr_t PriorityEndAddr = PlicPriorityBaseAddr + mem_addr_t'(4 * (NumSources + 1));
 
-  localparam int unsigned SourceIdBits = $clog2(NumSources + 1);
+  localparam int unsigned SourceIdBits = index_width(NumSources + 1);
   typedef logic [SourceIdBits-1:0] source_id_t;
 
   initial begin

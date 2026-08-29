@@ -43,10 +43,10 @@ module tb_l1_cache;
   word_t                               _backing            [0:BackingWords-1];
   word_t                               _mmio_value;
   mem_rsp_t                            _registered_rsp;
-  logic     [$clog2(BackingWords)-1:0] _backing_index;
+  logic     [index_width(BackingWords)-1:0] _backing_index;
   word_t                               _selected_read_data;
 
-  assign _backing_index = _downstream.req.addr[$clog2(BackingWords)+1:2];
+  assign _backing_index = _downstream.req.addr[index_width(BackingWords)+1:2];
   assign _selected_read_data =
       _downstream.req.addr == MmioAddr ? _mmio_value : _backing[_backing_index];
 

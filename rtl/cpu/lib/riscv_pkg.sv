@@ -3,6 +3,12 @@
 package riscv_pkg;
   localparam int unsigned XLEN = 32;
 
+  // Number of bits needed to index `count` elements. Packed types cannot have
+  // zero width, so a single-element collection still receives a one-bit index.
+  function automatic int unsigned index_width(input int unsigned count);
+    return (count > 1) ? $clog2(count) : 1;
+  endfunction
+
   // RV32I architectural widths. Instruction width is fixed at 32 bits; data
   // and PC values are XLEN-wide in this RV32I core.
   typedef logic [XLEN-1:0] word_t;  // data: a register value, ALU operand
@@ -626,10 +632,36 @@ package riscv_pkg;
     trap_t payload;  // architectural trap payload
   } trap_stage_t;
 
+  typedef enum logic {
+    SATP_MODE_BARE = 1'b0,
+    SATP_MODE_SV32 = 1'b1
+  } satp_mode_e;
+
+  typedef logic [8:0] sv32_asid_t;
+  typedef logic [9:0] sv32_vpn_index_t;
+  typedef logic [11:0] sv32_page_offset_t;
+  typedef logic [9:0] sv32_ppn0_t;
+  typedef logic [11:0] sv32_ppn1_t;
+
   typedef struct packed {
-    logic        mode;
-    logic [8:0]  asid;
-    logic [21:0] ppn;
+    sv32_vpn_index_t vpn1;
+    sv32_vpn_index_t vpn0;
+  } sv32_vpn_t;
+
+  typedef struct packed {
+    sv32_ppn1_t ppn1;
+    sv32_ppn0_t ppn0;
+  } sv32_ppn_t;
+
+  typedef enum logic {
+    SV32_LEVEL_0 = 1'b0,  // 4 KiB leaf
+    SV32_LEVEL_1 = 1'b1   // 4 MiB leaf
+  } sv32_level_e;
+
+  typedef struct packed {
+    satp_mode_e mode;
+    sv32_asid_t asid;
+    sv32_ppn_t  ppn;
   } satp_t;
 
   typedef struct packed {
@@ -668,9 +700,9 @@ package riscv_pkg;
   localparam int unsigned CacheWordsPerLine = 8;
   localparam int unsigned CacheNumSets =
       CacheCapacityBytes / (CacheNumWays * CacheWordsPerLine * 4);
-  localparam int unsigned CacheWayIndexBits = CacheNumWays > 1 ? $clog2(CacheNumWays) : 1;
-  localparam int unsigned CacheSetIndexBits = $clog2(CacheNumSets);
-  localparam int unsigned CacheWordIndexBits = $clog2(CacheWordsPerLine);
+  localparam int unsigned CacheWayIndexBits = index_width(CacheNumWays);
+  localparam int unsigned CacheSetIndexBits = index_width(CacheNumSets);
+  localparam int unsigned CacheWordIndexBits = index_width(CacheWordsPerLine);
   localparam int unsigned CacheLineOffsetBits = CacheWordIndexBits + 2;
   localparam int unsigned CacheDataIndexBits = CacheSetIndexBits + CacheWordIndexBits;
 
@@ -707,28 +739,26 @@ package riscv_pkg;
   } mmu_fault_e;
 
   typedef struct packed {
-    logic [9:0]  vpn1;    // virtual address bits [31:22]
-    logic [9:0]  vpn0;    // virtual address bits [21:12]
-    logic [11:0] offset;  // page offset bits [11:0]
-  } virtual_address_fields_t;
+    sv32_vpn_t         vpn;     // virtual address bits [31:12]
+    sv32_page_offset_t offset;  // virtual address bits [11:0]
+  } sv32_virtual_address_fields_t;
 
   typedef struct packed {
-    logic [11:0] ppn1;            // [31:20] upper physical page number
-    logic [9:0]  ppn0;            // [19:10] lower physical page number
-    logic [1:0]  rsw;             // [9:8] reserved for supervisor software
-    logic        dirty;           // [7] page has been written
-    logic        accessed;        // [6] page has been read, written, or fetched
-    logic        global_mapping;  // [5] mapping applies to every address space
-    logic        user;            // [4] page is accessible from user mode
-    logic        execute;         // [3] instruction fetches are permitted
-    logic        write;           // [2] stores are permitted; requires read
-    logic        read;            // [1] loads are permitted
-    logic        valid;           // [0] PTE contains a valid mapping or pointer
+    sv32_ppn_t  ppn;             // [31:10] physical page number
+    logic [1:0] rsw;             // [9:8] reserved for supervisor software
+    logic       dirty;           // [7] page has been written
+    logic       accessed;        // [6] page has been read, written, or fetched
+    logic       global_mapping;  // [5] mapping applies to every address space
+    logic       user;            // [4] page is accessible from user mode
+    logic       execute;         // [3] instruction fetches are permitted
+    logic       write;           // [2] stores are permitted; requires read
+    logic       read;            // [1] loads are permitted
+    logic       valid;           // [0] PTE contains a valid mapping or pointer
   } sv32_pte_t;
 
   typedef union packed {
-    mem_addr_t               raw;
-    virtual_address_fields_t named;
+    mem_addr_t                    raw;
+    sv32_virtual_address_fields_t fields;
   } virtual_address_u;
 
   typedef struct packed {
@@ -745,9 +775,11 @@ package riscv_pkg;
   } mmu_req_t;
 
   typedef struct packed {
-    logic       valid;
-    mmu_fault_e fault;
-    mem_addr_t  physical_addr;
+    logic        valid;
+    mmu_fault_e  fault;
+    mem_addr_t   physical_addr;
+    sv32_level_e leaf_level;
+    sv32_pte_t   leaf_pte;
   } mmu_rsp_t;
 
   typedef struct packed {

@@ -119,6 +119,7 @@ module core
   translation_ctx_t _data_translation_ctx;
 
   logic             _core_reservation_clear;
+  logic             _tlb_flush;
 
   vmem_if _ifetch_ifu_adapter (
     clk,
@@ -205,9 +206,9 @@ module core
       (_id_ex.ctrl.system.op == SYSTEM_OP_SRET) && !_id_ex.trap.valid &&
       !_system_access_illegal;
 
-  assign _core_reservation_clear = _retire.trap
-    || (_mem_wb.valid && _mem_wb.ctrl.mem_order == MEM_ORDER_SFENCE_VMA)
+  assign _tlb_flush = (_mem_wb.valid && _mem_wb.ctrl.mem_order == MEM_ORDER_SFENCE_VMA)
     || (_csr.en && _csr.write_en && !_csr_illegal && _csr.addr.raw == CSR_SATP);
+  assign _core_reservation_clear = _retire.trap || _tlb_flush;
 
   logic _mie_pending_meip;
   logic _mie_pending_mtip;
@@ -448,6 +449,7 @@ module core
   translation_adapter _ifetch_translation_adapter (
     .clk(clk),
     .rst(rst),
+    .tlb_flush(_tlb_flush),
     .ctx(_ifetch_translation_ctx),
     .satp(_csr_status.satp),
     .upstream(_ifetch_ifu_adapter.slave),
@@ -571,6 +573,7 @@ module core
   translation_adapter _data_translation_adapter (
     .clk(clk),
     .rst(rst),
+    .tlb_flush(_tlb_flush),
     .ctx(_data_translation_ctx),
     .satp(_csr_status.satp),
     .upstream(_data_lsu_adapter.slave),

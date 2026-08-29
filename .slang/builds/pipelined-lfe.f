@@ -26,6 +26,7 @@ rtl/cpu/lib/mem_decoder.sv
 rtl/cpu/lib/mem_trap_control.sv
 rtl/cpu/lib/reg_file.sv
 rtl/cpu/lib/system_decoder.sv
+rtl/cpu/lib/tlb_store.sv
 rtl/cpu/lib/trap_control.sv
 rtl/cpu/lib/writeback_mux.sv
 rtl/cpu/pipelined/core.sv

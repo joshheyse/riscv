@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module serial_tick_generator #(
+module serial_tick_generator
+  import riscv_pkg::*;
+#(
   parameter int unsigned ClocksPerTick = 60
 ) (
   input  logic clk,
@@ -10,7 +12,7 @@ module serial_tick_generator #(
   output logic tick
 );
 
-  localparam int unsigned CounterBits = (ClocksPerTick <= 1) ? 1 : $clog2(ClocksPerTick);
+  localparam int unsigned CounterBits = index_width(ClocksPerTick);
   localparam logic [CounterBits-1:0] TerminalCount = CounterBits'(ClocksPerTick - 1);
   logic [CounterBits-1:0] _counter;
 

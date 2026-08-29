@@ -35,8 +35,8 @@ module tb_set_associative_cache;
 
 
   word_t                            _backing       [0:BackingWords-1];
-  logic  [$clog2(BackingWords)-1:0] _backing_index;
-  assign _backing_index = _downstream.req.addr[$clog2(BackingWords)+1:2];
+  logic  [index_width(BackingWords)-1:0] _backing_index;
+  assign _backing_index = _downstream.req.addr[index_width(BackingWords)+1:2];
 
   // Downstream refusal.
   //

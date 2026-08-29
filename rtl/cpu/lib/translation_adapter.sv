@@ -6,6 +6,7 @@ module translation_adapter
 (
   input logic clk,
   input logic rst,
+  input logic tlb_flush,
 
   input satp_t satp,
   input translation_ctx_t ctx,
@@ -27,6 +28,7 @@ module translation_adapter
 
   state_e _state;
   translation_ctx_t _ctx;
+  sv32_asid_t _request_asid;
   mmu_req_t _mmu_request;
   // verilator lint_off UNUSEDSIGNAL
   vmem_req_t _vmem_request;
@@ -64,10 +66,61 @@ module translation_adapter
     end
   end
 
+  logic _tlb_we;
+  virtual_address_u _tlb_virtual_addr;
+  sv32_vpn_t _tlb_vpn;
+  sv32_asid_t _tlb_asid;
+  sv32_level_e _tlb_write_level;
+  sv32_pte_t _tlb_write_pte;
+  logic _tlb_hit;
+  sv32_level_e _tlb_read_level;
+  sv32_pte_t _tlb_read_pte;
+  mmu_req_t _tlb_request;
+  logic _tlb_access_allowed;
+  mem_addr_t _tlb_physical_addr;
+
+  tlb_store _tlb (
+    .clk(clk),
+    .rst(rst),
+    .flush(tlb_flush),
+    .we(_tlb_we),
+    .vpn(_tlb_vpn),
+    .asid(_tlb_asid),
+    .write_level(_tlb_write_level),
+    .write_pte(_tlb_write_pte),
+    .hit(_tlb_hit),
+    .read_level(_tlb_read_level),
+    .read_pte(_tlb_read_pte)
+  );
+
+  always_comb begin
+    _tlb_virtual_addr = (_state == IDLE) ? virtual_address_u'(upstream.req.addr) :
+                                          virtual_address_u'(_vmem_request.addr);
+    _tlb_we = 1'b0;
+    _tlb_vpn = _tlb_virtual_addr.fields.vpn;
+    _tlb_asid = (_state == IDLE) ? satp.asid : _request_asid;
+    _tlb_write_level = translation.rsp.leaf_level;
+    _tlb_write_pte = translation.rsp.leaf_pte;
+
+    if ((_state == TRANSLATE_WAIT) && translation.rsp.valid && translation.rsp_ready &&
+        (translation.rsp.fault == MMU_FAULT_NONE) && !tlb_flush) begin
+      _tlb_we = 1'b1;
+    end
+  end
+
+  always_comb begin
+    _tlb_request = '{valid: upstream.req.valid, virtual_addr: _tlb_virtual_addr, ctx: ctx};
+    _tlb_access_allowed = leaf_access_allowed(_tlb_read_pte, _tlb_request);
+    _tlb_physical_addr = leaf_physical_address(
+        _tlb_read_pte, _tlb_read_level, _tlb_virtual_addr
+    );
+  end
+
   always_ff @(posedge clk) begin
     if (rst) begin
       _state <= IDLE;
       _ctx <= '0;
+      _request_asid <= '0;
       _mmu_request <= '0;
       _vmem_request <= '0;
       _vmem_response <= '0;
@@ -84,8 +137,24 @@ module translation_adapter
               end
             end else begin
               _ctx <= ctx;
+              _request_asid <= satp.asid;
               _vmem_request <= upstream.req;
-              _state <= TRANSLATE_REQUEST;
+              if (_tlb_hit) begin
+                if (_tlb_access_allowed) begin
+                  _physical_addr <= _tlb_physical_addr;
+                  _state <= PHYSICAL_REQUEST;
+                end else begin
+                  _vmem_response <= '{
+                      valid: 1'b1,
+                      fault: MMU_FAULT_PAGE,
+                      read_data: '0,
+                      physical_addr: '0
+                  };
+                  _state <= RESPOND;
+                end
+              end else begin
+                _state <= TRANSLATE_REQUEST;
+              end
             end
           end
         end

@@ -14,10 +14,10 @@ module tb_sv32_pkg;
   int unsigned _errors = 0;
   int unsigned _checks = 0;
 
-  sv32_pte_t _pte;
-  mmu_req_t  _req;
-  satp_t     _satp;
-  mstatus_t  _mstatus;
+  sv32_pte_t   _pte;
+  mmu_req_t    _req;
+  satp_t       _satp;
+  mstatus_t    _mstatus;
 
   task automatic expect_logic(input logic got, input logic expected, input string what);
     _checks++;
@@ -27,12 +27,20 @@ module tb_sv32_pkg;
     end
   endtask
 
+  task automatic expect_addr(input mem_addr_t got, input mem_addr_t expected, input string what);
+    _checks++;
+    if (got !== expected) begin
+      _errors++;
+      $display("  FAIL %s: got 0x%08h, expected 0x%08h", what, got, expected);
+    end
+  endtask
+
   task automatic expect_access(input logic expected, input string what);
     expect_logic(leaf_access_allowed(_pte, _req), expected, what);
   endtask
 
-  task automatic expect_privilege(input priv_mode_e current_privilege,
-                                  input priv_mode_e expected, input string what);
+  task automatic expect_privilege(input priv_mode_e current_privilege, input priv_mode_e expected,
+                                  input string what);
     priv_mode_e got;
     got = effective_data_privilege(current_privilege, _mstatus);
     _checks++;
@@ -55,7 +63,7 @@ module tb_sv32_pkg;
 
     expect_privilege(PRIV_MACHINE, PRIV_MACHINE, "machine data without MPRV");
     _mstatus.mprv = 1'b1;
-    _mstatus.mpp = MPP_MACHINE;
+    _mstatus.mpp  = MPP_MACHINE;
     expect_privilege(PRIV_MACHINE, PRIV_MACHINE, "MPRV with machine MPP");
     _mstatus.mpp = MPP_SUPERVISOR;
     expect_privilege(PRIV_MACHINE, PRIV_SUPERVISOR, "MPRV applies supervisor MPP");
@@ -70,12 +78,11 @@ module tb_sv32_pkg;
     _req.ctx.privilege = PRIV_SUPERVISOR;
     expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,
                  "Bare mode bypasses supervisor translation");
-    _satp.mode = 1'b1;
+    _satp.mode = SATP_MODE_SV32;
     expect_logic(translation_bypassed(_satp, _req.ctx), 1'b0,
                  "Sv32 translates supervisor accesses");
     _req.ctx.privilege = PRIV_USER;
-    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b0,
-                 "Sv32 translates user accesses");
+    expect_logic(translation_bypassed(_satp, _req.ctx), 1'b0, "Sv32 translates user accesses");
     _req.ctx.privilege = PRIV_MACHINE;
     expect_logic(translation_bypassed(_satp, _req.ctx), 1'b1,
                  "Machine privilege bypasses enabled Sv32");
@@ -98,11 +105,11 @@ module tb_sv32_pkg;
     _pte.execute = 1'b1;
     expect_logic(pte_is_leaf(_pte), 1'b1, "execute-only PTE is a leaf");
 
-    _pte.ppn0 = '0;
-    expect_logic(leaf_is_misaligned(_pte, 1'b1), 1'b0, "aligned level-1 leaf");
-    _pte.ppn0 = 10'b1;
-    expect_logic(leaf_is_misaligned(_pte, 1'b1), 1'b1, "misaligned level-1 leaf");
-    expect_logic(leaf_is_misaligned(_pte, 1'b0), 1'b0,
+    _pte.ppn.ppn0 = '0;
+    expect_logic(leaf_is_misaligned(_pte, SV32_LEVEL_1), 1'b0, "aligned level-1 leaf");
+    _pte.ppn.ppn0 = 10'b1;
+    expect_logic(leaf_is_misaligned(_pte, SV32_LEVEL_1), 1'b1, "misaligned level-1 leaf");
+    expect_logic(leaf_is_misaligned(_pte, SV32_LEVEL_0), 1'b0,
                  "level-0 leaf permits nonzero lower PPN");
 
     _pte = '0;
@@ -111,8 +118,7 @@ module tb_sv32_pkg;
     expect_logic(nonleaf_has_reserved_bits(_pte), 1'b1, "dirty is reserved on a non-leaf");
     _pte = '0;
     _pte.accessed = 1'b1;
-    expect_logic(nonleaf_has_reserved_bits(_pte), 1'b1,
-                 "accessed is reserved on a non-leaf");
+    expect_logic(nonleaf_has_reserved_bits(_pte), 1'b1, "accessed is reserved on a non-leaf");
     _pte = '0;
     _pte.user = 1'b1;
     expect_logic(nonleaf_has_reserved_bits(_pte), 1'b1, "user is reserved on a non-leaf");
@@ -120,6 +126,13 @@ module tb_sv32_pkg;
     expect_logic(ppn_is_supported(22'h0f_ffff), 1'b1, "PPN fits 32-bit physical address");
     expect_logic(ppn_is_supported(22'h10_0000), 1'b0, "PPN physical bit 32 is unsupported");
     expect_logic(ppn_is_supported(22'h20_0000), 1'b0, "PPN physical bit 33 is unsupported");
+
+    _req.virtual_addr.raw = 32'h1234_5678;
+    _pte.ppn = '{ppn1: 12'h001, ppn0: 10'h155};
+    expect_addr(leaf_physical_address(_pte, SV32_LEVEL_0, _req.virtual_addr), 32'h0055_5678,
+                "level-0 leaf uses complete PTE PPN");
+    expect_addr(leaf_physical_address(_pte, SV32_LEVEL_1, _req.virtual_addr), 32'h0074_5678,
+                "level-1 leaf uses virtual VPN[0]");
 
     _pte = '0;
     _pte.valid = 1'b1;
@@ -156,7 +169,7 @@ module tb_sv32_pkg;
     expect_access(1'b0, "user store requires write permission");
     _pte.write = 1'b1;
 
-    _pte.user = 1'b0;
+    _pte.user  = 1'b0;
     expect_access(1'b0, "user cannot access supervisor page");
     _pte.user = 1'b1;
 
@@ -186,7 +199,7 @@ module tb_sv32_pkg;
     _req.ctx.access = MMU_ACCESS_STORE;
     expect_access(1'b1, "supervisor store to supervisor page");
 
-    _pte.accessed = 1'b0;
+    _pte.accessed   = 1'b0;
     _req.ctx.access = MMU_ACCESS_LOAD;
     expect_access(1'b0, "clear accessed bit rejects leaf access");
     _pte.accessed = 1'b1;
