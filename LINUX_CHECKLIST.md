@@ -7,11 +7,11 @@ and only the drivers needed by this SoC.
 
 ## 1. Architectural timer support
 
-- [ ] Expose the CLINT `mtime` value through the `time` and `timeh` CSRs.
-- [ ] Implement `mcounteren`, including `TM` access control for S-mode.
-- [ ] Implement `scounteren` for eventual userspace counter access.
-- [ ] Verify `mtimecmp` timer interrupt generation and delegation.
-- [ ] Provide the SBI timer service.
+- [x] Expose the CLINT `mtime` value through the `time` and `timeh` CSRs.
+- [x] Implement `mcounteren`, including `TM` access control for S-mode.
+- [x] Implement `scounteren` for eventual userspace counter access.
+- [x] Verify `mtimecmp` timer interrupt generation and delegation.
+- [x] Provide the SBI timer service.
 - [ ] Describe the timer frequency with `timebase-frequency` in the device tree.
 
 The timer is a functional Linux requirement. `cycle`/`cycleh` and
