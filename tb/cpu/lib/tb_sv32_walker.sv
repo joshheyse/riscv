@@ -15,6 +15,7 @@ module tb_sv32_walker;
   logic  _rst = 1'b1;
 
   satp_t _satp;
+  pmp_state_t _pmp;
   mmu_if _translation ();
   mem_if _memory (
     .clk(_clk),
@@ -36,6 +37,7 @@ module tb_sv32_walker;
     .clk(_clk),
     .rst(_rst),
     .satp(_satp),
+    .pmp(_pmp),
     .translation(_translation),
     .memory(_memory)
   );
@@ -203,6 +205,7 @@ module tb_sv32_walker;
     end
 
     _satp = '0;
+    _pmp = '0;
     _translation.req = '0;
     _translation.rsp_ready = 1'b0;
     _memory.req_ready = 1'b0;
@@ -223,6 +226,22 @@ module tb_sv32_walker;
     begin_translation(32'h9234_5678, MMU_ACCESS_STORE, PRIV_MACHINE, 1'b0, 1'b0);
     expect_no_memory_request("machine translation does not access memory");
     expect_response(MMU_FAULT_NONE, 32'h9234_5678, 0, "machine bypass");
+
+    // Page-table reads use effective supervisor privilege and therefore fail
+    // when no PMP entry grants access to the page tables.
+    begin_translation(32'h3456_789a, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
+    expect_no_memory_request("PMP-denied walk does not access memory");
+    expect_response(MMU_FAULT_ACCESS, '0, 0, "PMP-denied page-table read");
+
+    _pmp.addr[0] = '1;
+    _pmp.cfg[0] = '{
+        locked: 1'b0,
+        reserved: '0,
+        addr_match: PMP_ADDR_NAPOT,
+        execute: 1'b1,
+        write: 1'b1,
+        read: 1'b1
+    };
 
     // The accepted request and root PPN remain stable even if the live inputs
     // change while the walk is active.

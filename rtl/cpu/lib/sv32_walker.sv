@@ -10,6 +10,7 @@
 // software must synchronize page-table updates and execute SFENCE.VMA.
 module sv32_walker
   import riscv_pkg::*;
+  import pmp_pkg::*;
   import sv32_pkg::*;
 (
   input logic  clk,
@@ -17,6 +18,7 @@ module sv32_walker
   /* verilator lint_off UNUSEDSIGNAL */
   input satp_t satp,
   /* verilator lint_on UNUSEDSIGNAL */
+  input pmp_state_t pmp,
 
   mmu_if.responder translation,
   mem_if.master    memory
@@ -74,7 +76,17 @@ module sv32_walker
           end
         end
         PTE_REQUEST: begin
-          if (!ppn_is_supported(_table_ppn)) begin
+          mem_addr_t pte_addr;
+
+          pte_addr = {
+            _table_ppn[19:0],
+            (_level == SV32_LEVEL_1) ? _request.virtual_addr.fields.vpn.vpn1 :
+                                       _request.virtual_addr.fields.vpn.vpn0,
+            2'b00
+          };
+          if (!ppn_is_supported(_table_ppn) ||
+              !pmp_access_allowed(
+                  pmp, pte_addr, MEM_SIZE_WORD, MMU_ACCESS_LOAD, PRIV_SUPERVISOR)) begin
             _response <= '{
                 valid: 1'b1,
                 fault: MMU_FAULT_ACCESS,
@@ -85,12 +97,7 @@ module sv32_walker
             _state <= RESPOND;
           end else begin
             _memory_request.valid <= 1'b1;
-            _memory_request.addr <= {
-              _table_ppn[19:0],
-              (_level == SV32_LEVEL_1) ? _request.virtual_addr.fields.vpn.vpn1 :
-                                         _request.virtual_addr.fields.vpn.vpn0,
-              2'b00
-            };
+            _memory_request.addr <= pte_addr;
             if (memory.req.valid && memory.req_ready) begin
               _memory_request.valid <= 1'b0;
               _state                <= PTE_WAIT;
@@ -159,10 +166,6 @@ module sv32_walker
               };
               _state <= RESPOND;
             end else begin
-              _memory_request.valid <= 1'b1;
-              _memory_request.addr <= {
-                pte.ppn.ppn1[9:0], pte.ppn.ppn0, _request.virtual_addr.fields.vpn.vpn0, 2'b00
-              };
               _table_ppn <= pte.ppn;
               _global_mapping <= _global_mapping || pte.global_mapping;
               _level <= SV32_LEVEL_0;

@@ -259,10 +259,10 @@ module core
 
     if (_csr_status.mie.meip && _mie_pending_meip && _machine_interrupts_en) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT, tval: '0};
-    end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_en) begin
-      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.msip && _mie_pending_msip && _machine_interrupts_en) begin
       _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT, tval: '0};
+    end else if (_csr_status.mie.mtip && _mie_pending_mtip && _machine_interrupts_en) begin
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_MACHINE_TIMER_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.seip && _mie_pending_seip &&
                  (_csr_status.mideleg[9] ? _supervisor_interrupts_en :
                                           _machine_interrupts_en)) begin
@@ -271,10 +271,6 @@ module core
           src: TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
           tval: '0
       };
-    end else if (_csr_status.mie.stip && _mie_pending_stip &&
-                 (_csr_status.mideleg[5] ? _supervisor_interrupts_en :
-                                          _machine_interrupts_en)) begin
-      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT, tval: '0};
     end else if (_csr_status.mie.ssip && _mie_pending_ssip &&
                  (_csr_status.mideleg[1] ? _supervisor_interrupts_en :
                                           _machine_interrupts_en)) begin
@@ -283,6 +279,10 @@ module core
           src: TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
           tval: '0
       };
+    end else if (_csr_status.mie.stip && _mie_pending_stip &&
+                 (_csr_status.mideleg[5] ? _supervisor_interrupts_en :
+                                          _machine_interrupts_en)) begin
+      _interrupt_trap_req = '{valid: 1'b1, src: TRAP_SRC_SUPERVISOR_TIMER_INTERRUPT, tval: '0};
     end
   end
 
@@ -460,6 +460,7 @@ module core
     .tlb_flush(_tlb_flush),
     .ctx(_ifetch_translation_ctx),
     .satp(_csr_status.satp),
+    .pmp(_csr_status.pmp),
     .upstream(_ifetch_ifu_adapter.slave),
     .translation(_ifetch_translation.requester),
     .downstream(_ifetch_adapter_arb.master)
@@ -469,6 +470,7 @@ module core
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
+    .pmp(_csr_status.pmp),
     .translation(_ifetch_translation.responder),
     .memory(_ifetch_walker_arb.master)
   );
@@ -587,6 +589,7 @@ module core
     .tlb_flush(_tlb_flush),
     .ctx(_data_translation_ctx),
     .satp(_csr_status.satp),
+    .pmp(_csr_status.pmp),
     .upstream(_data_lsu_adapter.slave),
     .translation(_data_translation.requester),
     .downstream(_data_adapter_arb.master)
@@ -596,6 +599,7 @@ module core
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
+    .pmp(_csr_status.pmp),
     .translation(_data_translation.responder),
     .memory(_data_walker_arb.master)
   );

@@ -31,6 +31,11 @@
 .equ PTE_RWAD_FLAGS,          0x000000c7
 
 _start:
+  li    t0, -1
+  csrw  pmpaddr0, t0
+  li    t0, 0x1f
+  csrw  pmpcfg0, t0
+
   // Seed the twelve benchmark words while translation is still bypassed. The
   // page tables themselves are initialized directly in the program image.
   li    t0, DATA_BASE

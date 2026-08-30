@@ -211,8 +211,12 @@ endif
 SIM_BIN := $(SIM_DIR)/V$(TB_TOP)
 BOARD_HARNESS_BIN := $(BOARD_SIM_BUILD_DIR)/V$(BOARD_SIM_TOP)
 BOARD_TB_BIN := $(BOARD_TB_BUILD_DIR)/V$(BOARD_TB_TOP)
+ARCH_TEST_BUILD_DIR := $(BOARD_BUILD_DIR)/arch-test
+ARCH_TEST_MEM ?= $(ARCH_TEST_BUILD_DIR)/program.mem
+ARCH_TEST_MEM_BYTES ?= 1048576
+ARCH_TEST_SIM_BIN := $(ARCH_TEST_BUILD_DIR)/V$(BOARD_SIM_TOP)
 
-.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test tlb-perf board-tb board-tb-run board-program board-synth board-pnr board-timing board-pack board-build board-flash clean help FORCE
+.PHONY: all lint style sim run wave fmt fmt-check filelist compile-commands cache-synth cache-test board-constants app-build app-dump board-sim board-run board-app-test tlb-perf arch-test-sim arch-test board-tb board-tb-run board-program board-synth board-pnr board-timing board-pack board-build board-flash clean help FORCE
 .DEFAULT_GOAL := help
 
 all: sim
@@ -377,6 +381,24 @@ board-sim: board-run
 ## board-app-test: run simulated-board firmware regressions
 board-app-test:
 	tools/run_board_app_tests.py --design $(DESIGN) --board $(BOARD) --sim $(BOARD_SIM)
+
+$(ARCH_TEST_SIM_BIN): $(BOARD_SIM_HARNESS_SRCS) $(ARCH_TEST_MEM)
+	@mkdir -p $(ARCH_TEST_BUILD_DIR)
+	$(VERILATOR) --binary $(BOARD_SIM_VERILATOR_FLAGS) \
+		--top-module $(BOARD_SIM_TOP) \
+		-GMemInitFile=\"$(abspath $(ARCH_TEST_MEM))\" \
+		-GMemDepthWords=$(shell expr $(ARCH_TEST_MEM_BYTES) / 4) \
+		-GTimeoutCycles=10000000 \
+		--Mdir $(ARCH_TEST_BUILD_DIR) \
+		-o V$(BOARD_SIM_TOP) \
+		$(BOARD_SIM_HARNESS_SRCS)
+
+## arch-test-sim: build the reusable RISCOF DUT simulator
+arch-test-sim: $(ARCH_TEST_SIM_BIN)
+
+## arch-test: run privileged and Zifencei architectural tests
+arch-test:
+	python3 tools/run_arch_tests.py --repo $(CURDIR) $(if $(RISCV_ARCH_TEST_SUITE),--suite $(RISCV_ARCH_TEST_SUITE),)
 
 ## tlb-perf: compare the fixed Sv32 workload with the TLB disabled and enabled
 tlb-perf:

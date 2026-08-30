@@ -23,6 +23,11 @@
 .equ PTE_RWAD_FLAGS,          0x000000c7
 
 _start:
+  li    t0, -1
+  csrw  pmpaddr0, t0
+  li    t0, 0x1f
+  csrw  pmpcfg0, t0
+
   la    t0, supervisor_entry
   csrw  mepc, t0
   li    t0, MSTATUS_MPP_SUPERVISOR

@@ -21,6 +21,17 @@ class AppTest:
 
 APP_TESTS = (
     AppTest(
+        name="pmp_halt",
+        app="examples/apps/pmp_halt",
+        expected=("top_sim: halt code 0x00000000",),
+    ),
+    AppTest(
+        name="fence_i_order_halt",
+        app="examples/apps/fence_i_order_halt",
+        expected=("top_sim: halt code 0x00000000",),
+        make_args=("RISCV_ARCH=rv32i_zicsr_zifencei",),
+    ),
+    AppTest(
         name="sv32_sfence_order_halt",
         app="examples/apps/sv32_sfence_order_halt",
         expected=("top_sim: halt code 0x00000000",),

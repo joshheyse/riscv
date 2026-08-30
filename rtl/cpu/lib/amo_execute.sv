@@ -58,6 +58,7 @@ module amo_execute
         memory.req = '{
             valid: 1'b1,
             addr: _request.address,
+            size: MEM_SIZE_WORD,
             write_en: 1'b0,
             write_data: '0,
             write_mask: '0
@@ -67,6 +68,7 @@ module amo_execute
         memory.req = '{
             valid: 1'b1,
             addr: _request.address,
+            size: MEM_SIZE_WORD,
             write_en: 1'b1,
             write_data: _new_value,
             write_mask: '1

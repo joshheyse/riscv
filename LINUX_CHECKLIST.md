@@ -79,14 +79,19 @@ correctness requirement.
 
 ## 5. Audit the privileged architecture
 
-- [ ] Report implemented ISA features accurately through `misa`.
-- [ ] Verify CSR privilege and read-only access checks.
-- [ ] Verify `medeleg`, `mideleg`, `mie`, `mip`, `sie`, and `sip` behavior.
-- [ ] Verify synchronous trap and interrupt priority.
-- [ ] Verify `MRET`, `SRET`, and `WFI` behavior.
-- [ ] Verify `FENCE.I` and `SFENCE.VMA` behavior end to end.
-- [ ] Implement PMP for normal firmware isolation and OpenSBI compatibility.
-- [ ] Run the relevant RISC-V architectural tests.
+- [x] Report implemented ISA features accurately through `misa`.
+- [x] Verify CSR privilege and read-only access checks.
+- [x] Verify `medeleg`, `mideleg`, `mie`, `mip`, `sie`, and `sip` behavior.
+- [x] Verify synchronous trap and interrupt priority.
+- [x] Verify `MRET`, `SRET`, and `WFI` behavior.
+- [x] Verify `FENCE.I` and `SFENCE.VMA` behavior end to end.
+- [x] Implement PMP for normal firmware isolation and OpenSBI compatibility.
+- [x] Run the relevant RISC-V architectural tests.
+
+The audit includes directed module and pipelined-core regressions, the
+`pmp_halt`, `fence_i_order_halt`, and `sv32_sfence_order_halt` end-to-end apps,
+and a RISCOF comparison against Sail. The pinned RISC-V Architectural Test
+Suite 3.8.18 privilege/Zifencei subset passes all 16 selected tests.
 
 ## 6. Define a stable platform
 

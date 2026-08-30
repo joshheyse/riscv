@@ -206,6 +206,15 @@ module tb_core_interrupt
     @(negedge _clk);
     _rst = 1'b0;
     #1;
+    _dut._csr_file._pmp.addr[0] = '1;
+    _dut._csr_file._pmp.cfg[0] = '{
+        locked: 1'b0,
+        reserved: '0,
+        addr_match: PMP_ADDR_NAPOT,
+        execute: 1'b1,
+        write: 1'b1,
+        read: 1'b1
+    };
   endtask
 
   // The dependent add must be in decode while the load is still outstanding --
@@ -350,6 +359,7 @@ module tb_core_interrupt
 
     // Supervisor interrupt sources follow the existing external, timer,
     // software arbitration pattern and respect supervisor global enable.
+    force _dut._if_id.valid = 1'b0;
     clear_interrupt_state();
     _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
     _dut._csr_file._mstatus.sie = 1'b1;
@@ -377,6 +387,39 @@ module tb_core_interrupt
     expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
                              "delegated supervisor software interrupt");
 
+    // Fixed interrupt priority is external, software, then timer at each
+    // implemented privilege level.
+    _dut._csr_file._mie.seip = 1'b1;
+    _dut._csr_file._mie.stip = 1'b1;
+    _dut._csr_file._mip.seip = 1'b1;
+    _dut._csr_file._mip.stip = 1'b1;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_EXTERNAL_INTERRUPT,
+                             "supervisor external beats software and timer");
+    _dut._csr_file._mip.seip = 1'b0;
+    expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
+                             "supervisor software beats timer");
+
+    clear_interrupt_state();
+    _dut._csr_file._priv_mode = PRIV_MACHINE;
+    _dut._csr_file._mstatus.mie = 1'b1;
+    _dut._csr_file._mie.meip = 1'b1;
+    _dut._csr_file._mie.msip = 1'b1;
+    _dut._csr_file._mie.mtip = 1'b1;
+    _dut._csr_file._mip.meip = 1'b1;
+    _dut._csr_file._mip.msip = 1'b1;
+    _dut._csr_file._mip.mtip = 1'b1;
+    expect_interrupt_request(1'b1, TRAP_SRC_MACHINE_EXTERNAL_INTERRUPT,
+                             "machine external beats software and timer");
+    _dut._csr_file._mip.meip = 1'b0;
+    expect_interrupt_request(1'b1, TRAP_SRC_MACHINE_SOFTWARE_INTERRUPT,
+                             "machine software beats timer");
+
+    clear_interrupt_state();
+    _dut._csr_file._priv_mode = PRIV_SUPERVISOR;
+    _dut._csr_file._mstatus.sie = 1'b1;
+    _dut._csr_file._mideleg = 32'h0000_0222;
+    _dut._csr_file._mie.ssip = 1'b1;
+    _dut._csr_file._mip.ssip = 1'b1;
     _dut._csr_file._mstatus.sie = 1'b0;
     expect_interrupt_request(1'b0, TRAP_SRC_NONE,
                              "supervisor global disable blocks delegated interrupt");
@@ -385,10 +428,12 @@ module tb_core_interrupt
     expect_interrupt_request(1'b1, TRAP_SRC_SUPERVISOR_SOFTWARE_INTERRUPT,
                              "lower privilege enables delegated supervisor interrupt");
 
-    _dut._csr_file._priv_mode   = PRIV_MACHINE;
+    force _dut._csr_file._priv_mode = PRIV_MACHINE;
     _dut._csr_file._mstatus.sie = 1'b1;
     expect_interrupt_request(1'b0, TRAP_SRC_NONE,
                              "delegated supervisor interrupt cannot preempt machine mode");
+    release _dut._csr_file._priv_mode;
+    release _dut._if_id.valid;
 
     clear_interrupt_state();
     load_program(ADDI_X1_1, LUI_X4_MMIO, LW_X2_X4, ADD_X3_X2, NOP, NOP);

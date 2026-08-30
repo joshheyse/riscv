@@ -17,6 +17,9 @@ module tb_core_system_trap
   localparam instr_t EBREAK = 32'h0010_0073;
   localparam instr_t MRET = 32'h3020_0073;
   localparam instr_t SRET = 32'h1020_0073;
+  localparam instr_t WFI = 32'h1050_0073;
+  localparam instr_t ADDI_X1_1 = 32'h0010_0093;
+  localparam instr_t PARK = 32'h0000_0063;
 
   logic      _clk;
   logic      _rst;
@@ -117,6 +120,15 @@ module tb_core_system_trap
     @(negedge _clk);
     _rst = 1'b0;
     #1;
+    _dut._csr_file._pmp.addr[0] = '1;
+    _dut._csr_file._pmp.cfg[0] = '{
+        locked: 1'b0,
+        reserved: '0,
+        addr_match: PMP_ADDR_NAPOT,
+        execute: 1'b1,
+        write: 1'b1,
+        read: 1'b1
+    };
   endtask
 
   // Advance until the instruction under test is sitting in IF/ID, where the
@@ -212,6 +224,29 @@ module tb_core_system_trap
                "tsr-blocked sret enters machine mode");
   endtask
 
+  task automatic check_wfi_nop(input priv_mode_e priv_mode, input string what);
+    int unsigned waits;
+
+    for (int unsigned word_idx = 0; word_idx < 16; word_idx++) begin
+      _bus._store[word_idx] = PARK;
+    end
+    _bus._store[0] = WFI;
+    _bus._store[1] = ADDI_X1_1;
+    reset_core();
+    _dut._csr_file._priv_mode = priv_mode;
+    _dut._reg_file._regs[1] = '0;
+
+    waits = 0;
+    while ((_dut._reg_file._regs[1] != 32'h0000_0001) && (waits < 100)) begin
+      waits++;
+      @(posedge _clk);
+      #1;
+    end
+
+    expect_bit(waits < 100, 1'b1, {what, " resumes at pc+4"});
+    expect_word(_dut._csr_file._mcause, '0, {what, " does not trap"});
+  endtask
+
   initial begin
     if ($test$plusargs("trace")) begin
       $dumpfile("dump.vcd");
@@ -225,6 +260,9 @@ module tb_core_system_trap
     check_mret_privilege_trap(PRIV_SUPERVISOR, "supervisor mret");
     check_mret_privilege_trap(PRIV_USER, "user mret");
     check_tsr_sret_trap();
+    check_wfi_nop(PRIV_MACHINE, "machine WFI no-op");
+    check_wfi_nop(PRIV_SUPERVISOR, "supervisor WFI no-op");
+    check_wfi_nop(PRIV_USER, "user WFI immediate completion");
 
     if (_errors == 0) begin
       $display("tb_core_system_trap: PASS (%0d checks)", _checks);

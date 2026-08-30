@@ -17,6 +17,7 @@ module tb_translation_adapter;
 
   translation_ctx_t _ctx;
   satp_t            _satp;
+  pmp_state_t       _pmp;
 
   vmem_if _upstream (
     .clk(_clk),
@@ -41,6 +42,7 @@ module tb_translation_adapter;
     .rst(_rst),
     .tlb_flush(_tlb_flush),
     .satp(_satp),
+    .pmp(_pmp),
     .ctx(_ctx),
     .upstream(_upstream),
     .translation(_translation),
@@ -269,6 +271,7 @@ module tb_translation_adapter;
     _tlb_flush = '0;
     _ctx = '0;
     _satp = '{mode: SATP_MODE_SV32, asid: '0, ppn: '0};
+    _pmp = '0;
     _upstream.req = '0;
     _upstream.rsp_ready = 1'b0;
     _translation.req_ready = 1'b0;
@@ -285,12 +288,40 @@ module tb_translation_adapter;
     expect_logic(_translation.req.valid, 1'b0, "no translation request after reset");
     expect_logic(_downstream.req.valid, 1'b0, "no physical request after reset");
 
+    // Once PMP is implemented, unmatched supervisor and user accesses fail,
+    // including accesses made with address translation disabled.
+    _satp.mode = SATP_MODE_BARE;
+    request = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_1000,
+        size: MEM_SIZE_WORD,
+        write_data: '0,
+        write_mask: '0
+    };
+    request_ctx = '{access : MMU_ACCESS_LOAD, privilege: PRIV_SUPERVISOR, sum: 1'b0, mxr: 1'b0};
+    begin_request(request, request_ctx);
+    expect_logic(_downstream.req.valid, 1'b0, "PMP-denied Bare access issues no physical request");
+    expect_upstream_response(MMU_FAULT_ACCESS, '0, '0, 0, "PMP-denied Bare access");
+
+    _pmp.addr[0] = '1;
+    _pmp.cfg[0] = '{
+        locked: 1'b0,
+        reserved: '0,
+        addr_match: PMP_ADDR_NAPOT,
+        execute: 1'b1,
+        write: 1'b1,
+        read: 1'b1
+    };
+    _satp.mode = SATP_MODE_SV32;
+
     // Successful load: context and virtual request must survive translation
     // backpressure, then the physical response must survive upstream refusal.
     request = '{
         valid: 1'b1,
         write_en: 1'b0,
         addr: 32'h8123_4567,
+        size: MEM_SIZE_WORD,
         write_data: '0,
         write_mask: '0
     };
@@ -383,6 +414,7 @@ module tb_translation_adapter;
         valid: 1'b1,
         write_en: 1'b1,
         addr: 32'h4000_0102,
+        size: MEM_SIZE_HALF,
         write_data: 32'ha5c3_7e19,
         write_mask: 4'b0110
     };
@@ -408,6 +440,7 @@ module tb_translation_adapter;
         valid: 1'b1,
         write_en: 1'b0,
         addr: 32'hc000_0123,
+        size: MEM_SIZE_WORD,
         write_data: '0,
         write_mask: '0
     };
@@ -431,6 +464,7 @@ module tb_translation_adapter;
         valid: 1'b1,
         write_en: 1'b1,
         addr: 32'h1234_5004,
+        size: MEM_SIZE_HALF,
         write_data: 32'h7654_3210,
         write_mask: 4'b1010
     };
@@ -445,6 +479,7 @@ module tb_translation_adapter;
         valid: 1'b1,
         write_en: 1'b0,
         addr: 32'h89ab_c000,
+        size: MEM_SIZE_WORD,
         write_data: '0,
         write_mask: '0
     };

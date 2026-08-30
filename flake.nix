@@ -89,7 +89,7 @@
         # riscof drives the RISC-V architecture compliance tests,
         # comparing your core (DUT) against the Sail golden model.
         # setuptools provides the distutils shim riscof still imports.
-        python = pkgs.python3.withPackages (ps: [ ps.riscof ps.setuptools ]);
+        python = pkgs.python3.withPackages (ps: [ ps.pyyaml ps.riscof ps.setuptools ]);
 
         misc = [
           pkgs.bash-completion
@@ -112,6 +112,7 @@
           YOSYS_PLUGIN_PATH = "${svElab}/share/yosys/plugins";
 
           shellHook = ''
+            export PATH="${python}/bin:$PATH"
             echo "riscv-soc dev shell"
             echo "  gcc        $(riscv64-none-elf-gcc --version | head -n1)"
             echo "  spike      $(spike --help 2>&1 | head -n1)"

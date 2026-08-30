@@ -18,6 +18,13 @@
 .equ SIM_HALT_ADDR,           0x1000f000
 
 _start:
+  // Permit S-mode to access the platform. Production firmware can replace
+  // this unlocked all-address region with a narrower isolation policy.
+  li    t0, -1
+  csrw  pmpaddr0, t0
+  li    t0, 0x1f
+  csrw  pmpcfg0, t0
+
   // Return from Machine mode into the identity-mapped Supervisor entry point.
   la    t0, supervisor_entry
   csrw  mepc, t0

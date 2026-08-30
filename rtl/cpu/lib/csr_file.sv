@@ -3,6 +3,7 @@
 module csr_file
   import riscv_pkg::*;
   import csr_legalize_pkg::*;
+  import pmp_pkg::*;
 (
   input logic      clk,
   input logic      rst,
@@ -29,6 +30,7 @@ module csr_file
   epc_t       _mepc;
   cause_t     _mcause;
   tval_t      _mtval;
+  word_t      _mscratch;
   word_t      _medeleg;
   word_t      _mideleg;
   priv_mode_e _priv_mode;
@@ -53,12 +55,15 @@ module csr_file
   counteren_t _scounteren;
   dword_t     _mcycle;
   dword_t     _minstret;
+  pmp_state_t _pmp;
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
   localparam marchid_t   MARCHID   = '0;
   localparam mimpid_t    MIMPID    = '0;
   localparam mhartid_t   MHARTID   = '0;
+  // RV32 with I, M, A, S, and U. Zicsr is not represented in misa.
+  localparam word_t      MISA      = 32'h8014_1101;
   // Delegatable exceptions implemented by this core: instruction-address
   // misaligned, illegal instruction, breakpoint, load/store-address
   // misaligned, U/S-mode ECALL, and instruction/load/store page faults.
@@ -80,7 +85,8 @@ module csr_file
           priv_mode: _priv_mode,
           satp: _satp,
           mcounteren: _mcounteren,
-          scounteren: _scounteren
+          scounteren: _scounteren,
+          pmp: _pmp
       };
 
   always_comb begin
@@ -110,6 +116,7 @@ module csr_file
       _mcause <= '0;
       _scause <= '0;
       _mtval <= '0;
+      _mscratch <= '0;
       _stval <= '0;
       _medeleg <= '0;
       _mideleg <= '0;
@@ -119,6 +126,7 @@ module csr_file
       _scounteren <= '0;
       _mcycle <= '0;
       _minstret <= '0;
+      _pmp <= '0;
       _priv_mode <= PRIV_MACHINE;
     end else begin
       _mcycle <= _mcycle + 1'b1;
@@ -178,6 +186,7 @@ module csr_file
             _mie.seip <= _mie_write.seip;
           end
           CSR_MTVEC:    _mtvec <= _mtvec_write;
+          CSR_MSCRATCH: _mscratch <= csr_write_data;
           CSR_STVEC:    _stvec <= build_legal_tvec(csr_write_data);
           CSR_SSCRATCH: _sscratch <= csr_write_data;
           CSR_MEPC:     _mepc <= csr_write_data;
@@ -201,6 +210,29 @@ module csr_file
           CSR_MCYCLEH:         _mcycle[63:32] <= csr_write_data;
           CSR_MINSTRET:        _minstret[31:0] <= csr_write_data;
           CSR_MINSTRETH:       _minstret[63:32] <= csr_write_data;
+          CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3: begin
+            for (int unsigned lane = 0; lane < 4; lane++) begin
+              int unsigned entry;
+              entry = ((int'(_csr_addr.raw) - int'(CSR_PMPCFG0)) * 4) + lane;
+              if (!_pmp.cfg[entry].locked) begin
+                _pmp.cfg[entry] <= legal_pmp_cfg(csr_write_data[(lane*8)+:8]);
+              end
+            end
+          end
+          CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
+              CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
+              CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
+              CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15: begin
+            int unsigned entry;
+            logic predecessor_locked;
+
+            entry = int'(_csr_addr.raw) - int'(CSR_PMPADDR0);
+            predecessor_locked = (entry < (PmpNumEntries - 1)) &&
+                _pmp.cfg[entry+1].locked && (_pmp.cfg[entry+1].addr_match == PMP_ADDR_TOR);
+            if (!_pmp.cfg[entry].locked && !predecessor_locked) begin
+              _pmp.addr[entry] <= csr_write_data;
+            end
+          end
           default: begin
           end
         endcase
@@ -214,10 +246,16 @@ module csr_file
 
     if (csr_en && csr_write_en) begin
       case (_csr_addr.named)
-        CSR_MSTATUS, CSR_MEDELEG, CSR_MIDELEG, CSR_MIE, CSR_MTVEC, CSR_MEPC, CSR_MCAUSE,
+        CSR_MSTATUS, CSR_MISA, CSR_MEDELEG, CSR_MIDELEG, CSR_MIE, CSR_MTVEC, CSR_MSCRATCH,
+            CSR_MEPC, CSR_MCAUSE,
             CSR_MTVAL, CSR_MIP, CSR_SSTATUS, CSR_SIE, CSR_STVEC, CSR_SEPC, CSR_SCAUSE,
             CSR_STVAL, CSR_SIP, CSR_SATP, CSR_SSCRATCH, CSR_MCOUNTEREN, CSR_SCOUNTEREN,
-            CSR_MCYCLE, CSR_MCYCLEH, CSR_MINSTRET, CSR_MINSTRETH: begin
+            CSR_MCYCLE, CSR_MCYCLEH, CSR_MINSTRET, CSR_MINSTRETH,
+            CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3,
+            CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
+            CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
+            CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
+            CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15: begin
         end
         default: illegal_csr = 1'b1;
       endcase
@@ -226,10 +264,12 @@ module csr_file
     if (csr_en) begin
       case (_csr_addr.named)
         CSR_MSTATUS:    csr_read_data = _mstatus;
+        CSR_MISA:       csr_read_data = MISA;
         CSR_MEDELEG:    csr_read_data = _medeleg;
         CSR_MIDELEG:    csr_read_data = _mideleg;
         CSR_MIE:        csr_read_data = _mie;
         CSR_MTVEC:      csr_read_data = _mtvec;
+        CSR_MSCRATCH:   csr_read_data = _mscratch;
         CSR_MEPC:       csr_read_data = _mepc;
         CSR_MCAUSE:     csr_read_data = _mcause;
         CSR_MTVAL:      csr_read_data = _mtval;
@@ -259,6 +299,18 @@ module csr_file
         CSR_MINSTRETH:  csr_read_data = _minstret[63:32];
         CSR_INSTRET:    csr_read_data = _minstret[31:0];
         CSR_INSTRETH:   csr_read_data = _minstret[63:32];
+        CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3: begin
+          for (int unsigned lane = 0; lane < 4; lane++) begin
+            csr_read_data[(lane*8)+:8] =
+                _pmp.cfg[((int'(_csr_addr.raw) - int'(CSR_PMPCFG0)) * 4) + lane];
+          end
+        end
+        CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
+            CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
+            CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
+            CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15: begin
+          csr_read_data = _pmp.addr[int'(_csr_addr.raw)-int'(CSR_PMPADDR0)];
+        end
         default:        illegal_csr = 1'b1;
       endcase
     end

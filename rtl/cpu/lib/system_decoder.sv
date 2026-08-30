@@ -14,7 +14,7 @@ module system_decoder
       - mret should only be legal in machine mode.
       - sret is legal in supervisor or machine mode; mstatus.TSR can block it
         in supervisor mode.
-      - wfi can stay illegal/unimplemented for now.
+      - wfi is implemented as a legal no-op in all supported privilege modes.
 */
 
   logic _priv_fields_valid;

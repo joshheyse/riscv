@@ -201,8 +201,12 @@ module tb_csr_file
 
     // Reset state: writable machine CSRs and read-only ID CSRs all read zero.
     read_csr(CSR_MSTATUS, 32'h0000_0000, "reset mstatus");
+    read_csr(CSR_MISA, 32'h8014_1101, "misa reports RV32IMASU");
+    write_csr(CSR_MISA, 32'hffff_ffff, "write read-only misa implementation");
+    read_csr(CSR_MISA, 32'h8014_1101, "misa remains fixed after write");
     read_csr(CSR_MIE, 32'h0000_0000, "reset mie");
     read_csr(CSR_MTVEC, 32'h0000_0000, "reset mtvec");
+    read_csr(CSR_MSCRATCH, 32'h0000_0000, "reset mscratch");
     read_csr(CSR_MEPC, 32'h0000_0000, "reset mepc");
     read_csr(CSR_MCAUSE, 32'h0000_0000, "reset mcause");
     read_csr(CSR_MTVAL, 32'h0000_0000, "reset mtval");
@@ -211,6 +215,8 @@ module tb_csr_file
     read_csr(CSR_SATP, 32'h0000_0000, "reset satp is Bare");
     read_csr(CSR_MCOUNTEREN, 32'h0000_0000, "reset mcounteren");
     read_csr(CSR_SCOUNTEREN, 32'h0000_0000, "reset scounteren");
+    read_csr(CSR_PMPCFG0, 32'h0000_0000, "reset pmpcfg0");
+    read_csr(CSR_PMPADDR0, 32'h0000_0000, "reset pmpaddr0");
     read_csr(CSR_MVENDORID, 32'h0000_0000, "read mvendorid");
     read_csr(CSR_MARCHID, 32'h0000_0000, "read marchid");
     read_csr(CSR_MIMPID, 32'h0000_0000, "read mimpid");
@@ -231,9 +237,26 @@ module tb_csr_file
     expect_bool(_illegal_csr, 1'b0, "idle access is not illegal");
     _csr_write_en = 1'b0;
 
+    // PMP CSRs implement 16 entries. Configuration bytes are WARL and lock
+    // both their own state and a locked TOR entry's predecessor address.
+    write_csr(CSR_PMPADDR0, 32'h0000_0400, "write pmpaddr0");
+    read_csr(CSR_PMPADDR0, 32'h0000_0400, "read pmpaddr0");
+    write_csr(CSR_PMPCFG0, 32'h0000_000a, "write reserved W-without-R PMP config");
+    read_csr(CSR_PMPCFG0, 32'h0000_0008, "PMP config clears W without R");
+    write_csr(CSR_PMPADDR1, 32'h0000_0800, "write pmpaddr1");
+    write_csr(CSR_PMPCFG0, 32'h0000_8f00, "lock entry 1 as TOR");
+    write_csr(CSR_PMPADDR0, 32'h1111_1111, "write locked TOR predecessor");
+    read_csr(CSR_PMPADDR0, 32'h0000_0400, "locked TOR preserves predecessor address");
+    write_csr(CSR_PMPADDR1, 32'h2222_2222, "write locked PMP address");
+    read_csr(CSR_PMPADDR1, 32'h0000_0800, "locked entry preserves its address");
+    write_csr(CSR_PMPCFG0, 32'h0000_0000, "write locked PMP config");
+    read_csr(CSR_PMPCFG0, 32'h0000_8f00, "locked entry preserves its configuration");
+
     // Normal writable CSR path.
     write_csr(CSR_MTVEC, 32'h0000_1001, "write mtvec with unsupported vectored mode");
     read_csr(CSR_MTVEC, 32'h0000_1000, "mtvec coerces mode to direct");
+    write_csr(CSR_MSCRATCH, 32'h1234_5678, "write mscratch");
+    read_csr(CSR_MSCRATCH, 32'h1234_5678, "read mscratch");
     expect_bits(_status.mtvec, 32'h0000_1000, "status exposes legalized mtvec");
     expect_bits(_status.mstatus, 32'h0000_0000, "status exposes mstatus");
     expect_bits(_status.mie, 32'h0000_0000, "status exposes mie");

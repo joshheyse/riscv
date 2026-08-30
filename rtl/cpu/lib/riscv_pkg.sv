@@ -65,6 +65,26 @@ package riscv_pkg;
     CSR_MCAUSE     = 12'h342,
     CSR_MTVAL      = 12'h343,
     CSR_MIP        = 12'h344,
+    CSR_PMPCFG0    = 12'h3a0,
+    CSR_PMPCFG1    = 12'h3a1,
+    CSR_PMPCFG2    = 12'h3a2,
+    CSR_PMPCFG3    = 12'h3a3,
+    CSR_PMPADDR0   = 12'h3b0,
+    CSR_PMPADDR1   = 12'h3b1,
+    CSR_PMPADDR2   = 12'h3b2,
+    CSR_PMPADDR3   = 12'h3b3,
+    CSR_PMPADDR4   = 12'h3b4,
+    CSR_PMPADDR5   = 12'h3b5,
+    CSR_PMPADDR6   = 12'h3b6,
+    CSR_PMPADDR7   = 12'h3b7,
+    CSR_PMPADDR8   = 12'h3b8,
+    CSR_PMPADDR9   = 12'h3b9,
+    CSR_PMPADDR10  = 12'h3ba,
+    CSR_PMPADDR11  = 12'h3bb,
+    CSR_PMPADDR12  = 12'h3bc,
+    CSR_PMPADDR13  = 12'h3bd,
+    CSR_PMPADDR14  = 12'h3be,
+    CSR_PMPADDR15  = 12'h3bf,
     CSR_MCYCLE     = 12'hb00,
     CSR_MINSTRET   = 12'hb02,
     CSR_MCYCLEH    = 12'hb80,
@@ -111,6 +131,31 @@ package riscv_pkg;
   } mem_rsp_t;
 
   typedef word_t tval_t;
+
+  localparam int unsigned PmpNumEntries = 16;
+
+  typedef enum logic [1:0] {
+    PMP_ADDR_OFF   = 2'b00,
+    PMP_ADDR_TOR   = 2'b01,
+    PMP_ADDR_NA4   = 2'b10,
+    PMP_ADDR_NAPOT = 2'b11
+  } pmp_addr_match_e;
+
+  typedef struct packed {
+    logic            locked;
+    logic       [1:0] reserved;
+    pmp_addr_match_e addr_match;
+    logic            execute;
+    logic            write;
+    logic            read;
+  } pmp_cfg_t;
+
+  typedef word_t pmp_addr_t;
+
+  typedef struct packed {
+    pmp_cfg_t  [PmpNumEntries-1:0] cfg;
+    pmp_addr_t [PmpNumEntries-1:0] addr;
+  } pmp_state_t;
 
   // RV32I opcode map used by the main decoder.
   //
@@ -693,6 +738,7 @@ package riscv_pkg;
     satp_t      satp;
     counteren_t mcounteren;
     counteren_t scounteren;
+    pmp_state_t pmp;
   } csr_status_t;
 
   typedef struct packed {
@@ -794,6 +840,7 @@ package riscv_pkg;
     logic            valid;       // request valid; one request at a time
     logic            write_en;    // 1 = write/store transaction, 0 = read/load
     mem_addr_t       addr;        // target byte address
+    mem_size_e       size;        // architectural access width for protection checks
     mem_data_t       write_data;  // write payload
     mem_write_mask_t write_mask;  // active byte lanes for writes
   } vmem_req_t;

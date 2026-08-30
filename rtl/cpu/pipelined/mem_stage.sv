@@ -74,6 +74,7 @@ module mem_stage
     _normal_req.valid = _normal_access && !_normal_accepted;
     _normal_req.write_en = _normal_access && ex_mem.ctrl.mem_write_en;
     _normal_req.addr = ex_mem.alu_result;
+    _normal_req.size = ex_mem.ctrl.mem_size;
     _normal_req.write_data = _normal_write_data;
     _normal_req.write_mask = _normal_write_mask;
 

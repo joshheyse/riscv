@@ -127,6 +127,15 @@ module tb_core_csr_illegal
     @(negedge _clk);
     _rst = 1'b0;
     #1;
+    _dut._csr_file._pmp.addr[0] = '1;
+    _dut._csr_file._pmp.cfg[0] = '{
+        locked: 1'b0,
+        reserved: '0,
+        addr_match: PMP_ADDR_NAPOT,
+        execute: 1'b1,
+        write: 1'b1,
+        read: 1'b1
+    };
     expect_bit(_halted, 1'b0, "reset does not halt");
     expect_word(_pc, 32'h0000_0000, "reset pc");
   endtask

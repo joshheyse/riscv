@@ -23,6 +23,11 @@
 .equ SIM_HALT_ADDR,     0x1000f000
 
 _start:
+  li    t0, -1
+  csrw  pmpaddr0, t0
+  li    t0, 0x1f
+  csrw  pmpcfg0, t0
+
   la    t0, machine_trap
   csrw  mtvec, t0
   la    t0, supervisor_trap

@@ -36,6 +36,10 @@ module top_sim
   logic              _plic_complete_seen;
   logic              _plic_mret_seen;
   logic              _plic_uart_tx_seen;
+  string             _signature_path;
+  longint unsigned   _signature_begin;
+  longint unsigned   _signature_end;
+  logic              _signature_en;
   mem_if _core_mem (
     _clk,
     _rst
@@ -73,7 +77,34 @@ module top_sim
     if (MemInitFile == "") begin
       $fatal(1, "top_sim needs -GMemInitFile=<program.mem>");
     end
+
+    _signature_en = $value$plusargs("signature=%s", _signature_path) &&
+        $value$plusargs("begin_signature=%h", _signature_begin) &&
+        $value$plusargs("end_signature=%h", _signature_end);
   end
+
+  task automatic dump_signature();
+    integer file;
+
+    if (!_signature_en) begin
+      return;
+    end
+    if ((_signature_begin[1:0] != 2'b00) || (_signature_end[1:0] != 2'b00) ||
+        (_signature_begin > _signature_end) || (_signature_end > (MemDepthWords * 4))) begin
+      $fatal(1, "top_sim: invalid signature range [0x%0h, 0x%0h)", _signature_begin,
+             _signature_end);
+    end
+
+    file = $fopen(_signature_path, "w");
+    if (file == 0) begin
+      $fatal(1, "top_sim: could not open signature=%s", _signature_path);
+    end
+    for (longint unsigned addr = _signature_begin; addr < _signature_end; addr += 4) begin
+      $fdisplay(file, "%08x",
+                _board_bus._main_memory._memory[$clog2(MemDepthWords)'(addr>>2)]);
+    end
+    $fclose(file);
+  endtask
 
   initial begin
     _clk = 1'b0;
@@ -251,6 +282,17 @@ module top_sim
   end
 
   always_ff @(posedge _clk) begin
+    if (!_rst && $test$plusargs("pipeline-trace") && (_cycle < 500)) begin
+      $display(
+          "trace cycle=%0d pc=%08h instret=%0d ifu=%0d req_pc=%08h id_ex_valid=%b id_ex_pc=%08h iadapter=%0d l1=%0d cache=%0d arb=%0d phys=%0d",
+          _cycle, _pc, _instret, _core._ifu._state, _core._ifu._request_pc,
+          _core._id_ex.valid, _core._id_ex.slot.pc, _core._ifetch_translation_adapter._state,
+          _core._l1i_cache._state, _core._l1i_cache._cache._state, _core._mem_arbiter._state,
+          _core._physical_memory_port._state);
+    end
+  end
+
+  always_ff @(posedge _clk) begin
     if (_rst) begin
       _led_prev <= '0;
     end else if (_led != _led_prev) begin
@@ -275,6 +317,7 @@ module top_sim
           $display("top_sim: checkpoint simulation halt code=0x%08h", _core_mem.req.write_data);
         end
         repeat (ClocksPerBit * 12) @(posedge _clk);
+        dump_signature();
         $write("\n");
         $display("top_sim: halt code 0x%08h _pc=0x%08h", _sim_halt_code, _pc);
         $display("top_sim: stats cycles=%0d instret=%0d", _cycle, _instret);
@@ -301,6 +344,16 @@ module top_sim
         _core._fetched.valid, _core._if_id.valid, _core._id_ex.valid, _core._ex_mem.valid,
         _core._mem_wb.valid, _core._pipe_ctrl.fetch, _core._data_stall, _core._dbus_wait,
         _core._flow.action);
+    $display(
+        "top_sim: held id_ex_pc=0x%08h id_ex_instr=0x%08h id_ex_trap=%b cause=0x%08h priv=%0d redirect=%b redirect_pc=0x%08h",
+        _core._id_ex.slot.pc, _core._id_ex.slot.instr.raw, _core._id_ex.trap.valid,
+        _core._id_ex.trap.payload.cause, _core._csr_status.priv_mode, _core._flow.redirect.valid,
+        _core._flow.redirect.pc);
+    $display(
+        "top_sim: fetch path adapter_state=%0d l1_state=%0d cache_state=%0d arb_state=%0d physical_state=%0d",
+        _core._ifetch_translation_adapter._state, _core._l1i_cache._state,
+        _core._l1i_cache._cache._state, _core._mem_arbiter._state,
+        _core._physical_memory_port._state);
     $fatal(1, "top_sim: watchdog timeout after %0d cycles", TimeoutCycles);
   end
 

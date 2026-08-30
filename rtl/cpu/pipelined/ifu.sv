@@ -50,6 +50,7 @@ module ifu
     ibus.req = '0;
     ibus.req.valid = (_state == REQUEST) || (_state == DROP_REQUEST);
     ibus.req.addr = _request_pc;
+    ibus.req.size = MEM_SIZE_WORD;
 
     // This master always has room for the one response it requested.
     ibus.rsp_ready = 1'b1;

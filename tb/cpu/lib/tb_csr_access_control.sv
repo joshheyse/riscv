@@ -85,6 +85,13 @@ module tb_csr_access_control
     check(1'b1, 1'b1, CSR_MHARTID, PRIV_SUPERVISOR, 1'b1,
           "lower privilege write to read-only CSR is illegal");
 
+    check(1'b1, 1'b0, CSR_PMPCFG0, PRIV_MACHINE, 1'b0,
+          "machine reads PMP configuration");
+    check(1'b1, 1'b1, CSR_PMPADDR0, PRIV_MACHINE, 1'b0,
+          "machine writes PMP address");
+    check(1'b1, 1'b0, CSR_PMPCFG0, PRIV_SUPERVISOR, 1'b1,
+          "supervisor cannot read machine PMP configuration");
+
     // Counter-enable fields restrict counter CSRs only. Machine mode is never
     // restricted; S-mode needs mcounteren.TM, and U-mode needs both TM bits.
     _mcounteren = '0;
