@@ -8,12 +8,13 @@
 module tb_core_csr
   import riscv_pkg::*;
   import csr_legalize_pkg::*;
+  import pmp_pkg::*;
   import pipelined_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
   localparam int unsigned TimeoutCycles = 900;
-  localparam int unsigned ProgramWords = 32;
+  localparam int unsigned ProgramWords = 48;
   localparam instr_t Nop = 32'h0000_0013;  // addi x0, x0, 0
 
   logic      _clk;
@@ -113,9 +114,11 @@ module tb_core_csr
     _program[12] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RSI, 5'd9);
     _program[15] = csr_instr(CSR_MSTATUS, 5'd0, SYS_F3_RC, 5'd10);
     _program[18] = csr_instr(CSR_MSTATUS, 5'd4, SYS_F3_RW, 5'd0);
+    _program[21] = csr_instr(CSR_PMPADDR0, 5'd11, SYS_F3_RW, 5'd12);
+    _program[24] = csr_instr(CSR_PMPCFG0, 5'd13, SYS_F3_RW, 5'd14);
     // Park the core here. The backing store wraps like real memory, so without
     // a terminating loop the sequence would re-run and clobber its own results.
-    _program[21] = 32'h0000_0063;  // beq x0, x0, 0 -- loops without writing a register
+    _program[27] = 32'h0000_0063;  // beq x0, x0, 0 -- loops without writing a register
 
     for (int i = 0; i < ProgramWords; i++) begin
       _bus._store[i] = _program[i];
@@ -134,6 +137,8 @@ module tb_core_csr
     _dut._reg_file._regs[2] = 32'h0000_0080;
     _dut._reg_file._regs[3] = 32'h0000_0808;
     _dut._reg_file._regs[4] = 32'hffff_ffff;
+    _dut._reg_file._regs[11] = 32'h0000_0400;
+    _dut._reg_file._regs[13] = 32'h0000_001f;
 
     repeat (2) @(posedge _clk);
     #1;
@@ -152,6 +157,17 @@ module tb_core_csr
     expect_word(_dut._reg_file._regs[8], 32'h0000_1880, "csrrwi returns old mstatus");
     expect_word(_dut._reg_file._regs[9], 32'h0000_000a, "csrrsi zimm=0 returns old mstatus");
     expect_word(_dut._reg_file._regs[10], 32'h0000_000a, "csrrc x0 returns old mstatus");
+    expect_word(_dut._reg_file._regs[12], 32'h0000_0000, "PMPADDR write returns old value");
+    expect_word(_dut._reg_file._regs[14], 32'h0000_0000, "PMPCFG write returns old value");
+    expect_word(_dut._csr_file._pmp.addr[0], 32'h0000_0400, "PMPADDR write reaches raw state");
+    expect_word(word_t'(_dut._csr_file._pmp.cfg[0]), 32'h0000_001f,
+                "PMPCFG write reaches raw state");
+    expect_bit(_dut._csr_file._pmp_regions.entries[0].valid, 1'b1,
+               "PMP rebuild publishes a valid region");
+    expect_word(word_t'(_dut._csr_file._pmp_regions.entries[0].start), 32'h0000_1000,
+                "PMP rebuild publishes region start");
+    expect_word(word_t'(_dut._csr_file._pmp_regions.entries[0].end_addr), 32'h0000_1008,
+                "PMP rebuild publishes region end");
     expect_word(_dut._reg_file._regs[0], 32'h0000_0000, "csrrw rd=x0 does not write x0");
     expect_word(_dut._csr_file._mstatus, word_t'(build_legal_mstatus('1)),
                 "final csrrw rd=x0 writes legal mstatus fields");

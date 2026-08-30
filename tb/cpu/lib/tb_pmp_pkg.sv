@@ -7,13 +7,15 @@ module tb_pmp_pkg;
   int unsigned _checks = 0;
   int unsigned _errors = 0;
   pmp_state_t _state;
+  pmp_region_state_t _regions;
 
   task automatic expect_allowed(input mem_addr_t addr, input mem_size_e size,
                                 input mmu_access_e access, input priv_mode_e privilege,
                                 input logic expected, input string what);
     logic got;
 
-    got = pmp_access_allowed(_state, addr, size, access, privilege);
+    _regions = pmp_decode_regions(_state);
+    got = pmp_access_allowed(_regions, addr, size, access, privilege);
     _checks++;
     if (got !== expected) begin
       _errors++;

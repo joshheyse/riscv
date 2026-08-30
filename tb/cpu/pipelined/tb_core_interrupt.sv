@@ -35,6 +35,7 @@
 module tb_core_interrupt
   import riscv_pkg::*;
   import pipelined_pkg::*;
+  import pmp_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
@@ -215,6 +216,7 @@ module tb_core_interrupt
         write: 1'b1,
         read: 1'b1
     };
+    _dut._csr_file._pmp_decoder._regions = pmp_decode_regions(_dut._csr_file._pmp);
   endtask
 
   // The dependent add must be in decode while the load is still outstanding --

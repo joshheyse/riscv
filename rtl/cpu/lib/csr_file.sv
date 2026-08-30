@@ -15,11 +15,16 @@ module csr_file
   input trap_t     trap,
   input logic      mret_valid,
   input logic      sret_valid,
+  input logic      pmp_update_start,
+  input logic      pmp_update_commit,
   input dword_t    time_value,
   input logic      retire,
 
   output csr_data_t   csr_read_data,
   output logic        illegal_csr,
+  output logic        pmp_update_request,
+  output logic        pmp_update_wait,
+  output logic        pmp_update_ready,
   output csr_status_t status
 );
 
@@ -56,6 +61,23 @@ module csr_file
   dword_t     _mcycle;
   dword_t     _minstret;
   pmp_state_t _pmp;
+  pmp_region_state_t _pmp_regions;
+  pmp_state_t _pmp_rebuild_candidate;
+  logic _pmp_write_request;
+
+  pmp_decoder _pmp_decoder (
+    .clk(clk),
+    .rst(rst),
+    .raw_state(_pmp),
+    .write_addr(_csr_addr.raw),
+    .write_data(csr_write_data),
+    .rebuild_start(pmp_update_start),
+    .rebuild_commit(pmp_update_commit),
+    .regions(_pmp_regions),
+    .rebuild_candidate(_pmp_rebuild_candidate),
+    .rebuild_wait(pmp_update_wait),
+    .rebuild_ready(pmp_update_ready)
+  );
 
   // verilog_format: off
   localparam mvendorid_t MVENDORID = '0;
@@ -86,7 +108,7 @@ module csr_file
           satp: _satp,
           mcounteren: _mcounteren,
           scounteren: _scounteren,
-          pmp: _pmp
+          pmp_regions: _pmp_regions
       };
 
   always_comb begin
@@ -102,6 +124,23 @@ module csr_file
     _sstatus.spp = _mstatus.spp;
     _sstatus.sum = _mstatus.sum;
     _sstatus.mxr = _mstatus.mxr;
+  end
+
+  always_comb begin
+    _pmp_write_request = 1'b0;
+    case (_csr_addr.named)
+      CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3,
+          CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
+          CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
+          CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
+          CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15:
+        _pmp_write_request = !trap_valid && !mret_valid && !sret_valid &&
+            csr_en && csr_write_en && !illegal_csr;
+      default: begin
+      end
+    endcase
+
+    pmp_update_request = _pmp_write_request;
   end
 
   always_ff @(posedge clk) begin
@@ -133,6 +172,7 @@ module csr_file
       if(retire) begin
         _minstret <= _minstret + 1'b1;
       end
+
       if (trap_valid) begin
         case (trap.target_priv)
           PRIV_SUPERVISOR: begin
@@ -167,6 +207,8 @@ module csr_file
         _mstatus.spie <= 1'b1;
         _priv_mode    <= _mstatus.spp ? PRIV_SUPERVISOR : PRIV_USER;
         _mstatus.spp  <= 1'b0;
+      end else if (pmp_update_commit) begin
+        _pmp <= _pmp_rebuild_candidate;
       end else if (csr_en && csr_write_en && !illegal_csr) begin
         case (_csr_addr.named)
           CSR_MSTATUS:  _mstatus <= _mstatus_write;
@@ -210,29 +252,6 @@ module csr_file
           CSR_MCYCLEH:         _mcycle[63:32] <= csr_write_data;
           CSR_MINSTRET:        _minstret[31:0] <= csr_write_data;
           CSR_MINSTRETH:       _minstret[63:32] <= csr_write_data;
-          CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3: begin
-            for (int unsigned lane = 0; lane < 4; lane++) begin
-              int unsigned entry;
-              entry = ((int'(_csr_addr.raw) - int'(CSR_PMPCFG0)) * 4) + lane;
-              if (!_pmp.cfg[entry].locked) begin
-                _pmp.cfg[entry] <= legal_pmp_cfg(csr_write_data[(lane*8)+:8]);
-              end
-            end
-          end
-          CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
-              CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
-              CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
-              CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15: begin
-            int unsigned entry;
-            logic predecessor_locked;
-
-            entry = int'(_csr_addr.raw) - int'(CSR_PMPADDR0);
-            predecessor_locked = (entry < (PmpNumEntries - 1)) &&
-                _pmp.cfg[entry+1].locked && (_pmp.cfg[entry+1].addr_match == PMP_ADDR_TOR);
-            if (!_pmp.cfg[entry].locked && !predecessor_locked) begin
-              _pmp.addr[entry] <= csr_write_data;
-            end
-          end
           default: begin
           end
         endcase

@@ -19,6 +19,7 @@ module tb_pipeline_control
   logic           _trap_from_if_id;
   logic           _mem_order_start;
   logic           _mem_order_busy;
+  logic           _pmp_update_wait;
   logic           _execute_wait;
   flow_ctrl_t     _flow;
   pipeline_ctrl_t _pipe_ctrl;
@@ -35,6 +36,7 @@ module tb_pipeline_control
     .flow(_flow),
     .mem_order_start(_mem_order_start),
     .mem_order_busy(_mem_order_busy),
+    .pmp_update_wait(_pmp_update_wait),
     .execute_wait(_execute_wait),
     .pipe_ctrl(_pipe_ctrl)
   );
@@ -74,6 +76,7 @@ module tb_pipeline_control
     _trap_from_if_id = 1'b0;
     _mem_order_start = 1'b0;
     _mem_order_busy = 1'b0;
+    _pmp_update_wait = 1'b0;
     _execute_wait = 1'b0;
     _flow = '0;
   endtask
@@ -107,6 +110,19 @@ module tb_pipeline_control
     _execute_wait = 1'b1;
     expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE,
                    "multicycle execute holds its instruction and drains older stages");
+
+    clear_inputs();
+    _pmp_update_wait = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE,
+                   "PMP rebuild holds its instruction and drains older stages");
+
+    clear_inputs();
+    _pmp_update_wait = 1'b1;
+    _trap_in_flight = 1'b1;
+    _flow.action = FLOW_ACTION_TRAP;
+    _trap_from_if_id = 1'b1;
+    expect_control(STAGE_HOLD, STAGE_HOLD, STAGE_HOLD, STAGE_FLUSH, STAGE_ADVANCE,
+                   "younger trap waits behind PMP rebuild");
 
     clear_inputs();
     _execute_wait = 1'b1;

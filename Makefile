@@ -14,6 +14,7 @@ DESIGN ?= pipelined
 TOP    ?= core
 CACHE_WAYS ?= 4
 TLB_ENABLED ?= 1
+PMP_ENABLED ?= 1
 
 ifeq ($(filter $(CACHE_WAYS),2 4),)
 $(error CACHE_WAYS must be 2 or 4)
@@ -21,6 +22,10 @@ endif
 
 ifeq ($(filter $(TLB_ENABLED),0 1),)
 $(error TLB_ENABLED must be 0 or 1)
+endif
+
+ifeq ($(filter $(PMP_ENABLED),0 1),)
+$(error PMP_ENABLED must be 0 or 1)
 endif
 
 DEFAULT_BOARD     := lfe5um5g_85f_evn
@@ -368,6 +373,7 @@ $(BOARD_HARNESS_BIN): $(BOARD_SIM_HARNESS_SRCS) $(APP_MEM)
 		-GMemInitFile=\"$(abspath $(APP_MEM))\" \
 		-GMemDepthWords=$(shell expr $(MEM_BYTES) / 4) \
 		-GTlbEnabled=$(TLB_ENABLED) \
+		-GPmpEnabled=$(PMP_ENABLED) \
 		--Mdir $(BOARD_SIM_BUILD_DIR) \
 		-o V$(BOARD_SIM_TOP) \
 		$(BOARD_SIM_HARNESS_SRCS)
@@ -425,7 +431,7 @@ board-program: app-build
 $(BOARD_JSON): $(BOARD_SRCS) $(APP_MEM) $(BOARD_CONSTANTS_PKG)
 	@test -n "$(BOARD_SRCS)" || { echo "no board sources found in $(BOARD_DIR)"; exit 1; }
 	@mkdir -p $(BOARD_BUILD_DIR)
-	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G MemInitFile="$(APP_MEM)" $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
+	$(YOSYS) $(YOSYS_FLAGS) -p '$(YOSYS_READ) --top $(BOARD_TOP) -G MemInitFile="$(APP_MEM)" -G TlbEnabled=$(TLB_ENABLED) -G PmpEnabled=$(PMP_ENABLED) $(BOARD_SRCS); synth_ecp5 -top $(BOARD_TOP) -json $@'
 	tools/check_bram.py $@ --minimum $(MIN_DP16KD)
 
 $(BOARD_CONFIG): $(BOARD_JSON) $(BOARD_LPF) tools/summarize_timing.py Makefile

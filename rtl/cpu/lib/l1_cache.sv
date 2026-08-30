@@ -39,9 +39,19 @@ module l1_cache
   );
   mem_req_t _request;
 
+  localparam mem_addr_t CacheableRange = CacheableEnd - CacheableBase;
+  localparam mem_addr_t CacheableMask = CacheableRange - mem_addr_t'(1);
+  localparam logic       CacheablePowerOfTwo =
+      (CacheableRange != '0) && ((CacheableRange & CacheableMask) == '0);
+
   generate
     if (CacheableBase == CacheableEnd) begin : GEN_NO_CACHEABLE_RANGE
       assign _cacheable = 1'b0;
+    end else if (CacheablePowerOfTwo &&
+                 ((CacheableBase & CacheableMask) == '0)) begin : GEN_ALIGNED_POWER_OF_TWO_RANGE
+      // An aligned power-of-two range is an upper-address decode. This avoids
+      // a full-width subtract and less-than comparator on the request path.
+      assign _cacheable = (upstream.req.addr & ~CacheableMask) == CacheableBase;
     end else begin : GEN_CACHEABLE_RANGE
       assign _cacheable = (upstream.req.addr - CacheableBase) < (CacheableEnd - CacheableBase);
     end

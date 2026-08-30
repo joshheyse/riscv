@@ -21,6 +21,7 @@ module pipeline_control
   /* verilator lint_on UNUSEDSIGNAL */
   input  logic           mem_order_start,
   input  logic           mem_order_busy,
+  input  logic           pmp_update_wait,
   input  logic           execute_wait,
   output pipeline_ctrl_t pipe_ctrl
 );
@@ -73,12 +74,20 @@ module pipeline_control
           ex_mem: STAGE_ADVANCE,
           mem_wb: STAGE_ADVANCE
       };
-    end else if (trap_in_flight) begin
+    end else if (trap_in_flight && !pmp_update_wait) begin
       pipe_ctrl = '{
           fetch: STAGE_HOLD,
           if_id: STAGE_FLUSH,
           id_ex: STAGE_ADVANCE,
           ex_mem: STAGE_ADVANCE,
+          mem_wb: STAGE_ADVANCE
+      };
+    end else if (pmp_update_wait) begin
+      pipe_ctrl = '{
+          fetch: STAGE_HOLD,
+          if_id: STAGE_HOLD,
+          id_ex: STAGE_HOLD,
+          ex_mem: STAGE_FLUSH,
           mem_wb: STAGE_ADVANCE
       };
     end else if (execute_wait) begin

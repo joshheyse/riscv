@@ -8,6 +8,7 @@
 module tb_core_privilege_return
   import riscv_pkg::*;
   import pipelined_pkg::*;
+  import pmp_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
@@ -156,6 +157,7 @@ module tb_core_privilege_return
         write: 1'b1,
         read: 1'b1
     };
+    _dut._csr_file._pmp_decoder._regions = pmp_decode_regions(_dut._csr_file._pmp);
   endtask
 
   task automatic wait_for_user_privilege_after_mret(input string what);

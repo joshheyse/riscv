@@ -8,6 +8,7 @@
 module tb_core_csr_illegal
   import riscv_pkg::*;
   import pipelined_pkg::*;
+  import pmp_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
@@ -136,6 +137,7 @@ module tb_core_csr_illegal
         write: 1'b1,
         read: 1'b1
     };
+    _dut._csr_file._pmp_decoder._regions = pmp_decode_regions(_dut._csr_file._pmp);
     expect_bit(_halted, 1'b0, "reset does not halt");
     expect_word(_pc, 32'h0000_0000, "reset pc");
   endtask

@@ -13,7 +13,8 @@ module top_sim
   parameter mem_addr_t CacheableBase = board_constants_pkg::MemBase,
   parameter mem_addr_t CacheableEnd = board_constants_pkg::MemBase + mem_addr_t'(MemDepthWords * 4),
   parameter int unsigned TimeoutCycles = 1_000_000,
-  parameter bit TlbEnabled = 1'b1
+  parameter bit TlbEnabled = 1'b1,
+  parameter bit PmpEnabled = 1'b1
 );
   localparam realtime ClkPeriod = 10ns;
 
@@ -165,7 +166,8 @@ module top_sim
   core #(
     .CacheableBase(CacheableBase),
     .CacheableEnd(CacheableEnd),
-    .TlbEnabled(TlbEnabled)
+    .TlbEnabled(TlbEnabled),
+    .PmpEnabled(PmpEnabled)
   ) _core (
     .clk(_clk),
     .rst(_rst),

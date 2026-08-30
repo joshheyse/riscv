@@ -153,6 +153,20 @@ package riscv_pkg;
   typedef word_t pmp_addr_t;
 
   typedef struct packed {
+    logic        valid;
+    logic        locked;
+    logic        execute;
+    logic        write;
+    logic        read;
+    logic [34:0] start;
+    logic [34:0] end_addr;
+  } pmp_region_t;
+
+  typedef struct packed {
+    pmp_region_t [PmpNumEntries-1:0] entries;
+  } pmp_region_state_t;
+
+  typedef struct packed {
     pmp_cfg_t  [PmpNumEntries-1:0] cfg;
     pmp_addr_t [PmpNumEntries-1:0] addr;
   } pmp_state_t;
@@ -738,7 +752,9 @@ package riscv_pkg;
     satp_t      satp;
     counteren_t mcounteren;
     counteren_t scounteren;
-    pmp_state_t pmp;
+    // PMP CSR state is retained privately by csr_file; consumers receive
+    // only the registered, access-ready region intervals.
+    pmp_region_state_t pmp_regions;
   } csr_status_t;
 
   typedef struct packed {

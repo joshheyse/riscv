@@ -26,7 +26,8 @@ module core
 #(
   parameter mem_addr_t CacheableBase = '0,
   parameter mem_addr_t CacheableEnd  = '0,
-  parameter bit        TlbEnabled    = 1'b1
+  parameter bit        TlbEnabled    = 1'b1,
+  parameter bit        PmpEnabled    = 1'b1
 ) (
   input         clk,
   input         rst,
@@ -69,6 +70,13 @@ module core
   reg_data_t        _ex_result;
   if_id_t           _fetched;
   logic             _data_stall;
+  logic             _integer_execute_wait;
+  logic             _pmp_update_wait;
+  logic             _pmp_update_ready;
+  logic             _pmp_update_request;
+  logic             _pmp_update_start;
+  logic             _pmp_update_start_block;
+  logic             _pmp_update_commit;
   logic             _execute_wait;
   pc_src_e          _ex_pc_src;
 
@@ -183,9 +191,12 @@ module core
       };
   assign _data_translation_ctx = '{
           access: data_translation_access(
-              _ex_mem.valid && _ex_mem.ctrl.amo.en,
+              _ex_mem.ctrl.amo.en,
               _ex_mem.ctrl.amo.op,
-              _data_lsu_adapter.req.write_en
+              // The translation request is generated from these same
+              // EX/MEM controls; invalid or trapping slots have no request,
+              // so their valid/trap bits need not enter the access context.
+              !_ex_mem.ctrl.amo.en && _ex_mem.ctrl.mem_write_en
           ),
           privilege: effective_data_privilege(_csr_status.priv_mode, _csr_status.mstatus),
           sum: _csr_status.mstatus.sum,
@@ -196,6 +207,19 @@ module core
   assign _csr.en = _id_ex.valid && _id_ex.ctrl.csr.en && !_id_ex.trap.valid;
   assign _csr.write_en = _id_ex.valid && _id_ex.ctrl.csr.write_en && !_id_ex.trap.valid;
   assign _csr_illegal = _csr.illegal || _csr_access_illegal;
+
+  // A PMP rebuild writes the active decoded table in place.  Start only when
+  // all older work has drained and the CSR instruction can remain resident in
+  // ID/EX for the non-cancelable rebuild/commit handshake.
+  assign _pmp_update_start_block =
+      _dbus_wait || _data_stall || _mem_order_start || _mem_order_busy ||
+      (_trap_in_flight && !_trap_from_if_id) ||
+      ((_flow.action != FLOW_ACTION_NONE) && !_trap_from_if_id) || _retire.trap;
+  assign _pmp_update_start = _pmp_update_request && !_pmp_update_start_block;
+  assign _pmp_update_commit = _pmp_update_ready &&
+      (_pipe_ctrl.ex_mem == STAGE_ADVANCE) && _csr.en && _csr.write_en &&
+      !_csr_illegal;
+  assign _execute_wait = _integer_execute_wait || _pmp_update_wait;
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
@@ -328,10 +352,15 @@ module core
     .trap(_mem_wb.trap.payload),
     .mret_valid(_retire.mret),
     .sret_valid(_retire.sret),
+    .pmp_update_start(_pmp_update_start),
+    .pmp_update_commit(_pmp_update_commit),
     .time_value(time_value),
     .retire(_mem_wb.valid && (_pipe_ctrl.mem_wb != STAGE_HOLD) && !_mem_wb.trap.valid),
     .csr_read_data(_csr.read_data),
     .illegal_csr(_csr.illegal),
+    .pmp_update_request(_pmp_update_request),
+    .pmp_update_wait(_pmp_update_wait),
+    .pmp_update_ready(_pmp_update_ready),
     .status(_csr_status)
   );
 
@@ -424,6 +453,7 @@ module core
     .flow(_flow),
     .mem_order_start(_mem_order_start),
     .mem_order_busy(_mem_order_busy),
+    .pmp_update_wait(_pmp_update_wait),
     .execute_wait(_execute_wait),
     .pipe_ctrl(_pipe_ctrl)
   );
@@ -453,24 +483,27 @@ module core
   );
 
   translation_adapter #(
-    .TlbEnabled(TlbEnabled)
+    .TlbEnabled(TlbEnabled),
+    .PmpEnabled(PmpEnabled)
   ) _ifetch_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
     .ctx(_ifetch_translation_ctx),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp),
+    .pmp(_csr_status.pmp_regions),
     .upstream(_ifetch_ifu_adapter.slave),
     .translation(_ifetch_translation.requester),
     .downstream(_ifetch_adapter_arb.master)
   );
 
-  sv32_walker _ifetch_walker (
+  sv32_walker #(
+    .PmpEnabled(PmpEnabled)
+  ) _ifetch_walker (
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp),
+    .pmp(_csr_status.pmp_regions),
     .translation(_ifetch_translation.responder),
     .memory(_ifetch_walker_arb.master)
   );
@@ -525,7 +558,7 @@ module core
     .alu_result(_alu_result),
     .store_data(_store_data),
     .pc_src(_ex_pc_src),
-    .execute_wait(_execute_wait)
+    .execute_wait(_integer_execute_wait)
   );
 
   csr_execute _csr_execute (
@@ -582,24 +615,27 @@ module core
   );
 
   translation_adapter #(
-    .TlbEnabled(TlbEnabled)
+    .TlbEnabled(TlbEnabled),
+    .PmpEnabled(PmpEnabled)
   ) _data_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
     .ctx(_data_translation_ctx),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp),
+    .pmp(_csr_status.pmp_regions),
     .upstream(_data_lsu_adapter.slave),
     .translation(_data_translation.requester),
     .downstream(_data_adapter_arb.master)
   );
 
-  sv32_walker _data_walker (
+  sv32_walker #(
+    .PmpEnabled(PmpEnabled)
+  ) _data_walker (
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp),
+    .pmp(_csr_status.pmp_regions),
     .translation(_data_translation.responder),
     .memory(_data_walker_arb.master)
   );

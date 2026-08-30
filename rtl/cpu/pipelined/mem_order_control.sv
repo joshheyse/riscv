@@ -31,17 +31,18 @@ module mem_order_control
   } state_e;
 
   state_e         _state;
+  logic           _maintenance_instruction;
   logic           _maintenance_request;
   logic           _sfence_vma;
   pc_t            _fence_pc;
   tlb_flush_req_t _sfence_tlb_flush;
 
-  assign _maintenance_request = ex_mem.valid
+  assign _maintenance_instruction = ex_mem.valid
     && ((ex_mem.ctrl.mem_order == MEM_ORDER_FENCE_I)
         || (ex_mem.ctrl.mem_order == MEM_ORDER_SFENCE_VMA))
     && !ex_mem.trap.valid
-    && !dbus_wait
     && !trap_in_flight;
+  assign _maintenance_request = _maintenance_instruction && !dbus_wait;
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -51,11 +52,13 @@ module mem_order_control
     end else begin
       unique case (_state)
         IDLE: begin
-          if (_maintenance_request) begin
-            _state <= D_REQUEST;
+          if (_maintenance_instruction) begin
             _fence_pc <= ex_mem.pc;
             _sfence_vma <= ex_mem.ctrl.mem_order == MEM_ORDER_SFENCE_VMA;
             _sfence_tlb_flush <= ex_mem.tlb_flush;
+          end
+          if (_maintenance_request) begin
+            _state <= D_REQUEST;
           end
         end
         D_REQUEST: begin

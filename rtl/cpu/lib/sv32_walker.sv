@@ -12,13 +12,16 @@ module sv32_walker
   import riscv_pkg::*;
   import pmp_pkg::*;
   import sv32_pkg::*;
+#(
+  parameter bit PmpEnabled = 1'b1
+)
 (
   input logic  clk,
   input logic  rst,
   /* verilator lint_off UNUSEDSIGNAL */
   input satp_t satp,
   /* verilator lint_on UNUSEDSIGNAL */
-  input pmp_state_t pmp,
+  input pmp_region_state_t pmp,
 
   mmu_if.responder translation,
   mem_if.master    memory
@@ -85,8 +88,9 @@ module sv32_walker
             2'b00
           };
           if (!ppn_is_supported(_table_ppn) ||
+              (PmpEnabled &&
               !pmp_access_allowed(
-                  pmp, pte_addr, MEM_SIZE_WORD, MMU_ACCESS_LOAD, PRIV_SUPERVISOR)) begin
+                  pmp, pte_addr, MEM_SIZE_WORD, MMU_ACCESS_LOAD, PRIV_SUPERVISOR))) begin
             _response <= '{
                 valid: 1'b1,
                 fault: MMU_FAULT_ACCESS,

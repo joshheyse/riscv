@@ -7,6 +7,7 @@
 
 module tb_translation_adapter;
   import riscv_pkg::*;
+  import pmp_pkg::*;
 
   localparam int unsigned ClockPeriodNs = 10;
   localparam int unsigned TimeoutCycles = 500;
@@ -17,7 +18,8 @@ module tb_translation_adapter;
 
   translation_ctx_t _ctx;
   satp_t            _satp;
-  pmp_state_t       _pmp;
+  pmp_state_t       _pmp_state;
+  pmp_region_state_t _pmp;
 
   vmem_if _upstream (
     .clk(_clk),
@@ -168,20 +170,25 @@ module tb_translation_adapter;
     _downstream.req_ready = 1'b0;
     #1ps;
 
-    expect_logic(_downstream.req.valid, 1'b1, "bypass request forwarded");
-    expect_logic(_upstream.req_ready, 1'b0, "bypass backpressure propagated");
+    expect_logic(_upstream.req_ready, 1'b1, "bypass request accepted into adapter");
+    expect_logic(_downstream.req.valid, 1'b0, "bypass request buffered before physical state");
+
+    @(posedge _clk);
+    @(negedge _clk);
+    _upstream.req.valid = 1'b0;
+    expect_logic(_downstream.req.valid, 1'b1, "buffered bypass request presented");
+    expect_addr(_downstream.req.addr, req.addr, "buffered bypass address");
     repeat (refuse_cycles) begin
       @(negedge _clk);
-      expect_logic(_downstream.req.valid, 1'b1, "bypass request held while refused");
-      expect_addr(_downstream.req.addr, req.addr, "bypass address held while refused");
+      expect_logic(_downstream.req.valid, 1'b1, "buffered bypass request held while refused");
+      expect_addr(_downstream.req.addr, req.addr, "buffered bypass address held while refused");
     end
 
     _downstream.req_ready = 1'b1;
     #1ps;
-    expect_logic(_upstream.req_ready, 1'b1, "bypass acceptance propagated");
+    expect_logic(_downstream.req.valid, 1'b1, "buffered bypass request accepted downstream");
     @(posedge _clk);
     @(negedge _clk);
-    _upstream.req.valid   = 1'b0;
     _downstream.req_ready = 1'b0;
   endtask
 
@@ -207,13 +214,17 @@ module tb_translation_adapter;
     _downstream.rsp = '{valid: 1'b1, read_data: read_data};
     #1ps;
 
-    expect_logic(_upstream.rsp.valid, 1'b1, $sformatf("%s response forwarded", what));
+    expect_logic(_downstream.rsp_ready, 1'b1, $sformatf("%s response accepted by adapter", what));
+    @(posedge _clk);
+    @(negedge _clk);
+    _downstream.rsp = '0;
+
+    expect_logic(_upstream.rsp.valid, 1'b1, $sformatf("%s response buffered", what));
     expect_logic(_upstream.rsp.fault == MMU_FAULT_NONE, 1'b1, $sformatf("%s fault", what));
     expect_logic(_upstream.rsp.read_data == read_data, 1'b1, $sformatf("%s read data", what));
     expect_addr(_upstream.rsp.physical_addr, expected_physical_addr, $sformatf(
                 "%s physical address", what));
-    expect_logic(_downstream.rsp_ready, 1'b0, $sformatf("%s response backpressure propagated", what
-                 ));
+    expect_logic(_downstream.rsp_ready, 1'b0, $sformatf("%s response already consumed", what));
 
     repeat (stall_cycles) begin
       @(negedge _clk);
@@ -223,11 +234,9 @@ module tb_translation_adapter;
 
     _upstream.rsp_ready = 1'b1;
     #1ps;
-    expect_logic(_downstream.rsp_ready, 1'b1, $sformatf("%s response acceptance propagated", what));
     @(posedge _clk);
     @(negedge _clk);
     _upstream.rsp_ready = 1'b0;
-    _downstream.rsp = '0;
   endtask
 
   task automatic expect_upstream_response(
@@ -271,6 +280,7 @@ module tb_translation_adapter;
     _tlb_flush = '0;
     _ctx = '0;
     _satp = '{mode: SATP_MODE_SV32, asid: '0, ppn: '0};
+    _pmp_state = '0;
     _pmp = '0;
     _upstream.req = '0;
     _upstream.rsp_ready = 1'b0;
@@ -304,8 +314,8 @@ module tb_translation_adapter;
     expect_logic(_downstream.req.valid, 1'b0, "PMP-denied Bare access issues no physical request");
     expect_upstream_response(MMU_FAULT_ACCESS, '0, '0, 0, "PMP-denied Bare access");
 
-    _pmp.addr[0] = '1;
-    _pmp.cfg[0] = '{
+    _pmp_state.addr[0] = '1;
+    _pmp_state.cfg[0] = '{
         locked: 1'b0,
         reserved: '0,
         addr_match: PMP_ADDR_NAPOT,
@@ -313,6 +323,7 @@ module tb_translation_adapter;
         write: 1'b1,
         read: 1'b1
     };
+    _pmp = pmp_decode_regions(_pmp_state);
     _satp.mode = SATP_MODE_SV32;
 
     // Successful load: context and virtual request must survive translation
@@ -488,25 +499,36 @@ module tb_translation_adapter;
     expect_logic(_translation.req.valid, 1'b0, "Machine privilege issues no translation request");
     return_bypass_response(32'hfeed_face, request.addr, 0, 0, "Machine-mode load");
 
-    // A zero-cycle physical slave may respond in the request acceptance cycle.
-    // The complete bypass must forward that response without entering a wait state.
+    // A zero-cycle physical slave may respond in the registered physical
+    // request acceptance cycle. The adapter must capture that response while
+    // keeping the upstream request path decoupled.
     @(negedge _clk);
     _upstream.req = request;
     _upstream.req.valid = 1'b1;
     _upstream.rsp_ready = 1'b1;
     _downstream.req_ready = 1'b1;
-    _downstream.rsp = '{valid: 1'b1, read_data: 32'h1357_9bdf};
+    _downstream.rsp = '0;
     #1ps;
     expect_logic(_upstream.req_ready, 1'b1, "same-cycle bypass request ready");
+    expect_logic(_downstream.req.valid, 1'b0, "same-cycle bypass request initially buffered");
+    expect_logic(_upstream.rsp.valid, 1'b0, "same-cycle bypass response initially delayed");
+    @(posedge _clk);
+    @(negedge _clk);
+    _upstream.req.valid = 1'b0;
+    expect_logic(_downstream.req.valid, 1'b1, "same-cycle bypass physical request presented");
+    _downstream.rsp = '{valid: 1'b1, read_data: 32'h1357_9bdf};
+    #1ps;
+    expect_logic(_downstream.rsp_ready, 1'b1, "same-cycle physical response ready");
+    @(posedge _clk);
+    @(negedge _clk);
+    _downstream.rsp = '0;
     expect_logic(_upstream.rsp.valid, 1'b1, "same-cycle bypass response valid");
     expect_logic(_upstream.rsp.read_data == 32'h1357_9bdf, 1'b1, "same-cycle bypass response data");
     expect_addr(_upstream.rsp.physical_addr, request.addr, "same-cycle bypass physical address");
-    expect_logic(_downstream.rsp_ready, 1'b1, "same-cycle bypass response ready");
     @(posedge _clk);
     @(negedge _clk);
     _upstream.req = '0;
     _upstream.rsp_ready = 1'b0;
-    _downstream.rsp = '0;
     #1ps;
     expect_logic(_upstream.req_ready, 1'b1, "adapter remains idle after same-cycle bypass");
     _downstream.req_ready = 1'b0;

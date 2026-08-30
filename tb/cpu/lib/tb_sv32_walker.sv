@@ -7,6 +7,7 @@
 
 module tb_sv32_walker;
   import riscv_pkg::*;
+  import pmp_pkg::*;
 
   localparam int unsigned ClockPeriodNs = 10;
   localparam int unsigned TimeoutCycles = 1000;
@@ -15,7 +16,8 @@ module tb_sv32_walker;
   logic  _rst = 1'b1;
 
   satp_t _satp;
-  pmp_state_t _pmp;
+  pmp_state_t _pmp_state;
+  pmp_region_state_t _pmp;
   mmu_if _translation ();
   mem_if _memory (
     .clk(_clk),
@@ -205,6 +207,7 @@ module tb_sv32_walker;
     end
 
     _satp = '0;
+    _pmp_state = '0;
     _pmp = '0;
     _translation.req = '0;
     _translation.rsp_ready = 1'b0;
@@ -233,8 +236,8 @@ module tb_sv32_walker;
     expect_no_memory_request("PMP-denied walk does not access memory");
     expect_response(MMU_FAULT_ACCESS, '0, 0, "PMP-denied page-table read");
 
-    _pmp.addr[0] = '1;
-    _pmp.cfg[0] = '{
+    _pmp_state.addr[0] = '1;
+    _pmp_state.cfg[0] = '{
         locked: 1'b0,
         reserved: '0,
         addr_match: PMP_ADDR_NAPOT,
@@ -242,6 +245,7 @@ module tb_sv32_walker;
         write: 1'b1,
         read: 1'b1
     };
+    _pmp = pmp_decode_regions(_pmp_state);
 
     // The accepted request and root PPN remain stable even if the live inputs
     // change while the walk is active.

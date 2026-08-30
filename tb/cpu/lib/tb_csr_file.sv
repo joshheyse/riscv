@@ -22,10 +22,15 @@ module tb_csr_file
   trap_t       _trap;
   logic        _mret_valid;
   logic        _sret_valid;
+  logic        _pmp_update_start;
+  logic        _pmp_update_commit;
   dword_t      _time_value;
   logic        _retire;
   csr_data_t   _csr_read_data;
   logic        _illegal_csr;
+  logic        _pmp_update_request;
+  logic        _pmp_update_wait;
+  logic        _pmp_update_ready;
   /* verilator lint_off UNUSEDSIGNAL */
   csr_status_t _status;
   /* verilator lint_on UNUSEDSIGNAL */
@@ -44,10 +49,15 @@ module tb_csr_file
     .trap(_trap),
     .mret_valid(_mret_valid),
     .sret_valid(_sret_valid),
+    .pmp_update_start(_pmp_update_start),
+    .pmp_update_commit(_pmp_update_commit),
     .time_value(_time_value),
     .retire(_retire),
     .csr_read_data(_csr_read_data),
     .illegal_csr(_illegal_csr),
+    .pmp_update_request(_pmp_update_request),
+    .pmp_update_wait(_pmp_update_wait),
+    .pmp_update_ready(_pmp_update_ready),
     .status(_status)
   );
 
@@ -86,6 +96,8 @@ module tb_csr_file
     _trap = '0;
     _mret_valid = 1'b0;
     _sret_valid = 1'b0;
+    _pmp_update_start = 1'b0;
+    _pmp_update_commit = 1'b0;
     _retire = 1'b0;
   endtask
 
@@ -95,6 +107,19 @@ module tb_csr_file
     @(negedge _clk);
     _sret_valid = 1'b0;
   endtask
+
+  function automatic logic is_pmp_csr(input logic [11:0] addr);
+    case (addr)
+      CSR_PMPCFG0, CSR_PMPCFG1, CSR_PMPCFG2, CSR_PMPCFG3,
+          CSR_PMPADDR0, CSR_PMPADDR1, CSR_PMPADDR2, CSR_PMPADDR3,
+          CSR_PMPADDR4, CSR_PMPADDR5, CSR_PMPADDR6, CSR_PMPADDR7,
+          CSR_PMPADDR8, CSR_PMPADDR9, CSR_PMPADDR10, CSR_PMPADDR11,
+          CSR_PMPADDR12, CSR_PMPADDR13, CSR_PMPADDR14, CSR_PMPADDR15:
+        return 1'b1;
+      default:
+        return 1'b0;
+    endcase
+  endfunction
 
   task automatic read_csr(input logic [11:0] addr, input csr_data_t exp, input string what);
     @(negedge _clk);
@@ -111,6 +136,9 @@ module tb_csr_file
   endtask
 
   task automatic write_csr(input logic [11:0] addr, input csr_data_t data, input string what);
+    logic pmp_write;
+
+    pmp_write = is_pmp_csr(addr);
     @(negedge _clk);
     _csr_en = 1'b1;
     _csr_write_en = 1'b1;
@@ -118,11 +146,35 @@ module tb_csr_file
     _csr_write_data = data;
     #1;
     expect_bool(_illegal_csr, 1'b0, {what, " legal write"});
-    @(negedge _clk);
-    _csr_en = 1'b0;
-    _csr_write_en = 1'b0;
-    _csr_addr = '0;
-    _csr_write_data = '0;
+    if (pmp_write) begin
+      expect_bool(_pmp_update_request, 1'b1, {what, " requests PMP rebuild"});
+      // The owner starts the rebuild only after it has quiesced the pipeline.
+      // Keep the CSR request resident while the decoder captures the candidate.
+      _pmp_update_start = 1'b1;
+      @(posedge _clk);
+      #1;
+      expect_bool(_pmp_update_wait, 1'b1, {what, " starts PMP rebuild"});
+      _pmp_update_start = 1'b0;
+      _csr_en = 1'b0;
+      _csr_write_en = 1'b0;
+      _csr_addr = '0;
+      _csr_write_data = '0;
+      while (!_pmp_update_ready) begin
+        @(negedge _clk);
+      end
+      expect_bool(_pmp_update_ready, 1'b1, {what, " PMP rebuild ready"});
+      _pmp_update_commit = 1'b1;
+      @(posedge _clk);
+      #1;
+      _pmp_update_commit = 1'b0;
+      @(negedge _clk);
+    end else begin
+      @(negedge _clk);
+      _csr_en = 1'b0;
+      _csr_write_en = 1'b0;
+      _csr_addr = '0;
+      _csr_write_data = '0;
+    end
   endtask
 
   task automatic expect_illegal_read(input logic [11:0] addr, input string what);

@@ -8,6 +8,7 @@
 module tb_core_system_trap
   import riscv_pkg::*;
   import pipelined_pkg::*;
+  import pmp_pkg::*;
 ();
 
   localparam realtime ClkPeriod = 10ns;
@@ -129,6 +130,7 @@ module tb_core_system_trap
         write: 1'b1,
         read: 1'b1
     };
+    _dut._csr_file._pmp_decoder._regions = pmp_decode_regions(_dut._csr_file._pmp);
   endtask
 
   // Advance until the instruction under test is sitting in IF/ID, where the
