@@ -354,6 +354,10 @@ module tb_translation_adapter;
     request.addr = 32'h8123_4abc;
     begin_request(request, request_ctx);
     expect_logic(_translation.req.valid, 1'b0, "TLB hit issues no walker request");
+    @(posedge _clk);
+    #1ps;
+    expect_logic(_downstream.req.valid, 1'b1,
+                 "TLB hit presents physical request without an extra translation cycle");
     accept_physical_request(32'h0123_4abc, request.write_en, request.write_data, request.write_mask,
                             0);
     return_physical_response(32'h1234_abcd, 0);

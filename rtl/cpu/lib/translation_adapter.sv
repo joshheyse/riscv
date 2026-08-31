@@ -110,9 +110,7 @@ module translation_adapter
     if (rst) begin
       _state <= IDLE;
       _tlb_epoch <= 1'b0;
-      _request_tlb_epoch <= 1'b0;
       _ctx <= '0;
-      _request_asid <= '0;
       _mmu_request <= '0;
       _vmem_request <= '0;
       _vmem_response <= '0;
@@ -136,8 +134,6 @@ module translation_adapter
               _state <= PHYSICAL_REQUEST;
             end else begin
               _ctx <= ctx;
-              _request_asid <= satp.asid;
-              _request_tlb_epoch <= _tlb_epoch;
               _vmem_request <= upstream.req;
               if (TlbEnabled && _tlb_hit) begin
                 if (_tlb_access_allowed) begin
@@ -231,6 +227,20 @@ module translation_adapter
       endcase
     end
 
+  end
+
+  // ASID and epoch are needed only to validate a walker result before filling
+  // the TLB.  A hit never consumes them, so keep their capture off the hit
+  // response/control cone and sample them only for a real translation miss.
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      _request_asid <= '0;
+      _request_tlb_epoch <= 1'b0;
+    end else if ((_state == IDLE) && upstream.req.valid && upstream.req_ready &&
+                 TlbEnabled && !translation_bypassed(satp, ctx) && !_tlb_hit) begin
+      _request_asid <= satp.asid;
+      _request_tlb_epoch <= _tlb_epoch;
+    end
   end
 
 endmodule
