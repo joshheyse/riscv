@@ -3,8 +3,9 @@
 // Registered physical-side PMP boundary.
 //
 // The translation and cache hierarchy only presents physical requests here.
-// A request is captured in IDLE, checked in REQUEST, and either forwarded to
-// the physical memory port or converted to a registered access-fault response.
+// A request is captured in IDLE, checked in CHECK, and either forwarded to the
+// physical memory port in REQUEST or converted to a registered access-fault
+// response.
 // Successful responses carry the selected region's raw R/W/X permissions so a
 // cache can retain them with the line and avoid putting the PMP interval scan
 // on its hit path.
@@ -23,8 +24,9 @@ module pmp_annotator
   mem_if.master downstream
 );
 
-  typedef enum logic [1:0] {
+  typedef enum logic [2:0] {
     IDLE,
+    CHECK,
     REQUEST,
     WAIT,
     RESPONSE
@@ -33,19 +35,18 @@ module pmp_annotator
   state_e          _state;
   mem_req_t        _request;
   mem_rsp_t        _response;
-  pmp_check_t      _incoming_pmp_check;
+  pmp_check_t      _check_result;
   pmp_check_t      _request_pmp_check;
   logic            _request_allowed;
 
   always_comb begin
     if (PmpEnabled) begin
-      _incoming_pmp_check = pmp_check(
-          pmp, upstream.req.addr, upstream.req.size, upstream.req.access,
-          upstream.req.privilege);
+      _check_result = pmp_check(
+          pmp, _request.addr, _request.size, _request.access, _request.privilege);
     end else begin
-      _incoming_pmp_check = '0;
-      _incoming_pmp_check.allowed = 1'b1;
-      _incoming_pmp_check.annotation = '{
+      _check_result = '0;
+      _check_result.allowed = 1'b1;
+      _check_result.annotation = '{
           valid: 1'b1,
           read: 1'b1,
           write: 1'b1,
@@ -75,10 +76,13 @@ module pmp_annotator
         IDLE: begin
           if (upstream.req.valid && upstream.req_ready) begin
             _request <= upstream.req;
-            _request_pmp_check <= _incoming_pmp_check;
             _response <= '0;
-            _state <= REQUEST;
+            _state <= CHECK;
           end
+        end
+        CHECK: begin
+          _request_pmp_check <= _check_result;
+          _state <= REQUEST;
         end
         REQUEST: begin
           if (!_request_allowed) begin
