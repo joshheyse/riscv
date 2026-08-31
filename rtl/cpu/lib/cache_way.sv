@@ -14,12 +14,16 @@ module cache_way
   input mem_write_mask_t write_mask,
   input cache_meta_op_e  meta_op,
   input tag_t            install_tag,
+  input pmp_annotation_t install_pmp_annotation,
+  input priv_mode_e      metadata_privilege,
 
-  output logic      hit,
-  output logic      valid,
-  output logic      dirty,
-  output tag_t      stored_tag,
-  output mem_data_t read_data
+  output logic            hit,
+  output logic            valid,
+  output logic            dirty,
+  output tag_t            stored_tag,
+  output pmp_annotation_t stored_pmp_annotation,
+  output priv_mode_e      stored_privilege,
+  (* keep *) output mem_data_t read_data
 );
 
   // Reset metadata only. The word array has the synchronous ports required for
@@ -27,6 +31,8 @@ module cache_way
   (* ram_style = "block" *)
   logic        [            31:0] _data      [CacheNumSets*CacheWordsPerLine];
   tag_t                           _tags      [                  CacheNumSets];
+  pmp_annotation_t                _pmp       [                  CacheNumSets];
+  priv_mode_e                     _privilege [                  CacheNumSets];
   logic        [CacheNumSets-1:0] _valid;
   logic        [CacheNumSets-1:0] _dirty;
   data_index_t                    _data_addr;
@@ -39,14 +45,19 @@ module cache_way
     valid      = _valid[set];
     dirty      = _dirty[set];
     stored_tag = _tags[set];
+    stored_pmp_annotation = _pmp[set];
+    stored_privilege = _privilege[set];
   end
 
   always_ff @(posedge clk) begin
     if (rst) begin
       _valid <= '0;
       _dirty <= '0;
+      for (int unsigned set_idx = 0; set_idx < CacheNumSets; set_idx++) begin
+        _pmp[set_idx] <= '0;
+        _privilege[set_idx] <= PRIV_MACHINE;
+      end
     end else begin
-
       if (data_read_en) begin
         read_data <= _data[_data_addr];
       end else if (data_write_en) begin
@@ -64,9 +75,12 @@ module cache_way
           _tags[set]  <= install_tag;
           _valid[set] <= 1'b1;
           _dirty[set] <= 1'b0;
+          _pmp[set] <= install_pmp_annotation;
+          _privilege[set] <= metadata_privilege;
         end
         META_MARK_DIRTY: begin
           _dirty[set] <= 1'b1;
+          _privilege[set] <= metadata_privilege;
         end
         META_CLEAR_DIRTY: begin
           _dirty[set] <= 1'b0;
@@ -74,6 +88,8 @@ module cache_way
         META_INVALIDATE: begin
           _valid[set] <= 1'b0;
           _dirty[set] <= 1'b0;
+          _pmp[set] <= '0;
+          _privilege[set] <= PRIV_MACHINE;
         end
       endcase
     end

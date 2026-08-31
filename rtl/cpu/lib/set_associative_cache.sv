@@ -2,6 +2,10 @@
 
 module set_associative_cache
   import riscv_pkg::*;
+  import pmp_pkg::*;
+#(
+  parameter bit PmpEnabled = 1'b1
+)
 (
   input logic clk,
   input logic rst,
@@ -51,11 +55,15 @@ module set_associative_cache
   set_index_t                             _way_set;
   word_index_t                            _way_word_idx;
   tag_t                                   _way_install_tag;
+  pmp_annotation_t                         _way_install_pmp_annotation;
+  priv_mode_e                              _way_metadata_privilege;
   logic                [CacheNumWays-1:0] _way_data_write_en;
   logic                [CacheNumWays-1:0] _way_hit;
   logic                [CacheNumWays-1:0] _way_valid;
   logic                [CacheNumWays-1:0] _way_dirty;
   tag_t                                   _way_stored_tag         [CacheNumWays];
+  pmp_annotation_t                         _way_stored_pmp_annotation [CacheNumWays];
+  priv_mode_e                              _way_stored_privilege [CacheNumWays];
   cache_meta_op_e                         _way_meta_op            [CacheNumWays];
   mem_data_t                              _way_read_data          [CacheNumWays];
   way_index_t                             _hit_way;
@@ -65,6 +73,9 @@ module set_associative_cache
   way_index_t                             _maintenance_way;
   logic                                   _lru_touch_valid;
   way_index_t                             _lru_touch_way;
+  logic                                   _request_pmp_allowed;
+  mmu_fault_e                              _response_fault;
+  pmp_annotation_t                         _refill_pmp_annotation;
 
 
   generate
@@ -109,10 +120,14 @@ module set_associative_cache
         .write_mask(_data_write_mask),
         .meta_op(_way_meta_op[idx]),
         .install_tag(_way_install_tag),
+        .install_pmp_annotation(_way_install_pmp_annotation),
+        .metadata_privilege(_way_metadata_privilege),
         .hit(_way_hit[idx]),
         .valid(_way_valid[idx]),
         .dirty(_way_dirty[idx]),
         .stored_tag(_way_stored_tag[idx]),
+        .stored_pmp_annotation(_way_stored_pmp_annotation[idx]),
+        .stored_privilege(_way_stored_privilege[idx]),
         .read_data(_way_read_data[idx])
       );
     end
@@ -123,6 +138,12 @@ module set_associative_cache
   assign _beat_accepted = downstream.req.valid && downstream.req_ready;
   assign _beat_done = downstream.rsp.valid;
   assign _response_transfer = upstream.rsp.valid && upstream.rsp_ready;
+
+  always_comb begin
+    _request_pmp_allowed = !PmpEnabled ||
+        pmp_annotation_allowed(
+            _way_stored_pmp_annotation[_hit_way], _request.access, _request.privilege);
+  end
 
   always_comb begin
     _request_hit          = |_way_hit;
@@ -153,7 +174,7 @@ module set_associative_cache
 
     case (_state)
       LOOKUP, RESPOND: begin
-        if (_request_hit && _response_transfer) begin
+        if (_request_hit && _request_pmp_allowed && _response_transfer) begin
           _lru_touch_valid = 1'b1;
           _lru_touch_way   = _hit_way;
         end
@@ -177,6 +198,8 @@ module set_associative_cache
     _way_set           = _request_addr.set;
     _way_word_idx      = _request_addr.offset[CacheLineOffsetBits-1:2];
     _way_install_tag   = '0;
+    _way_install_pmp_annotation = '0;
+    _way_metadata_privilege = _request.privilege;
     _data_read_en      = 1'b0;
     _way_data_write_en = '0;
     _data_write_mask   = '0;
@@ -211,12 +234,15 @@ module set_associative_cache
 
       REFILL_REQUEST, REFILL_WAIT: begin
         _way_word_idx = _beat_idx;
-        if (_beat_done) begin
+        if (_beat_done && (downstream.rsp.fault == MMU_FAULT_NONE)) begin
           _way_data_write_en[_victim_way] = 1'b1;
           _data_write_mask = '1;
           _data_write_data = downstream.rsp.read_data;
           if (_beat_idx == FinalBeatIdx) begin
             _way_install_tag = _request_addr.tag;
+            _way_install_pmp_annotation = (_beat_idx == '0) ?
+                downstream.rsp.pmp_annotation :
+                (_refill_pmp_annotation & downstream.rsp.pmp_annotation);
             _way_meta_op[_victim_way] = META_INSTALL;
           end
         end
@@ -227,7 +253,7 @@ module set_associative_cache
       end
 
       LOOKUP, RESPOND: begin
-        if (_response_transfer && _request.write_en) begin
+        if (_response_transfer && _request.write_en && _request_pmp_allowed) begin
           _way_meta_op[_hit_way] = META_MARK_DIRTY;
           _way_data_write_en[_hit_way] = 1'b1;
           _data_write_mask = _request.write_mask;
@@ -252,6 +278,10 @@ module set_associative_cache
             valid: 1'b1,
             write_en: 1'b1,
             addr: {_write_back_tag, _write_back_set, _beat_idx, 2'b0},
+            size: MEM_SIZE_WORD,
+            access: MMU_ACCESS_STORE,
+            privilege: (_write_back_reason == WRITE_BACK_FOR_REFILL) ?
+                _way_stored_privilege[_victim_way] : PRIV_MACHINE,
             write_data:
             _way_read_data[
             (_write_back_reason==WRITE_BACK_FOR_REFILL)?_victim_way : _maintenance_way
@@ -264,13 +294,21 @@ module set_associative_cache
             valid: 1'b1,
             write_en: 1'b0,
             addr: {_request_addr.tag, _request_addr.set, _beat_idx, 2'b0},
+            size: MEM_SIZE_WORD,
+            access: _request.access,
+            privilege: _request.privilege,
             write_data: '0,
             write_mask: '0
         };
       end
       LOOKUP, RESPOND: begin
-        upstream.rsp.valid = (_state == RESPOND) || _request_hit;
-        if (!_request.write_en) begin
+        upstream.rsp.valid = (_state == RESPOND) ||
+            ((_state == LOOKUP) && _request_hit);
+        upstream.rsp.fault = (_request_hit && !_request_pmp_allowed) ?
+            MMU_FAULT_ACCESS : _response_fault;
+        upstream.rsp.pmp_annotation = _request_hit ?
+            _way_stored_pmp_annotation[_hit_way] : '0;
+        if (!_request.write_en && _request_hit && _request_pmp_allowed) begin
           upstream.rsp.read_data = _way_read_data[_hit_way];
         end
       end
@@ -286,6 +324,8 @@ module set_associative_cache
       _beat_idx <= '0;
       _command_op <= '0;
       _victim_way <= '0;
+      _response_fault <= MMU_FAULT_NONE;
+      _refill_pmp_annotation <= '0;
     end else begin
       case (_state)
         IDLE: begin
@@ -296,6 +336,7 @@ module set_associative_cache
             _command_op <= cache_command.op;
           end else if (upstream.req.valid) begin
             _request <= upstream.req;
+            _response_fault <= MMU_FAULT_NONE;
             _state   <= LOOKUP;
           end
         end
@@ -340,6 +381,8 @@ module set_associative_cache
           end else begin
             _beat_idx   <= '0;
             _victim_way <= _victim_candidate_way;
+            _response_fault <= MMU_FAULT_NONE;
+            _refill_pmp_annotation <= '0;
             if (_way_valid[_victim_candidate_way] && _way_dirty[_victim_candidate_way]) begin
               _state <= WRITE_BACK_READ;
               _write_back_reason <= WRITE_BACK_FOR_REFILL;
@@ -356,7 +399,11 @@ module set_associative_cache
         WRITE_BACK_REQUEST: begin
           if (_beat_accepted) begin
             if (_beat_done) begin
-              if (_beat_idx == FinalBeatIdx) begin
+              if ((_write_back_reason == WRITE_BACK_FOR_REFILL) &&
+                  (downstream.rsp.fault != MMU_FAULT_NONE)) begin
+                _response_fault <= downstream.rsp.fault;
+                _state <= RESPOND;
+              end else if (_beat_idx == FinalBeatIdx) begin
                 _beat_idx <= '0;
                 _state <= _write_back_reason == WRITE_BACK_FOR_REFILL ? REFILL_REQUEST : MAINTENANCE_NEXT;
               end else begin
@@ -370,7 +417,11 @@ module set_associative_cache
         end
         WRITE_BACK_WAIT: begin
           if (_beat_done) begin
-            if (_beat_idx == FinalBeatIdx) begin
+            if ((_write_back_reason == WRITE_BACK_FOR_REFILL) &&
+                (downstream.rsp.fault != MMU_FAULT_NONE)) begin
+              _response_fault <= downstream.rsp.fault;
+              _state <= RESPOND;
+            end else if (_beat_idx == FinalBeatIdx) begin
               _beat_idx <= '0;
               _state <= _write_back_reason == WRITE_BACK_FOR_REFILL ? REFILL_REQUEST : MAINTENANCE_NEXT;
             end else begin
@@ -382,11 +433,19 @@ module set_associative_cache
         REFILL_REQUEST: begin
           if (_beat_accepted) begin
             if (_beat_done) begin
-              if (_beat_idx == FinalBeatIdx) begin
-                _beat_idx <= '0;
-                _state <= REFILL_FINISH;
+              if (downstream.rsp.fault != MMU_FAULT_NONE) begin
+                _response_fault <= downstream.rsp.fault;
+                _state <= RESPOND;
               end else begin
-                _beat_idx <= _beat_idx + 1'b1;
+                _refill_pmp_annotation <= (_beat_idx == '0) ?
+                    downstream.rsp.pmp_annotation :
+                    (_refill_pmp_annotation & downstream.rsp.pmp_annotation);
+                if (_beat_idx == FinalBeatIdx) begin
+                  _beat_idx <= '0;
+                  _state <= REFILL_FINISH;
+                end else begin
+                  _beat_idx <= _beat_idx + 1'b1;
+                end
               end
             end else begin
               _state <= REFILL_WAIT;
@@ -395,12 +454,20 @@ module set_associative_cache
         end
         REFILL_WAIT: begin
           if (_beat_done) begin
-            if (_beat_idx == FinalBeatIdx) begin
-              _beat_idx <= '0;
-              _state <= REFILL_FINISH;
+            if (downstream.rsp.fault != MMU_FAULT_NONE) begin
+              _response_fault <= downstream.rsp.fault;
+              _state <= RESPOND;
             end else begin
-              _beat_idx <= _beat_idx + 1'b1;
-              _state <= REFILL_REQUEST;
+              _refill_pmp_annotation <= (_beat_idx == '0) ?
+                  downstream.rsp.pmp_annotation :
+                  (_refill_pmp_annotation & downstream.rsp.pmp_annotation);
+              if (_beat_idx == FinalBeatIdx) begin
+                _beat_idx <= '0;
+                _state <= REFILL_FINISH;
+              end else begin
+                _beat_idx <= _beat_idx + 1'b1;
+                _state <= REFILL_REQUEST;
+              end
             end
           end
         end
@@ -420,6 +487,8 @@ module set_associative_cache
   end
 
   // slang lint_off unused-net
-  wire _unused_signal = &{1'b0, upstream.req.addr[1:0], _request_addr.offset[1:0], _request.valid};
+  wire _unused_signal = &{
+      1'b0, upstream.req.addr[1:0], _request_addr.offset[1:0], _request.valid, _request.size
+  };
   // slang lint_on unused-net
 endmodule

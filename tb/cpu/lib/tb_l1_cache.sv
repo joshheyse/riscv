@@ -72,7 +72,12 @@ module tb_l1_cache;
 
   always_comb begin
     if (_immediate_response && _downstream_grant) begin
-      _downstream.rsp = '{valid: 1'b1, read_data: _selected_read_data};
+      _downstream.rsp = '{
+          valid: 1'b1,
+          read_data: _selected_read_data,
+          fault: MMU_FAULT_NONE,
+          pmp_annotation: '0
+      };
     end else begin
       _downstream.rsp = _registered_rsp;
     end
@@ -80,7 +85,8 @@ module tb_l1_cache;
 
   l1_cache #(
       .CacheableBase(CacheableBase),
-      .CacheableEnd(CacheableEnd)
+      .CacheableEnd(CacheableEnd),
+      .PmpEnabled(1'b0)
   ) _dut (
       .clk(_clk),
       .rst(_rst),
@@ -160,6 +166,9 @@ module tb_l1_cache;
         valid: 1'b1,
         write_en: write_en,
         addr: addr,
+        size: MEM_SIZE_WORD,
+        access: write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: data_in,
         write_mask: mask
     };

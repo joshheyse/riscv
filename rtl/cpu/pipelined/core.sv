@@ -75,6 +75,9 @@ module core
   logic             _pmp_update_ready;
   logic             _pmp_update_request;
   logic             _pmp_update_start;
+  logic             _pmp_update_start_armed;
+  logic             _pmp_update_start_candidate;
+  logic             _pmp_update_pipeline_wait;
   logic             _pmp_update_start_block;
   logic             _pmp_update_commit;
   logic             _execute_wait;
@@ -161,6 +164,10 @@ module core
     clk,
     rst
   );
+  mem_if _pmp_mem (
+    clk,
+    rst
+  );
   mem_if _ifetch_cache_arb (
     clk,
     rst
@@ -215,11 +222,27 @@ module core
       _dbus_wait || _data_stall || _mem_order_start || _mem_order_busy ||
       (_trap_in_flight && !_trap_from_if_id) ||
       ((_flow.action != FLOW_ACTION_NONE) && !_trap_from_if_id) || _retire.trap;
-  assign _pmp_update_start = _pmp_update_request && !_pmp_update_start_block;
-  assign _pmp_update_commit = _pmp_update_ready &&
-      (_pipe_ctrl.ex_mem == STAGE_ADVANCE) && _csr.en && _csr.write_en &&
-      !_csr_illegal;
-  assign _execute_wait = _integer_execute_wait || _pmp_update_wait;
+  // Sample the quiescent-start condition into a single flop.  This keeps the
+  // broad pipeline/trap cone off the decoder's wide candidate-register enable;
+  // the extra setup cycle is paid only by a PMP CSR write.
+  assign _pmp_update_start_candidate = _pmp_update_request &&
+      !_pmp_update_start_block && !_pmp_update_wait && !_pmp_update_ready &&
+      !_pmp_update_start_armed;
+  assign _pmp_update_start = _pmp_update_start_armed;
+  assign _pmp_update_pipeline_wait = _pmp_update_wait ||
+      _pmp_update_start_candidate || _pmp_update_start_armed;
+  assign _pmp_update_commit = _pmp_update_ready && _pmp_update_request;
+  assign _execute_wait = _integer_execute_wait || _pmp_update_pipeline_wait;
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      _pmp_update_start_armed <= 1'b0;
+    end else if (_pmp_update_start_armed) begin
+      _pmp_update_start_armed <= 1'b0;
+    end else if (_pmp_update_start_candidate) begin
+      _pmp_update_start_armed <= 1'b1;
+    end
+  end
 
   assign _retire.trap = _mem_wb.valid && _mem_wb.trap.valid;
   assign _retire.mret = _mem_wb.valid && (_mem_wb.ctrl.system.op == SYSTEM_OP_MRET) && !_mem_wb.trap.valid;
@@ -453,7 +476,7 @@ module core
     .flow(_flow),
     .mem_order_start(_mem_order_start),
     .mem_order_busy(_mem_order_busy),
-    .pmp_update_wait(_pmp_update_wait),
+    .pmp_update_wait(_pmp_update_pipeline_wait),
     .execute_wait(_execute_wait),
     .pipe_ctrl(_pipe_ctrl)
   );
@@ -464,7 +487,17 @@ module core
     .rst(rst),
     .ifetch(_ifetch_cache_arb.slave),
     .data(_data_cache_arb.slave),
-    .mem(_physical_mem.master)
+    .mem(_pmp_mem.master)
+  );
+
+  pmp_annotator #(
+    .PmpEnabled(PmpEnabled)
+  ) _pmp_annotator (
+    .clk(clk),
+    .rst(rst),
+    .pmp(_csr_status.pmp_regions),
+    .upstream(_pmp_mem.slave),
+    .downstream(_physical_mem.master)
   );
 
   physical_memory_port _physical_memory_port (
@@ -483,34 +516,30 @@ module core
   );
 
   translation_adapter #(
-    .TlbEnabled(TlbEnabled),
-    .PmpEnabled(PmpEnabled)
+    .TlbEnabled(TlbEnabled)
   ) _ifetch_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
     .ctx(_ifetch_translation_ctx),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp_regions),
     .upstream(_ifetch_ifu_adapter.slave),
     .translation(_ifetch_translation.requester),
     .downstream(_ifetch_adapter_arb.master)
   );
 
-  sv32_walker #(
-    .PmpEnabled(PmpEnabled)
-  ) _ifetch_walker (
+  sv32_walker _ifetch_walker (
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp_regions),
     .translation(_ifetch_translation.responder),
     .memory(_ifetch_walker_arb.master)
   );
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd(CacheableEnd)
+    .CacheableEnd(CacheableEnd),
+    .PmpEnabled(PmpEnabled)
   ) _l1i_cache (
     .clk(clk),
     .rst(rst),
@@ -597,7 +626,8 @@ module core
 
   l1_cache #(
     .CacheableBase(CacheableBase),
-    .CacheableEnd(CacheableEnd)
+    .CacheableEnd(CacheableEnd),
+    .PmpEnabled(PmpEnabled)
   ) _l1d_cache (
     .clk(clk),
     .rst(rst),
@@ -615,27 +645,22 @@ module core
   );
 
   translation_adapter #(
-    .TlbEnabled(TlbEnabled),
-    .PmpEnabled(PmpEnabled)
+    .TlbEnabled(TlbEnabled)
   ) _data_translation_adapter (
     .clk(clk),
     .rst(rst),
     .tlb_flush(_tlb_flush),
     .ctx(_data_translation_ctx),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp_regions),
     .upstream(_data_lsu_adapter.slave),
     .translation(_data_translation.requester),
     .downstream(_data_adapter_arb.master)
   );
 
-  sv32_walker #(
-    .PmpEnabled(PmpEnabled)
-  ) _data_walker (
+  sv32_walker _data_walker (
     .clk(clk),
     .rst(rst),
     .satp(_csr_status.satp),
-    .pmp(_csr_status.pmp_regions),
     .translation(_data_translation.responder),
     .memory(_data_walker_arb.master)
   );

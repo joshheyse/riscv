@@ -7,7 +7,6 @@
 
 module tb_translation_adapter;
   import riscv_pkg::*;
-  import pmp_pkg::*;
 
   localparam int unsigned ClockPeriodNs = 10;
   localparam int unsigned TimeoutCycles = 500;
@@ -18,8 +17,6 @@ module tb_translation_adapter;
 
   translation_ctx_t _ctx;
   satp_t            _satp;
-  pmp_state_t       _pmp_state;
-  pmp_region_state_t _pmp;
 
   vmem_if _upstream (
     .clk(_clk),
@@ -44,7 +41,6 @@ module tb_translation_adapter;
     .rst(_rst),
     .tlb_flush(_tlb_flush),
     .satp(_satp),
-    .pmp(_pmp),
     .ctx(_ctx),
     .upstream(_upstream),
     .translation(_translation),
@@ -176,7 +172,10 @@ module tb_translation_adapter;
     @(posedge _clk);
     @(negedge _clk);
     _upstream.req.valid = 1'b0;
-    expect_logic(_downstream.req.valid, 1'b1, "buffered bypass request presented");
+    while (!_downstream.req.valid) begin
+      @(negedge _clk);
+    end
+    expect_logic(_downstream.req.valid, 1'b1, "buffered bypass request presented after PMP check");
     expect_addr(_downstream.req.addr, req.addr, "buffered bypass address");
     repeat (refuse_cycles) begin
       @(negedge _clk);
@@ -195,7 +194,12 @@ module tb_translation_adapter;
   task automatic return_physical_response(input mem_data_t read_data,
                                           input int unsigned delay_cycles);
     repeat (delay_cycles) @(negedge _clk);
-    _downstream.rsp = '{valid: 1'b1, read_data: read_data};
+    _downstream.rsp = '{
+        valid: 1'b1,
+        read_data: read_data,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
 
     while (!_downstream.rsp_ready) begin
       @(negedge _clk);
@@ -211,7 +215,12 @@ module tb_translation_adapter;
       input int unsigned delay_cycles, input int unsigned stall_cycles, input string what);
     repeat (delay_cycles) @(negedge _clk);
     _upstream.rsp_ready = 1'b0;
-    _downstream.rsp = '{valid: 1'b1, read_data: read_data};
+    _downstream.rsp = '{
+        valid: 1'b1,
+        read_data: read_data,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     #1ps;
 
     expect_logic(_downstream.rsp_ready, 1'b1, $sformatf("%s response accepted by adapter", what));
@@ -280,8 +289,6 @@ module tb_translation_adapter;
     _tlb_flush = '0;
     _ctx = '0;
     _satp = '{mode: SATP_MODE_SV32, asid: '0, ppn: '0};
-    _pmp_state = '0;
-    _pmp = '0;
     _upstream.req = '0;
     _upstream.rsp_ready = 1'b0;
     _translation.req_ready = 1'b0;
@@ -298,8 +305,8 @@ module tb_translation_adapter;
     expect_logic(_translation.req.valid, 1'b0, "no translation request after reset");
     expect_logic(_downstream.req.valid, 1'b0, "no physical request after reset");
 
-    // Once PMP is implemented, unmatched supervisor and user accesses fail,
-    // including accesses made with address translation disabled.
+    // Bare mode still buffers the request before exposing it on the physical
+    // interface. PMP enforcement is downstream of this adapter.
     _satp.mode = SATP_MODE_BARE;
     request = '{
         valid: 1'b1,
@@ -311,19 +318,10 @@ module tb_translation_adapter;
     };
     request_ctx = '{access : MMU_ACCESS_LOAD, privilege: PRIV_SUPERVISOR, sum: 1'b0, mxr: 1'b0};
     begin_request(request, request_ctx);
-    expect_logic(_downstream.req.valid, 1'b0, "PMP-denied Bare access issues no physical request");
-    expect_upstream_response(MMU_FAULT_ACCESS, '0, '0, 0, "PMP-denied Bare access");
+    accept_physical_request(request.addr, request.write_en, request.write_data, request.write_mask, 0);
+    return_physical_response('0, 0);
+    expect_upstream_response(MMU_FAULT_NONE, '0, request.addr, 0, "Bare access");
 
-    _pmp_state.addr[0] = '1;
-    _pmp_state.cfg[0] = '{
-        locked: 1'b0,
-        reserved: '0,
-        addr_match: PMP_ADDR_NAPOT,
-        execute: 1'b1,
-        write: 1'b1,
-        read: 1'b1
-    };
-    _pmp = pmp_decode_regions(_pmp_state);
     _satp.mode = SATP_MODE_SV32;
 
     // Successful load: context and virtual request must survive translation
@@ -515,8 +513,15 @@ module tb_translation_adapter;
     @(posedge _clk);
     @(negedge _clk);
     _upstream.req.valid = 1'b0;
+    @(posedge _clk);
+    @(negedge _clk);
     expect_logic(_downstream.req.valid, 1'b1, "same-cycle bypass physical request presented");
-    _downstream.rsp = '{valid: 1'b1, read_data: 32'h1357_9bdf};
+    _downstream.rsp = '{
+        valid: 1'b1,
+        read_data: 32'h1357_9bdf,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     #1ps;
     expect_logic(_downstream.rsp_ready, 1'b1, "same-cycle physical response ready");
     @(posedge _clk);

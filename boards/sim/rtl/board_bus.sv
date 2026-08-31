@@ -117,6 +117,8 @@ module board_bus
   assign _dbus_mem.rsp_ready = mem.rsp_ready;
   assign mem.rsp.valid = _dbus_mem.rsp.valid;
   assign mem.rsp.read_data = _dbus_mem.rsp.read_data;
+  assign mem.rsp.fault = _dbus_mem.rsp.fault;
+  assign mem.rsp.pmp_annotation = _dbus_mem.rsp.pmp_annotation;
 
   always_comb begin
     _meip_sources = '0;

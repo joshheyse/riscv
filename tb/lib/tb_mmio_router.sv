@@ -111,6 +111,9 @@ module tb_mmio_router
         valid: req_valid,
         write_en: req_write_en,
         addr: req_addr,
+        size: MEM_SIZE_WORD,
+        access: req_write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: req_write_data,
         write_mask: req_write_mask
     };
@@ -139,7 +142,16 @@ module tb_mmio_router
   endtask
 
   task automatic clear_dbus_request();
-    _dbus_mem.req = '{valid: 1'b0, write_en: 1'b0, addr: '0, write_data: '0, write_mask: '0};
+    _dbus_mem.req = '{
+        valid: 1'b0,
+        write_en: 1'b0,
+        addr: '0,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
   endtask
 
   initial begin
@@ -195,6 +207,9 @@ module tb_mmio_router
         valid: 1'b0,
         write_en: 1'b0,
         addr: 32'h0000_0008,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: 32'h1234_5678,
         write_mask: 4'b1111
     };

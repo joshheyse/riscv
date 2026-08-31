@@ -88,8 +88,22 @@ module tb_mem_arbiter;
 
     // Combinational slaves may accept and answer in the same cycle, which
     // leaves the arbiter idle rather than owing a response.
-    _data.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h1000_0000, default: '0};
-    _mem.rsp  = '{valid: 1'b1, read_data: 32'hcafe_babe};
+    _data.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h1000_0000,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
+    _mem.rsp  = '{
+        valid: 1'b1,
+        read_data: 32'hcafe_babe,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     #1;
     expect_bit(_mem.req.valid, 1'b1, "same-cycle data request forwarded");
     expect_bit(_data.req_ready, 1'b1, "same-cycle data request accepted");
@@ -106,7 +120,16 @@ module tb_mem_arbiter;
     // presented, nobody is accepted, and the arbiter does not advance. This is
     // the case the interface previously had no way to express -- the request
     // would simply have been dropped.
-    _ifetch.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0080, default: '0};
+    _ifetch.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_0080,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_FETCH,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
     _mem.req_ready = 1'b0;
     #1;
     expect_bit(_mem.req.valid, 1'b1, "refused request is still presented");
@@ -139,6 +162,9 @@ module tb_mem_arbiter;
         valid: 1'b1,
         write_en: 1'b1,
         addr: 32'h0000_0100,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_FETCH,
+        privilege: PRIV_MACHINE,
         write_data: 32'hdead_beef,
         write_mask: 4'b1111
     };
@@ -171,6 +197,9 @@ module tb_mem_arbiter;
         valid: 1'b1,
         write_en: 1'b1,
         addr: 32'h0000_0202,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_STORE,
+        privilege: PRIV_MACHINE,
         write_data: 32'haabb_ccdd,
         write_mask: 4'b1100
     };
@@ -197,8 +226,26 @@ module tb_mem_arbiter;
     // Simultaneous requests select data and remember that same owner. The
     // losing port keeps its request presented -- a master may not withdraw one
     // that has not been accepted.
-    _ifetch.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0300, default: '0};
-    _data.req   = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0400, default: '0};
+    _ifetch.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_0300,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_FETCH,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
+    _data.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_0400,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
     #1;
     expect_word(_mem.req.addr, 32'h0000_0400, "simultaneous requests give data priority");
     expect_bit(_data.req_ready, 1'b1, "the winner is the port that is accepted");
@@ -239,7 +286,16 @@ module tb_mem_arbiter;
     // A master that refuses its response holds the whole transaction. The
     // arbiter must pass that refusal down to the slave rather than swallowing
     // it, and must not free itself until the response is actually taken.
-    _ifetch.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0700, default: '0};
+    _ifetch.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_0700,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_FETCH,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
     #1;
     @(posedge _clk);
     #1;
@@ -266,7 +322,16 @@ module tb_mem_arbiter;
     expect_bit(_data.rsp_ready, 1'b1, "the idle port's acceptance is its own");
 
     // Reset cancels an outstanding transaction and removes its response owner.
-    _data.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h0000_0600, default: '0};
+    _data.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h0000_0600,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
     #1;
     @(posedge _clk);
     #1;

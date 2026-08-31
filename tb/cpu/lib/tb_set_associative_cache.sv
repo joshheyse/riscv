@@ -62,7 +62,9 @@ module tb_set_associative_cache;
     end
   end
 
-  set_associative_cache _dut (
+  set_associative_cache #(
+      .PmpEnabled(1'b0)
+  ) _dut (
       .clk(_clk),
       .rst(_rst),
       .upstream(_upstream),
@@ -142,6 +144,9 @@ module tb_set_associative_cache;
         valid: 1'b1,
         write_en: write_en,
         addr: addr,
+        size: MEM_SIZE_WORD,
+        access: write_en ? MMU_ACCESS_STORE : MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: data_in,
         write_mask: mask
     };
@@ -296,6 +301,9 @@ module tb_set_associative_cache;
         valid: 1'b1,
         write_en: 1'b0,
         addr: LineA + 32'd12,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: '0,
         write_mask: '0
     };
@@ -334,6 +342,9 @@ module tb_set_associative_cache;
         valid: 1'b1,
         write_en: 1'b0,
         addr: LineA + 32'd12,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
         write_data: '0,
         write_mask: '0
     };

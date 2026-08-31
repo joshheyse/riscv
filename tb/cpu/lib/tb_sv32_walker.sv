@@ -7,7 +7,6 @@
 
 module tb_sv32_walker;
   import riscv_pkg::*;
-  import pmp_pkg::*;
 
   localparam int unsigned ClockPeriodNs = 10;
   localparam int unsigned TimeoutCycles = 1000;
@@ -16,8 +15,6 @@ module tb_sv32_walker;
   logic  _rst = 1'b1;
 
   satp_t _satp;
-  pmp_state_t _pmp_state;
-  pmp_region_state_t _pmp;
   mmu_if _translation ();
   mem_if _memory (
     .clk(_clk),
@@ -39,7 +36,6 @@ module tb_sv32_walker;
     .clk(_clk),
     .rst(_rst),
     .satp(_satp),
-    .pmp(_pmp),
     .translation(_translation),
     .memory(_memory)
   );
@@ -107,7 +103,12 @@ module tb_sv32_walker;
     _memory.req_ready = 1'b0;
 
     repeat (response_delay_cycles) @(negedge _clk);
-    _memory.rsp = '{valid: 1'b1, read_data: mem_data_t'(pte)};
+    _memory.rsp = '{
+        valid: 1'b1,
+        read_data: mem_data_t'(pte),
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
 
     while (!_memory.rsp_ready) begin
       @(negedge _clk);
@@ -136,9 +137,48 @@ module tb_sv32_walker;
 
     // Changes on read_data before valid is asserted are not responses and must
     // not affect the walk. The PTE present on the response transfer is sampled.
-    _memory.rsp = '{valid: 1'b0, read_data: mem_data_t'(unaccepted_pte)};
+    _memory.rsp = '{
+        valid: 1'b0,
+        read_data: mem_data_t'(unaccepted_pte),
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     repeat (2) @(negedge _clk);
-    _memory.rsp = '{valid: 1'b1, read_data: mem_data_t'(accepted_pte)};
+    _memory.rsp = '{
+        valid: 1'b1,
+        read_data: mem_data_t'(accepted_pte),
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
+
+    while (!_memory.rsp_ready) begin
+      @(negedge _clk);
+    end
+
+    @(posedge _clk);
+    @(negedge _clk);
+    _memory.rsp = '0;
+  endtask
+
+  task automatic serve_pte_fault(input mem_addr_t expected_addr, input mmu_fault_e fault,
+                                 input string what);
+    _memory.req_ready = 1'b1;
+
+    while (!_memory.req.valid) begin
+      @(negedge _clk);
+    end
+
+    expect_addr(_memory.req.addr, expected_addr, $sformatf("%s request address", what));
+    expect_logic(_memory.req.write_en, 1'b0, $sformatf("%s is a read", what));
+    @(posedge _clk);
+    @(negedge _clk);
+    _memory.req_ready = 1'b0;
+    _memory.rsp = '{
+        valid: 1'b1,
+        read_data: '0,
+        fault: fault,
+        pmp_annotation: '0
+    };
 
     while (!_memory.rsp_ready) begin
       @(negedge _clk);
@@ -207,8 +247,6 @@ module tb_sv32_walker;
     end
 
     _satp = '0;
-    _pmp_state = '0;
-    _pmp = '0;
     _translation.req = '0;
     _translation.rsp_ready = 1'b0;
     _memory.req_ready = 1'b0;
@@ -230,22 +268,12 @@ module tb_sv32_walker;
     expect_no_memory_request("machine translation does not access memory");
     expect_response(MMU_FAULT_NONE, 32'h9234_5678, 0, "machine bypass");
 
-    // Page-table reads use effective supervisor privilege and therefore fail
-    // when no PMP entry grants access to the page tables.
+    // A physical-side PMP fault is returned by the memory boundary and is
+    // converted into the walk's access fault response.
     begin_translation(32'h3456_789a, MMU_ACCESS_LOAD, PRIV_SUPERVISOR, 1'b0, 1'b0);
-    expect_no_memory_request("PMP-denied walk does not access memory");
+    serve_pte_fault(pte_address(_satp.ppn[19:0], 10'h0d1), MMU_FAULT_ACCESS,
+                    "PMP-denied page-table read");
     expect_response(MMU_FAULT_ACCESS, '0, 0, "PMP-denied page-table read");
-
-    _pmp_state.addr[0] = '1;
-    _pmp_state.cfg[0] = '{
-        locked: 1'b0,
-        reserved: '0,
-        addr_match: PMP_ADDR_NAPOT,
-        execute: 1'b1,
-        write: 1'b1,
-        read: 1'b1
-    };
-    _pmp = pmp_decode_regions(_pmp_state);
 
     // The accepted request and root PPN remain stable even if the live inputs
     // change while the walk is active.

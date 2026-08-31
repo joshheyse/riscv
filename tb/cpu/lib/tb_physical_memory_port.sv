@@ -69,6 +69,9 @@ module tb_physical_memory_port;
         valid: 1'b1,
         write_en: 1'b1,
         addr: 32'h1000_0040,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_STORE,
+        privilege: PRIV_MACHINE,
         write_data: 32'hdead_beef,
         write_mask: 4'b1010
     };
@@ -94,7 +97,12 @@ module tb_physical_memory_port;
 
     // Even a same-cycle physical response is captured, not exposed directly.
     _downstream.req_ready = 1'b1;
-    _downstream.rsp = '{valid: 1'b1, read_data: 32'hcafe_babe};
+    _downstream.rsp = '{
+        valid: 1'b1,
+        read_data: 32'hcafe_babe,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     #1;
     expect_bit(_upstream.rsp.valid, 1'b0, "same-cycle response does not pass through");
     @(posedge _clk);
@@ -107,7 +115,16 @@ module tb_physical_memory_port;
     expect_bit(_upstream.req_ready, 1'b1, "port returns idle after response transfer");
 
     // Exercise a delayed response and upstream response backpressure.
-    _upstream.req = '{valid: 1'b1, write_en: 1'b0, addr: 32'h8000_0100, default: '0};
+    _upstream.req = '{
+        valid: 1'b1,
+        write_en: 1'b0,
+        addr: 32'h8000_0100,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_LOAD,
+        privilege: PRIV_MACHINE,
+        write_data: '0,
+        write_mask: '0
+    };
     @(posedge _clk);
     #1;
     _upstream.req = '0;
@@ -117,7 +134,12 @@ module tb_physical_memory_port;
     expect_bit(_downstream.req.valid, 1'b0, "accepted request removed while awaiting response");
     expect_bit(_downstream.rsp_ready, 1'b1, "port ready for delayed response");
     _upstream.rsp_ready = 1'b0;
-    _downstream.rsp = '{valid: 1'b1, read_data: 32'h0123_4567};
+    _downstream.rsp = '{
+        valid: 1'b1,
+        read_data: 32'h0123_4567,
+        fault: MMU_FAULT_NONE,
+        pmp_annotation: '0
+    };
     @(posedge _clk);
     #1;
     _downstream.rsp = '0;

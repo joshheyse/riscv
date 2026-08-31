@@ -106,17 +106,27 @@ package pmp_pkg;
     return next_state;
   endfunction
 
-  function automatic logic pmp_access_allowed(
+  typedef struct packed {
+    logic            allowed;
+    pmp_annotation_t annotation;
+  } pmp_check_t;
+
+  // Check one physical access and return the selected region's raw
+  // permissions at the same time.  Keeping the scan in one function lets the
+  // physical annotator share the comparison work between its access decision
+  // and the metadata sent to a cache on a refill.
+  function automatic pmp_check_t pmp_check(
       input pmp_region_state_t state, input mem_addr_t addr, input mem_size_e size,
       input mmu_access_e access, input priv_mode_e privilege);
-    logic              matched;
-    logic              allowed;
-    logic       [34:0] access_start;
-    logic       [34:0] access_end;
-    logic       [34:0] access_bytes;
+    pmp_check_t result;
+    logic       matched;
+    logic [34:0] access_start;
+    logic [34:0] access_end;
+    logic [34:0] access_bytes;
 
     matched = 1'b0;
-    allowed = privilege == PRIV_MACHINE;
+    result = '0;
+    result.allowed = privilege == PRIV_MACHINE;
     access_start = {3'b000, addr};
     case (size)
       MEM_SIZE_BYTE: access_bytes = 35'd1;
@@ -133,23 +143,49 @@ package pmp_pkg;
         matched = 1'b1;
         if ((access_start >= state.entries[entry].start) &&
             (access_end <= state.entries[entry].end_addr)) begin
+          result.annotation = '0;
+          result.annotation.valid = 1'b1;
+          result.annotation.read = state.entries[entry].read;
+          result.annotation.write = state.entries[entry].write;
+          result.annotation.execute = state.entries[entry].execute;
           if ((privilege == PRIV_MACHINE) && !state.entries[entry].locked) begin
-            allowed = 1'b1;
+            result.allowed = 1'b1;
           end else begin
             case (access)
-              MMU_ACCESS_FETCH: allowed = state.entries[entry].execute;
-              MMU_ACCESS_LOAD:  allowed = state.entries[entry].read;
-              MMU_ACCESS_STORE: allowed = state.entries[entry].write;
-              default:          allowed = 1'b0;
+              MMU_ACCESS_FETCH: result.allowed = state.entries[entry].execute;
+              MMU_ACCESS_LOAD:  result.allowed = state.entries[entry].read;
+              MMU_ACCESS_STORE: result.allowed = state.entries[entry].write;
+              default:          result.allowed = 1'b0;
             endcase
           end
         end else begin
-          allowed = 1'b0;
+          result.allowed = 1'b0;
         end
       end
     end
 
-    return allowed;
+    return result;
+  endfunction
+
+  function automatic logic pmp_access_allowed(
+      input pmp_region_state_t state, input mem_addr_t addr, input mem_size_e size,
+      input mmu_access_e access, input priv_mode_e privilege);
+    return pmp_check(state, addr, size, access, privilege).allowed;
+  endfunction
+
+  function automatic logic pmp_annotation_allowed(
+      input pmp_annotation_t annotation, input mmu_access_e access,
+      input priv_mode_e privilege);
+    if (privilege == PRIV_MACHINE) begin
+      return 1'b1;
+    end
+
+    case (access)
+      MMU_ACCESS_FETCH: return annotation.valid && annotation.execute;
+      MMU_ACCESS_LOAD:  return annotation.valid && annotation.read;
+      MMU_ACCESS_STORE: return annotation.valid && annotation.write;
+      default:          return 1'b0;
+    endcase
   endfunction
 
 endpackage

@@ -4,7 +4,8 @@ module l1_cache
   import riscv_pkg::*;
 #(
   parameter mem_addr_t CacheableBase = '0,
-  parameter mem_addr_t CacheableEnd  = '0
+  parameter mem_addr_t CacheableEnd  = '0,
+  parameter bit        PmpEnabled    = 1'b1
 ) (
   input logic clk,
   input logic rst,
@@ -57,7 +58,9 @@ module l1_cache
     end
   endgenerate
 
-  set_associative_cache _cache (
+  set_associative_cache #(
+    .PmpEnabled(PmpEnabled)
+  ) _cache (
     .clk(clk),
     .rst(rst),
     .upstream(_to_cache),

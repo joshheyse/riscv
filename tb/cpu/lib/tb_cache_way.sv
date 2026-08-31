@@ -17,10 +17,14 @@ module tb_cache_way;
   mem_write_mask_t _write_mask;
   cache_meta_op_e  _meta_op;
   tag_t            _install_tag;
+  pmp_annotation_t _install_pmp_annotation;
+  priv_mode_e      _metadata_privilege;
   logic            _hit;
   logic            _valid;
   logic            _dirty;
   tag_t            _stored_tag;
+  pmp_annotation_t _stored_pmp_annotation;
+  priv_mode_e      _stored_privilege;
   mem_data_t       _read_data;
 
   int unsigned     _errors;
@@ -38,10 +42,14 @@ module tb_cache_way;
     .write_mask(_write_mask),
     .meta_op(_meta_op),
     .install_tag(_install_tag),
+    .install_pmp_annotation(_install_pmp_annotation),
+    .metadata_privilege(_metadata_privilege),
     .hit(_hit),
     .valid(_valid),
     .dirty(_dirty),
     .stored_tag(_stored_tag),
+    .stored_pmp_annotation(_stored_pmp_annotation),
+    .stored_privilege(_stored_privilege),
     .read_data(_read_data)
   );
 
@@ -131,6 +139,13 @@ module tb_cache_way;
     _write_mask    = '0;
     _meta_op       = META_NONE;
     _install_tag   = '0;
+    _install_pmp_annotation = '{
+        valid: 1'b1,
+        read: 1'b1,
+        write: 1'b0,
+        execute: 1'b1
+    };
+    _metadata_privilege = PRIV_MACHINE;
     _errors        = 0;
     _checks        = 0;
 
@@ -152,6 +167,9 @@ module tb_cache_way;
     expect_bit(_dirty, 1'b0, "install marks line clean");
     expect_bit(_hit, 1'b1, "installed tag hits");
     expect_tag(_stored_tag, TagA, "install stores tag");
+    expect_bit(_stored_pmp_annotation == _install_pmp_annotation, 1'b1,
+               "install stores PMP annotation");
+    expect_bit(_stored_privilege == PRIV_MACHINE, 1'b1, "install stores metadata privilege");
     read_word(SetA, word_index_t'(2), 32'h1122_3344,
               "simultaneous install and data write stores final beat");
 

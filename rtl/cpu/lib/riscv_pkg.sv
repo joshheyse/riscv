@@ -38,6 +38,34 @@ package riscv_pkg;
     PRIV_MACHINE    = 2'b11
   } priv_mode_e;
 
+  // Physical memory requests retain the architectural operation that caused
+  // them.  The downstream PMP annotator uses this context for both the
+  // protection decision and the permission metadata attached to cache fills.
+  typedef enum logic [1:0] {
+    MEM_SIZE_BYTE,
+    MEM_SIZE_HALF,
+    MEM_SIZE_WORD
+  } mem_size_e;
+
+  typedef enum logic [1:0] {
+    MMU_ACCESS_FETCH,
+    MMU_ACCESS_LOAD,
+    MMU_ACCESS_STORE
+  } mmu_access_e;
+
+  typedef enum logic [1:0] {
+    MMU_FAULT_NONE,   // Translation completed successfully.
+    MMU_FAULT_PAGE,   // Page-table contents or permissions rejected the access.
+    MMU_FAULT_ACCESS  // Translation required an unsupported physical access.
+  } mmu_fault_e;
+
+  typedef struct packed {
+    logic valid;
+    logic read;
+    logic write;
+    logic execute;
+  } pmp_annotation_t;
+
   typedef enum csr_addr_raw_t {
     CSR_SSTATUS    = 12'h100,
     CSR_SIE        = 12'h104,
@@ -121,6 +149,9 @@ package riscv_pkg;
     logic            valid;       // request valid; one request at a time
     logic            write_en;    // 1 = write/store transaction, 0 = read/load
     mem_addr_t       addr;        // target byte address
+    mem_size_e       size;        // architectural access width
+    mmu_access_e     access;      // fetch, load, or store for PMP checking
+    priv_mode_e      privilege;   // privilege of the original access
     mem_data_t       write_data;  // write payload
     mem_write_mask_t write_mask;  // active byte lanes for writes
   } mem_req_t;
@@ -128,6 +159,8 @@ package riscv_pkg;
   typedef struct packed {
     logic      valid;      // response data is on the bus this cycle
     mem_data_t read_data;  // read payload when valid=1 and write_en=0
+    mmu_fault_e fault;     // physical-side access fault, if any
+    pmp_annotation_t pmp_annotation;  // raw R/W/X permissions for this address
   } mem_rsp_t;
 
   typedef word_t tval_t;
@@ -377,12 +410,6 @@ package riscv_pkg;
     PC_SRC_INC     = 1'b0,
     PC_SRC_IEU_ADR = 1'b1
   } pc_src_e;
-
-  typedef enum logic [1:0] {
-    MEM_SIZE_BYTE,
-    MEM_SIZE_HALF,
-    MEM_SIZE_WORD
-  } mem_size_e;
 
   typedef enum logic [1:0] {
     CSR_OP_RW,
@@ -795,18 +822,6 @@ package riscv_pkg;
     META_CLEAR_DIRTY,  // Mark the selected line clean after write-back.
     META_INVALIDATE    // Clear both valid and dirty for the selected set.
   } cache_meta_op_e;
-
-  typedef enum logic [1:0] {
-    MMU_ACCESS_FETCH,
-    MMU_ACCESS_LOAD,
-    MMU_ACCESS_STORE
-  } mmu_access_e;
-
-  typedef enum logic [1:0] {
-    MMU_FAULT_NONE,   // Translation completed successfully.
-    MMU_FAULT_PAGE,   // Page-table contents or permissions rejected the access.
-    MMU_FAULT_ACCESS  // Translation required an unsupported physical access.
-  } mmu_fault_e;
 
   typedef struct packed {
     sv32_vpn_t         vpn;     // virtual address bits [31:12]

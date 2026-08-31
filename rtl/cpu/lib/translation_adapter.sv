@@ -2,18 +2,15 @@
 
 module translation_adapter
   import riscv_pkg::*;
-  import pmp_pkg::*;
   import sv32_pkg::*;
 #(
-  parameter bit TlbEnabled = 1'b1,
-  parameter bit PmpEnabled = 1'b1
+  parameter bit TlbEnabled = 1'b1
 ) (
   input logic           clk,
   input logic           rst,
   input tlb_flush_req_t tlb_flush,
 
   input satp_t            satp,
-  input pmp_region_state_t pmp,
   input translation_ctx_t ctx,
 
   vmem_if.slave    upstream,
@@ -40,16 +37,6 @@ module translation_adapter
   vmem_rsp_t        _vmem_response;
   mem_addr_t        _physical_addr;
   mem_req_t         _mem_request;
-  logic             _live_pmp_allowed;
-
-  always_comb begin
-    if (PmpEnabled) begin
-      _live_pmp_allowed = pmp_access_allowed(
-          pmp, upstream.req.addr, upstream.req.size, ctx.access, ctx.privilege);
-    end else begin
-      _live_pmp_allowed = 1'b1;
-    end
-  end
 
   always_comb begin
     upstream.rsp = _vmem_response;
@@ -142,27 +129,11 @@ module translation_adapter
               _physical_addr <= upstream.req.addr;
               _ctx <= ctx;
               _vmem_request <= upstream.req;
-              if (!_live_pmp_allowed) begin
-                _vmem_response <= '{
-                    valid: 1'b1,
-                    fault: MMU_FAULT_ACCESS,
-                    read_data: '0,
-                    physical_addr: '0
-                };
-                _state <= RESPOND;
-              end else begin
-                // Present the captured request in PHYSICAL_REQUEST on the
-                // following cycle; no downstream ready signal is part of the
-                // IDLE acceptance decision.
-                _mem_request <= '{
-                    valid: 1'b1,
-                    addr: upstream.req.addr,
-                    write_en: upstream.req.write_en,
-                    write_data: upstream.req.write_data,
-                    write_mask: upstream.req.write_mask
-                };
-                _state <= PHYSICAL_REQUEST;
-              end
+              // Construct the downstream request in PHYSICAL_REQUEST after
+              // the physical-address PMP check. No downstream ready signal is
+              // part of the IDLE acceptance decision.
+              _mem_request <= '0;
+              _state <= PHYSICAL_REQUEST;
             end else begin
               _ctx <= ctx;
               _request_asid <= satp.asid;
@@ -211,37 +182,29 @@ module translation_adapter
           end
         end
         PHYSICAL_REQUEST: begin
-          if (PmpEnabled && !pmp_access_allowed(
-                pmp, _physical_addr, _vmem_request.size, _ctx.access, _ctx.privilege)) begin
-            _mem_request <= '0;
-            _vmem_response <= '{
-                valid: 1'b1,
-                fault: MMU_FAULT_ACCESS,
-                read_data: '0,
-                physical_addr: '0
-            };
-            _state <= RESPOND;
-          end else begin
-            _mem_request <= '{
-                valid: 1'b1,
-                addr: _physical_addr,
-                write_en: _vmem_request.write_en,
-                write_data: _vmem_request.write_data,
-                write_mask: _vmem_request.write_mask
-            };
-            if (downstream.req.valid && downstream.req_ready) begin
-              _mem_request.valid <= 1'b0;
-              if (downstream.rsp.valid) begin
-                _vmem_response <= '{
-                    valid: 1'b1,
-                    fault: MMU_FAULT_NONE,
-                    read_data: downstream.rsp.read_data,
-                    physical_addr: _physical_addr
-                };
-                _state <= RESPOND;
-              end else begin
-                _state <= PHYSICAL_WAIT;
-              end
+          _mem_request <= '{
+              valid: 1'b1,
+              addr: _physical_addr,
+              size: _vmem_request.size,
+              access: _ctx.access,
+              privilege: _ctx.privilege,
+              write_en: _vmem_request.write_en,
+              write_data: _vmem_request.write_data,
+              write_mask: _vmem_request.write_mask
+          };
+          if (downstream.req.valid && downstream.req_ready) begin
+            _mem_request.valid <= 1'b0;
+            if (downstream.rsp.valid) begin
+              _vmem_response <= '{
+                  valid: 1'b1,
+                  fault: downstream.rsp.fault,
+                  read_data: downstream.rsp.read_data,
+                  physical_addr: downstream.rsp.fault == MMU_FAULT_NONE ?
+                      _physical_addr : '0
+              };
+              _state <= RESPOND;
+            end else begin
+              _state <= PHYSICAL_WAIT;
             end
           end
         end
@@ -249,9 +212,10 @@ module translation_adapter
           if (downstream.rsp.valid) begin
             _vmem_response <= '{
                 valid: 1'b1,
-                fault: MMU_FAULT_NONE,
+                fault: downstream.rsp.fault,
                 read_data: downstream.rsp.read_data,
-                physical_addr: _physical_addr
+                physical_addr: downstream.rsp.fault == MMU_FAULT_NONE ?
+                    _physical_addr : '0
             };
             _state <= RESPOND;
           end

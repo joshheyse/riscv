@@ -172,7 +172,14 @@ module tb_core_interrupt
   task automatic clint_write(input mem_addr_t addr, input mem_data_t data);
     @(negedge _clk);
     _clint_mem.req = '{
-        valid: 1'b1, write_en: 1'b1, addr: addr, write_data: data, write_mask: 4'hf
+        valid: 1'b1,
+        write_en: 1'b1,
+        addr: addr,
+        size: MEM_SIZE_WORD,
+        access: MMU_ACCESS_STORE,
+        privilege: PRIV_MACHINE,
+        write_data: data,
+        write_mask: 4'hf
     };
     @(posedge _clk);
     #1;

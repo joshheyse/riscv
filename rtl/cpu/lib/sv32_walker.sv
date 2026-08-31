@@ -10,18 +10,13 @@
 // software must synchronize page-table updates and execute SFENCE.VMA.
 module sv32_walker
   import riscv_pkg::*;
-  import pmp_pkg::*;
   import sv32_pkg::*;
-#(
-  parameter bit PmpEnabled = 1'b1
-)
 (
   input logic  clk,
   input logic  rst,
   /* verilator lint_off UNUSEDSIGNAL */
   input satp_t satp,
   /* verilator lint_on UNUSEDSIGNAL */
-  input pmp_region_state_t pmp,
 
   mmu_if.responder translation,
   mem_if.master    memory
@@ -87,10 +82,7 @@ module sv32_walker
                                        _request.virtual_addr.fields.vpn.vpn0,
             2'b00
           };
-          if (!ppn_is_supported(_table_ppn) ||
-              (PmpEnabled &&
-              !pmp_access_allowed(
-                  pmp, pte_addr, MEM_SIZE_WORD, MMU_ACCESS_LOAD, PRIV_SUPERVISOR))) begin
+          if (!ppn_is_supported(_table_ppn)) begin
             _response <= '{
                 valid: 1'b1,
                 fault: MMU_FAULT_ACCESS,
@@ -102,6 +94,12 @@ module sv32_walker
           end else begin
             _memory_request.valid <= 1'b1;
             _memory_request.addr <= pte_addr;
+            _memory_request.size <= MEM_SIZE_WORD;
+            _memory_request.access <= MMU_ACCESS_LOAD;
+            _memory_request.privilege <= PRIV_SUPERVISOR;
+            _memory_request.write_en <= 1'b0;
+            _memory_request.write_data <= '0;
+            _memory_request.write_mask <= '0;
             if (memory.req.valid && memory.req_ready) begin
               _memory_request.valid <= 1'b0;
               _state                <= PTE_WAIT;
@@ -110,20 +108,58 @@ module sv32_walker
         end
         PTE_WAIT: begin
           if (memory.rsp.valid && memory.rsp_ready) begin
-            sv32_pte_t pte;
-            pte = sv32_pte_t'(memory.rsp.read_data);
-            pte.global_mapping = pte.global_mapping || _global_mapping;
-            if (pte_is_invalid(pte)) begin
+            if (memory.rsp.fault != MMU_FAULT_NONE) begin
               _response <= '{
                   valid: 1'b1,
-                  fault: MMU_FAULT_PAGE,
+                  fault: memory.rsp.fault,
                   physical_addr: '0,
                   leaf_level: SV32_LEVEL_0,
                   leaf_pte: '0
               };
               _state <= RESPOND;
-            end else if (pte_is_leaf(pte)) begin
-              if (!leaf_access_allowed(pte, _request) || leaf_is_misaligned(pte, _level)) begin
+            end else begin
+              sv32_pte_t pte;
+              pte = sv32_pte_t'(memory.rsp.read_data);
+              pte.global_mapping = pte.global_mapping || _global_mapping;
+              if (pte_is_invalid(pte)) begin
+                _response <= '{
+                    valid: 1'b1,
+                    fault: MMU_FAULT_PAGE,
+                    physical_addr: '0,
+                    leaf_level: SV32_LEVEL_0,
+                    leaf_pte: '0
+                };
+                _state <= RESPOND;
+              end else if (pte_is_leaf(pte)) begin
+                if (!leaf_access_allowed(pte, _request) || leaf_is_misaligned(pte, _level)) begin
+                  _response <= '{
+                      valid: 1'b1,
+                      fault: MMU_FAULT_PAGE,
+                      physical_addr: '0,
+                      leaf_level: SV32_LEVEL_0,
+                      leaf_pte: '0
+                  };
+                  _state <= RESPOND;
+                end else if (!ppn_is_supported(pte.ppn)) begin
+                  _response <= '{
+                      valid: 1'b1,
+                      fault: MMU_FAULT_ACCESS,
+                      physical_addr: '0,
+                      leaf_level: SV32_LEVEL_0,
+                      leaf_pte: '0
+                  };
+                  _state <= RESPOND;
+                end else begin
+                  _response <= '{
+                      valid: 1'b1,
+                      fault: MMU_FAULT_NONE,
+                      physical_addr: leaf_physical_address(pte, _level, _request.virtual_addr),
+                      leaf_level: _level,
+                      leaf_pte: pte
+                  };
+                  _state <= RESPOND;
+                end
+              end else if (nonleaf_has_reserved_bits(pte) || (_level == SV32_LEVEL_0)) begin
                 _response <= '{
                     valid: 1'b1,
                     fault: MMU_FAULT_PAGE,
@@ -142,38 +178,11 @@ module sv32_walker
                 };
                 _state <= RESPOND;
               end else begin
-                _response <= '{
-                    valid: 1'b1,
-                    fault: MMU_FAULT_NONE,
-                    physical_addr: leaf_physical_address(pte, _level, _request.virtual_addr),
-                    leaf_level: _level,
-                    leaf_pte: pte
-                };
-                _state <= RESPOND;
+                _table_ppn <= pte.ppn;
+                _global_mapping <= _global_mapping || pte.global_mapping;
+                _level <= SV32_LEVEL_0;
+                _state <= PTE_REQUEST;
               end
-            end else if (nonleaf_has_reserved_bits(pte) || (_level == SV32_LEVEL_0)) begin
-              _response <= '{
-                  valid: 1'b1,
-                  fault: MMU_FAULT_PAGE,
-                  physical_addr: '0,
-                  leaf_level: SV32_LEVEL_0,
-                  leaf_pte: '0
-              };
-              _state <= RESPOND;
-            end else if (!ppn_is_supported(pte.ppn)) begin
-              _response <= '{
-                  valid: 1'b1,
-                  fault: MMU_FAULT_ACCESS,
-                  physical_addr: '0,
-                  leaf_level: SV32_LEVEL_0,
-                  leaf_pte: '0
-              };
-              _state <= RESPOND;
-            end else begin
-              _table_ppn <= pte.ppn;
-              _global_mapping <= _global_mapping || pte.global_mapping;
-              _level <= SV32_LEVEL_0;
-              _state <= PTE_REQUEST;
             end
           end
         end

@@ -70,8 +70,13 @@ module top_sim
   assign _board_mem.req.valid = _core_mem.req.valid & !_sim_halt_selected;
   assign _board_mem.req.write_en = _core_mem.req.write_en & !_sim_halt_selected;
   assign _board_mem.req.addr = _core_mem.req.addr;
+  assign _board_mem.req.size = _core_mem.req.size;
+  assign _board_mem.req.access = _core_mem.req.access;
+  assign _board_mem.req.privilege = _core_mem.req.privilege;
   assign _board_mem.req.write_data = _core_mem.req.write_data;
   assign _board_mem.req.write_mask = _core_mem.req.write_mask;
+  assign _core_mem.rsp.fault = _board_mem.rsp.fault;
+  assign _core_mem.rsp.pmp_annotation = _board_mem.rsp.pmp_annotation;
   assign _uart.rx = _uart_rx;
 
   initial begin

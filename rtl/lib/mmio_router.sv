@@ -92,6 +92,9 @@ module mmio_router
               valid    : dbus.req.valid && _selected[gi] && !_outstanding,
               write_en : dbus.req.write_en && _selected[gi] && SourceMap[gi].writeable,
               addr     : dbus.req.addr,
+              size     : dbus.req.size,
+              access   : dbus.req.access,
+              privilege: dbus.req.privilege,
               write_data: dbus.req.write_data,
               write_mask: dbus.req.write_mask
           };
@@ -119,6 +122,8 @@ module mmio_router
   );
 
   always_comb begin
+    dbus.rsp.fault = MMU_FAULT_NONE;
+    dbus.rsp.pmp_annotation = '0;
     if (_outstanding) begin
       dbus.rsp.valid = |(_owner & _source_ready);
     end else if (|_selected) begin

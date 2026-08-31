@@ -58,6 +58,9 @@ module mem_arbiter (
           valid: 1'b1,
           write_en: 1'b0,
           addr: ifetch.req.addr,
+          size: ifetch.req.size,
+          access: ifetch.req.access,
+          privilege: ifetch.req.privilege,
           write_data: '0,
           write_mask: '0
       };
