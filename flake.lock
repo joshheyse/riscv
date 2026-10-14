@@ -34,10 +34,27 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1783375776,
+        "narHash": "sha256-pg6hLjDeAWaUOzh2JM2Cw0BwYpGtOyNr6A4FBwP9Ymo=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "cd648d6ea62bc0ffba91e61fcfe5e33c1e2004b1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "release-25.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "vivado-nix": "vivado-nix"
       }
     },
     "systems": {
@@ -53,6 +70,24 @@
         "owner": "nix-systems",
         "repo": "default",
         "type": "github"
+      }
+    },
+    "vivado-nix": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1791941321,
+        "narHash": "sha256-4LKnqLrjrtVSxb2iGKfQpJB4J5eCLRpX9N9531C2s5M=",
+        "ref": "refs/heads/main",
+        "rev": "9343c4656a761dc13b90bd2c7c6c52775a8fe37d",
+        "revCount": 4,
+        "type": "git",
+        "url": "https://github.com/joshheyse/vivado-nix"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/joshheyse/vivado-nix"
       }
     }
   },

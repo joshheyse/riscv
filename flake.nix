@@ -4,13 +4,27 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    # Vivado FHS wrapper around the existing out-of-store installation.
+    # Keep its pinned nixpkgs independent from this project's nixpkgs.
+    vivado-nix.url = "git+ssh://git@github.com/joshheyse/vivado-nix";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, vivado-nix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
 
+        # Proprietary Xilinx tools are available only on x86_64 Linux. The
+        # installed module set includes the Kintex UltraScale+ XCKU5P.
+        isX86 = system == "x86_64-linux";
+        vivadoInstallRoot = "/persist/xilinx";
+        vivado = vivado-nix.lib.mkVivado {
+          edition = "Vivado ML Enterprise";
+          enabledModules = [ "Kintex UltraScale+ FPGAs" ];
+          installRoot = vivadoInstallRoot;
+          installerTar = "/persist/software/2025.2.tar";
+          workDir = "/persist/tmp/vivado-extract";
+        };
         # Bare-metal RISC-V cross toolchain (riscv64-none-elf-*).
         # The book uses the riscv64-unknown-elf- prefix; only the name
         # differs, riscof/Makefiles take the prefix as a variable.
@@ -84,7 +98,7 @@
           pkgs.trellis
           pkgs.icestorm
           pkgs.openfpgaloader
-        ];
+        ] ++ pkgs.lib.optionals isX86 [ vivado.vivado ];
 
         # riscof drives the RISC-V architecture compliance tests,
         # comparing your core (DUT) against the Sail golden model.
@@ -101,7 +115,11 @@
         ];
       in
       {
-        packages.sv-elab = svElab;
+        packages = {
+          sv-elab = svElab;
+        } // pkgs.lib.optionalAttrs isX86 {
+          inherit (vivado) vivado vivado-install;
+        };
 
         devShells.default = pkgs.mkShell {
           name = "riscv-soc";
@@ -135,6 +153,11 @@
               autoload -Uz compinit
               compinit
               source <(just --completions zsh)
+            fi
+          '' + pkgs.lib.optionalString isX86 ''
+            _vivado_root="''${VIVADO_INSTALL_ROOT:-${vivadoInstallRoot}}"
+            if [ ! -d "$_vivado_root" ]; then
+              echo "[fpga] Vivado not installed at $_vivado_root — nix run .#vivado-install"
             fi
           '';
         };
