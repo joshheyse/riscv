@@ -37,15 +37,131 @@ LOCATE COMP "uart_tx" SITE "P3";
 IOBUF PORT "uart_rx" IO_TYPE=LVCMOS33;
 IOBUF PORT "uart_tx" IO_TYPE=LVCMOS33;
 
-# Generic 4-wire SPI port on valid CABGA381 user IO sites.
-LOCATE COMP "spi_mosi" SITE "W2";
-LOCATE COMP "spi_miso" SITE "V2";
-LOCATE COMP "spi_cs_n" SITE "R2";
-LOCATE COMP "spi_sck" SITE "W1";
-IOBUF PORT "spi_sck" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_mosi" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_miso" IO_TYPE=LVCMOS33;
-IOBUF PORT "spi_cs_n" IO_TYPE=LVCMOS33;
+# microSD socket (J31 -> J42).  The card uses SPI mode: CMD is MOSI, DAT0 is
+# MISO, and DAT3 is chip select.  Card detect is an active-low input.
+LOCATE COMP "sd_sck" SITE "C6";
+LOCATE COMP "sd_mosi" SITE "C7";
+LOCATE COMP "sd_miso" SITE "E8";
+LOCATE COMP "sd_cs_n" SITE "D8";
+LOCATE COMP "sd_cd_n" SITE "A7";
+IOBUF PORT "sd_sck" IO_TYPE=LVCMOS33;
+IOBUF PORT "sd_mosi" IO_TYPE=LVCMOS33;
+IOBUF PORT "sd_miso" IO_TYPE=LVCMOS33;
+IOBUF PORT "sd_cs_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sd_cd_n" IO_TYPE=LVCMOS33;
+
+# SDRAM (J39/J40 -> U1/U2).  Address, bank, command, clock, and data-mask
+# signals are shared by both devices; the two chip-selects select U1 or U2.
+LOCATE COMP "sdram_a[0]" SITE "B10";
+LOCATE COMP "sdram_a[1]" SITE "E7";
+LOCATE COMP "sdram_a[2]" SITE "M1";
+LOCATE COMP "sdram_a[3]" SITE "A19";
+LOCATE COMP "sdram_a[4]" SITE "K4";
+LOCATE COMP "sdram_a[5]" SITE "D14";
+LOCATE COMP "sdram_a[6]" SITE "P1";
+LOCATE COMP "sdram_a[7]" SITE "C14";
+LOCATE COMP "sdram_a[8]" SITE "L1";
+LOCATE COMP "sdram_a[9]" SITE "L2";
+LOCATE COMP "sdram_a[10]" SITE "A9";
+LOCATE COMP "sdram_a[11]" SITE "N2";
+LOCATE COMP "sdram_a[12]" SITE "L3";
+LOCATE COMP "sdram_dq[0]" SITE "D15";
+LOCATE COMP "sdram_dq[1]" SITE "B15";
+LOCATE COMP "sdram_dq[2]" SITE "C15";
+LOCATE COMP "sdram_dq[3]" SITE "B13";
+LOCATE COMP "sdram_dq[4]" SITE "B20";
+LOCATE COMP "sdram_dq[5]" SITE "D11";
+LOCATE COMP "sdram_dq[6]" SITE "E11";
+LOCATE COMP "sdram_dq[7]" SITE "B12";
+LOCATE COMP "sdram_dq[8]" SITE "N4";
+LOCATE COMP "sdram_dq[9]" SITE "M4";
+LOCATE COMP "sdram_dq[10]" SITE "L4";
+LOCATE COMP "sdram_dq[11]" SITE "J3";
+LOCATE COMP "sdram_dq[12]" SITE "J4";
+LOCATE COMP "sdram_dq[13]" SITE "H2";
+LOCATE COMP "sdram_dq[14]" SITE "A15";
+LOCATE COMP "sdram_dq[15]" SITE "K2";
+LOCATE COMP "sdram_dqm[0]" SITE "C12";
+LOCATE COMP "sdram_dqm[1]" SITE "N3";
+LOCATE COMP "sdram_ba[0]" SITE "E13";
+LOCATE COMP "sdram_ba[1]" SITE "A14";
+LOCATE COMP "sdram_we_n" SITE "D12";
+LOCATE COMP "sdram_cas_n" SITE "E12";
+LOCATE COMP "sdram_ras_n" SITE "C13";
+LOCATE COMP "sdram_cs0_n" SITE "D13";
+LOCATE COMP "sdram_cs1_n" SITE "N1";
+LOCATE COMP "sdram_cke" SITE "M5";
+LOCATE COMP "sdram_clk" SITE "K5";
+IOBUF PORT "sdram_a[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[4]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[5]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[6]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[7]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[8]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[9]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[10]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[11]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_a[12]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[4]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[5]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[6]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[7]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[8]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[9]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[10]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[11]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[12]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[13]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[14]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dq[15]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dqm[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_dqm[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_ba[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_ba[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_we_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_cas_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_ras_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_cs0_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_cs1_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_cke" IO_TYPE=LVCMOS33;
+IOBUF PORT "sdram_clk" IO_TYPE=LVCMOS33;
+
+# USB host connector path (J31 -> U3/U4 -> J43).  D+/D- are bidirectional;
+# USB_OC# is the active-low VBUS overcurrent input.
+LOCATE COMP "usb_d_p" SITE "C8";
+LOCATE COMP "usb_d_n" SITE "B8";
+LOCATE COMP "usb_oc_n" SITE "A8";
+IOBUF PORT "usb_d_p" IO_TYPE=LVCMOS33;
+IOBUF PORT "usb_d_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "usb_oc_n" IO_TYPE=LVCMOS33;
+
+# HDMI resistor-network outputs (J32 -> R2-R9 -> J41).  These are ordinary
+# single-ended FPGA I/O pins feeding the external 549-ohm TMDS network.
+LOCATE COMP "hdmi_tmds_clk_n" SITE "A5";
+LOCATE COMP "hdmi_tmds_clk_p" SITE "A4";
+LOCATE COMP "hdmi_tmds_d0_n" SITE "C5";
+LOCATE COMP "hdmi_tmds_d0_p" SITE "B5";
+LOCATE COMP "hdmi_tmds_d1_n" SITE "B4";
+LOCATE COMP "hdmi_tmds_d1_p" SITE "C4";
+LOCATE COMP "hdmi_tmds_d2_n" SITE "B3";
+LOCATE COMP "hdmi_tmds_d2_p" SITE "A3";
+LOCATE COMP "hdmi_hpd" SITE "D3";
+IOBUF PORT "hdmi_tmds_clk_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_clk_p" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d0_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d0_p" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d1_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d1_p" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d2_n" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_tmds_d2_p" IO_TYPE=LVCMOS33;
+IOBUF PORT "hdmi_hpd" IO_TYPE=LVCMOS33;
 
 # Arduino local I2C pins. R25/R26 are DNI for optional global I2C connection.
 LOCATE COMP "i2c_sda" SITE "G16";
